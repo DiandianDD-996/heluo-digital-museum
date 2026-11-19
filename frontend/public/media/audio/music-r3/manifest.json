@@ -1,0 +1,791 @@
+{
+  "schemaVersion": 1,
+  "revision": "r3-approved-web-loop",
+  "date": "2026-09-27",
+  "description": "User-approved R3 scene masters, boundary-only adaptation for native repeating playback.",
+  "totalAudioBytes": 4933850,
+  "audioByteBudget": 6000000,
+  "gainPolicy": "Original scene gains retained; fixed 1/0.95 input compensation cancels this libmp3lame codec's measured 0.95 attenuation. No per-track normalization, limiting or equalization.",
+  "sourceScoreSha256": "605d00b92297c9c664499500c6316d0a580a374adb3064e01a4582e1c08bcaf4",
+  "sourceRendererSha256": "dc23844c386953f2093ec83f27deff6dee66cb9a563fac5b5fd1390beff5d3e3",
+  "sourceRenderReportSha256": "7fb2cec55eae41c3e340a716ff454b43172772c788a84f5ce6034e7234514c40",
+  "sourceSampleManifestSha256": "282bc492a69cbd35021b2380331352bc4ca50085f0d58ae3b8629bfe1f39a7f6",
+  "exportScriptSha256": "3bbdc0ac8a72d9cf56f2186227b433ac30546db841f5c81970ded3efbadbe9d8",
+  "encoder": {
+    "pythonPackage": "PyAV",
+    "pyavVersion": "18.0.0",
+    "codec": "libmp3lame",
+    "description": "libmp3lame MP3 (MPEG audio layer 3)",
+    "fixedInputScale": 1.0526315789473684,
+    "fixedInputScaleDb": 0.445528,
+    "reason": "Cancel the installed encoder's fixed 0.95 scale; this is not loudness normalization.",
+    "libraries": {
+      "libavutil": "60.26.102",
+      "libavcodec": "62.28.102",
+      "libavformat": "62.12.102",
+      "libavdevice": "62.3.102",
+      "libavfilter": "11.14.102",
+      "libswscale": "9.5.102",
+      "libswresample": "6.3.102"
+    },
+    "configuration": "44.1 kHz stereo; libmp3lame 128000 bit/s; MP3 Xing/Info delay and padding metadata"
+  },
+  "measurement": "BS.1770 K-weighting, 400ms gates / 100ms hop; 4x oversampled peak estimate; decoded compressed audio measured",
+  "sourceLibrary": {
+    "name": "VS Chamber Orchestra: Community Edition",
+    "repository": "https://github.com/sgossner/VSCO-2-CE",
+    "sampleCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+    "license": "CC0-1.0",
+    "licenseUrl": "https://github.com/sgossner/VSCO-2-CE/blob/440300901dfe9275fd84e0b7763af1f8443ae62e/LICENSE",
+    "recordingCredits": [
+      "Sam Gossner / Versilian Studios",
+      "Simon Dalzell / Ivy Audio"
+    ],
+    "sampleCuttingCredit": "Elan Hickler / Soundemote",
+    "homepage": "http://vis.versilstudios.net/vsco-community.html"
+  },
+  "sourceLicense": {
+    "id": "CC0-1.0",
+    "scope": "The source instrument recordings",
+    "url": "/media/audio/music-r3/LICENSE-CC0-1.0.txt",
+    "sha256": "36ffd9dc085d529a7e60e1276d73ae5a030b020313e6c5408593a6ae2af39673"
+  },
+  "arrangement": "Original Heluo Digital Museum sampled chamber arrangements; harp is not guqin, flute is not xiao; not a recording of a live ensemble or an historical reconstruction.",
+  "samples": [
+    {
+      "instrument": "harp",
+      "sourcePath": "Strings/Harp/KSHarp_A4_mf.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Harp/KSHarp_A4_mf.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "3665f3975cad4a33f46784aa4f896f4b4319ba2b7831e892d975bc38c9f09f23",
+      "rootMidi": 69,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "harp",
+      "sourcePath": "Strings/Harp/KSHarp_F4_mf.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Harp/KSHarp_F4_mf.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "db27ebbb37334c10e06f2ae63f4d9ff555e4d11704fcc6f0bcf503863867e577",
+      "rootMidi": 65,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "cello",
+      "sourcePath": "Strings/Cello Section/susvib/susvib_C3_v1_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Cello%20Section/susvib/susvib_C3_v1_1.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "a614ee7ca821b44660236e47b89620cf914ec6ad27a99bc0d9764f47dbe512e1",
+      "rootMidi": 60,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "cello",
+      "sourcePath": "Strings/Cello Section/susvib/susvib_E3_v1_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Cello%20Section/susvib/susvib_E3_v1_1.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "d2f961e30bf64021cf4acbd88e0e7a1fd1840943ae78c62a711bcce3d109216e",
+      "rootMidi": 64,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "cello",
+      "sourcePath": "Strings/Cello Section/susvib/susvib_F2_v1_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Cello%20Section/susvib/susvib_F2_v1_1.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "162054eab4ba118924f8f8986cf1b17ccfd65211d1945743ffbae30b4953f901",
+      "rootMidi": 53,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "viola",
+      "sourcePath": "Strings/Viola Section/susvib/ViolaEns_susvib_D3_v1_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Viola%20Section/susvib/ViolaEns_susvib_D3_v1_1.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "61ab4cfc0ea90c683433a7c50b3bb4fa86a81c9d4854589562707d54ed028349",
+      "rootMidi": 62,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "harp",
+      "sourcePath": "Strings/Harp/KSHarp_B3_mf.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Harp/KSHarp_B3_mf.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "f6f71be8c640822ef48a448b245585659acdfcc7ed5774e10f37be2fc02fcab4",
+      "rootMidi": 59,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "harp",
+      "sourcePath": "Strings/Harp/KSHarp_C3_mf.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Harp/KSHarp_C3_mf.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "e5d232771704e140959819de8cf2a3e0ba49d021ca77354c42664ce4fce6d9f3",
+      "rootMidi": 48,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "harp",
+      "sourcePath": "Strings/Harp/KSHarp_D4_mf.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Harp/KSHarp_D4_mf.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "ebfde8aab4411019e37e3426f4dd88d6a52a38c2d0261d7f10ec63d8ff584dc7",
+      "rootMidi": 62,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "harp",
+      "sourcePath": "Strings/Harp/KSHarp_G3_mf.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Harp/KSHarp_G3_mf.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "62600eb1b37bc2829ca65351f7ca7e506c9ae472abd5bea0765a8b8fa7df2772",
+      "rootMidi": 55,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "flute",
+      "sourcePath": "Woodwinds/Flute/susNV/LDFlute_susNV_A3_v1_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Woodwinds/Flute/susNV/LDFlute_susNV_A3_v1_1.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "6fc8d707afddfaaf3003551b95a83b52f514adbe488bfea1c8c5250080a07278",
+      "rootMidi": 69,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "flute",
+      "sourcePath": "Woodwinds/Flute/susNV/LDFlute_susNV_C3_v1_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Woodwinds/Flute/susNV/LDFlute_susNV_C3_v1_1.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "4f221909317e257e4d0bc49f10479643c80cb213a0486455c1bdc1d6ed13a450",
+      "rootMidi": 60,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "flute",
+      "sourcePath": "Woodwinds/Flute/susNV/LDFlute_susNV_E3_v1_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Woodwinds/Flute/susNV/LDFlute_susNV_E3_v1_1.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "87c667c2af888ed86dff87f2452248de3e3d958fc93848a4426b7c16f85f09da",
+      "rootMidi": 64,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "cello",
+      "sourcePath": "Strings/Cello Section/susvib/susvib_C1_v1_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Cello%20Section/susvib/susvib_C1_v1_1.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "abdcea431f384e135c469b0f3e4ac2a437f282f521dc5bcbe22abc221536e8de",
+      "rootMidi": 36,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "cello",
+      "sourcePath": "Strings/Cello Section/susvib/susvib_G1_v1_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Cello%20Section/susvib/susvib_G1_v1_1.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "9e5d24e8e28d6c7f650f9bb2b33d43c13e341a8bd33124c64e23881378b181ba",
+      "rootMidi": 43,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "viola",
+      "sourcePath": "Strings/Viola Section/susvib/ViolaEns_susvib_C2_v1_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Viola%20Section/susvib/ViolaEns_susvib_C2_v1_1.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "8b4e0e0985d245ac9ddc39cdd06cec5bd74fa80056c074736d6eb38fdccfe636",
+      "rootMidi": 48,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "viola",
+      "sourcePath": "Strings/Viola Section/susvib/ViolaEns_susvib_G2_v1_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Viola%20Section/susvib/ViolaEns_susvib_G2_v1_1.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "557c2e033951015c30765bf18266bce0dd0412e3ca646dd1a225c32422c60662",
+      "rootMidi": 55,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "piano",
+      "sourcePath": "Keys/Upright Piano/Player_dyn1_rr1_014.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Keys/Upright%20Piano/Player_dyn1_rr1_014.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "f3d00b63bb178680fdd4d9ed7ea43d1df1cf29e00b567ccb022c2bd411a20607",
+      "rootMidi": 49,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "piano",
+      "sourcePath": "Keys/Upright Piano/Player_dyn1_rr1_018.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Keys/Upright%20Piano/Player_dyn1_rr1_018.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "01387cb5318c5abf11410ae8e2f4ef6aa83ec03254b4bccfe865aba262a2e412",
+      "rootMidi": 57,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "piano",
+      "sourcePath": "Keys/Upright Piano/Player_dyn1_rr1_022.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Keys/Upright%20Piano/Player_dyn1_rr1_022.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "660e57ad8fd868ed9c56fe36e4862a6aff1cb65b7838a568d4c4f2f0865ad1ab",
+      "rootMidi": 65,
+      "license": "CC0-1.0"
+    }
+  ],
+  "tracks": [
+    {
+      "id": "home",
+      "title": "入馆·河洛晨光",
+      "file": "home-r3.mp3",
+      "url": "/media/audio/music-r3/home-r3.mp3",
+      "mimeType": "audio/mpeg",
+      "durationSeconds": 98.2,
+      "bytes": 1572591,
+      "sha256": "ba74ebdc040578bef593a63f8d066d2a0156be8a74c2b22de0f7697ac00f0c4d",
+      "sampleRate": 44100,
+      "channels": 2,
+      "nominalBitRate": 128000,
+      "source": {
+        "file": "01-home-scene-r3.wav",
+        "sha256": "1683c067e47ffe5e96b713e84973fcf7058b44a5a0efe52c2566365c05bfa346",
+        "durationSeconds": 106.0,
+        "integratedLufs": -25.938,
+        "oversampledPeakDbtp": -9.926
+      },
+      "loop": {
+        "method": "tail-folded-into-head-complementary-raised-cosine",
+        "nativeLoop": true,
+        "loopStartSeconds": 0,
+        "loopEndSeconds": 98.2,
+        "sourceTrimEndSeconds": 100.0,
+        "crossfadeSeconds": 1.8,
+        "sourceTailStartSeconds": 98.2,
+        "sourceTailEndSeconds": 100.0,
+        "sourceTailRemovedAfterSeconds": 100.0,
+        "firstPlaybackPrefixChangedSeconds": 1.8,
+        "unchangedBodySourceStartSeconds": 1.8,
+        "unchangedBodySourceEndSeconds": 98.2,
+        "gainAppliedToWholeTrack": 1.0,
+        "pcmSeamAdjacentStep": 0.000488281,
+        "pcmNaturalSourceAdjacentStep": 0.000488281,
+        "initialPlaybackAdvice": "Fade in the player briefly; the first 1.8 seconds contain the previous tail and the original opening.",
+        "formula": "prefix[i] = tail[i] * (1-w[i]) + originalHead[i] * w[i]; w[i] = (1-cos(pi*i/(N-1)))/2; body is unchanged"
+      },
+      "pcmBeforeEncoding": {
+        "durationSeconds": 98.2,
+        "integratedLufs": -25.962,
+        "oversampledPeakDbtp": -9.926,
+        "samplePeakDbfs": -9.932,
+        "clippedSamples": 0,
+        "maximumAdjacentStep": 0.0204468,
+        "dcOffset": 0.0,
+        "monoCorrelation": 0.9855
+      },
+      "decoded": {
+        "durationSeconds": 98.2,
+        "integratedLufs": -25.962,
+        "oversampledPeakDbtp": -9.925,
+        "samplePeakDbfs": -9.93,
+        "clippedSamples": 0,
+        "maximumAdjacentStep": 0.0204524,
+        "dcOffset": 4e-08,
+        "monoCorrelation": 0.9855
+      },
+      "loudnessDeltaFromSceneLu": -0.024,
+      "codecLoudnessDeltaLu": 0.0,
+      "codecLeastSquaresGainDb": 0.0001,
+      "codecRmsDifferenceDbfs": -80.671,
+      "gapless": {
+        "codec": "mp3float",
+        "sampleRate": 44100,
+        "channels": 2,
+        "containerStartSeconds": 0.025056689,
+        "containerDurationSeconds": 98.2,
+        "xingOrInfoHeaderPresent": true,
+        "gaplessSkipRecords": [
+          {
+            "skipSamples": 1105,
+            "discardPaddingSamples": 0
+          },
+          {
+            "skipSamples": 0,
+            "discardPaddingSamples": 947
+          }
+        ],
+        "decodedFrames": 4330620,
+        "headOffsetSamples": 0,
+        "tailOffsetSamples": 0
+      },
+      "repeatBoundary": {
+        "adjacentStepAcrossRepeat": 0.000626661,
+        "nearZeroRunAcrossRepeatSeconds": 0.0,
+        "nearZeroThresholdDbfs": -90,
+        "levels400ms": [
+          {
+            "relativeStartSeconds": -1.2,
+            "ungatedLufs": -35.282
+          },
+          {
+            "relativeStartSeconds": -1.1,
+            "ungatedLufs": -35.836
+          },
+          {
+            "relativeStartSeconds": -1.0,
+            "ungatedLufs": -36.891
+          },
+          {
+            "relativeStartSeconds": -0.9,
+            "ungatedLufs": -38.62
+          },
+          {
+            "relativeStartSeconds": -0.8,
+            "ungatedLufs": -40.633
+          },
+          {
+            "relativeStartSeconds": -0.7,
+            "ungatedLufs": -42.049
+          },
+          {
+            "relativeStartSeconds": -0.6,
+            "ungatedLufs": -43.08
+          },
+          {
+            "relativeStartSeconds": -0.5,
+            "ungatedLufs": -43.362
+          },
+          {
+            "relativeStartSeconds": -0.4,
+            "ungatedLufs": -43.429
+          },
+          {
+            "relativeStartSeconds": -0.3,
+            "ungatedLufs": -44.905
+          },
+          {
+            "relativeStartSeconds": -0.2,
+            "ungatedLufs": -46.57
+          },
+          {
+            "relativeStartSeconds": -0.1,
+            "ungatedLufs": -46.932
+          },
+          {
+            "relativeStartSeconds": 0.0,
+            "ungatedLufs": -45.807
+          },
+          {
+            "relativeStartSeconds": 0.1,
+            "ungatedLufs": -43.27
+          },
+          {
+            "relativeStartSeconds": 0.2,
+            "ungatedLufs": -41.454
+          },
+          {
+            "relativeStartSeconds": 0.3,
+            "ungatedLufs": -40.366
+          },
+          {
+            "relativeStartSeconds": 0.4,
+            "ungatedLufs": -39.804
+          },
+          {
+            "relativeStartSeconds": 0.5,
+            "ungatedLufs": -39.901
+          },
+          {
+            "relativeStartSeconds": 0.6,
+            "ungatedLufs": -34.924
+          },
+          {
+            "relativeStartSeconds": 0.7,
+            "ungatedLufs": -29.593
+          },
+          {
+            "relativeStartSeconds": 0.8,
+            "ungatedLufs": -27.7
+          },
+          {
+            "relativeStartSeconds": 0.9,
+            "ungatedLufs": -26.809
+          },
+          {
+            "relativeStartSeconds": 1.0,
+            "ungatedLufs": -26.819
+          }
+        ],
+        "limit": "PCM repeat simulation; native browser loop scheduling still needs browser verification."
+      }
+    },
+    {
+      "id": "reading",
+      "title": "水岸·静读",
+      "file": "reading-r3.mp3",
+      "url": "/media/audio/music-r3/reading-r3.mp3",
+      "mimeType": "audio/mpeg",
+      "durationSeconds": 102.3,
+      "bytes": 1638207,
+      "sha256": "bd7f055b0b016dd4208e836ee410975ad1ca7ebb905493c601868b4cb1715dd0",
+      "sampleRate": 44100,
+      "channels": 2,
+      "nominalBitRate": 128000,
+      "source": {
+        "file": "02-reading-scene-r3.wav",
+        "sha256": "b3bee06af5d4e48b471419f70c2330d08ba63477524fe1b9a2f7d19d09eb92bb",
+        "durationSeconds": 110.0,
+        "integratedLufs": -28.736,
+        "oversampledPeakDbtp": -14.063
+      },
+      "loop": {
+        "method": "tail-folded-into-head-complementary-raised-cosine",
+        "nativeLoop": true,
+        "loopStartSeconds": 0,
+        "loopEndSeconds": 102.3,
+        "sourceTrimEndSeconds": 104.1,
+        "crossfadeSeconds": 1.8,
+        "sourceTailStartSeconds": 102.3,
+        "sourceTailEndSeconds": 104.1,
+        "sourceTailRemovedAfterSeconds": 104.1,
+        "firstPlaybackPrefixChangedSeconds": 1.8,
+        "unchangedBodySourceStartSeconds": 1.8,
+        "unchangedBodySourceEndSeconds": 102.3,
+        "gainAppliedToWholeTrack": 1.0,
+        "pcmSeamAdjacentStep": 0.00012207,
+        "pcmNaturalSourceAdjacentStep": 0.00012207,
+        "initialPlaybackAdvice": "Fade in the player briefly; the first 1.8 seconds contain the previous tail and the original opening.",
+        "formula": "prefix[i] = tail[i] * (1-w[i]) + originalHead[i] * w[i]; w[i] = (1-cos(pi*i/(N-1)))/2; body is unchanged"
+      },
+      "pcmBeforeEncoding": {
+        "durationSeconds": 102.3,
+        "integratedLufs": -28.721,
+        "oversampledPeakDbtp": -14.063,
+        "samplePeakDbfs": -14.069,
+        "clippedSamples": 0,
+        "maximumAdjacentStep": 0.0128784,
+        "dcOffset": 1e-08,
+        "monoCorrelation": 0.9932
+      },
+      "decoded": {
+        "durationSeconds": 102.3,
+        "integratedLufs": -28.721,
+        "oversampledPeakDbtp": -14.06,
+        "samplePeakDbfs": -14.068,
+        "clippedSamples": 0,
+        "maximumAdjacentStep": 0.012852,
+        "dcOffset": 1e-08,
+        "monoCorrelation": 0.9932
+      },
+      "loudnessDeltaFromSceneLu": 0.015,
+      "codecLoudnessDeltaLu": 0.0,
+      "codecLeastSquaresGainDb": -0.0,
+      "codecRmsDifferenceDbfs": -86.08,
+      "gapless": {
+        "codec": "mp3float",
+        "sampleRate": 44100,
+        "channels": 2,
+        "containerStartSeconds": 0.025056689,
+        "containerDurationSeconds": 102.3,
+        "xingOrInfoHeaderPresent": true,
+        "gaplessSkipRecords": [
+          {
+            "skipSamples": 1105,
+            "discardPaddingSamples": 0
+          },
+          {
+            "skipSamples": 0,
+            "discardPaddingSamples": 1001
+          }
+        ],
+        "decodedFrames": 4511430,
+        "headOffsetSamples": 0,
+        "tailOffsetSamples": 0
+      },
+      "repeatBoundary": {
+        "adjacentStepAcrossRepeat": 0.000362024,
+        "nearZeroRunAcrossRepeatSeconds": 0.0,
+        "nearZeroThresholdDbfs": -90,
+        "levels400ms": [
+          {
+            "relativeStartSeconds": -1.2,
+            "ungatedLufs": -31.924
+          },
+          {
+            "relativeStartSeconds": -1.1,
+            "ungatedLufs": -35.78
+          },
+          {
+            "relativeStartSeconds": -1.0,
+            "ungatedLufs": -36.928
+          },
+          {
+            "relativeStartSeconds": -0.9,
+            "ungatedLufs": -38.114
+          },
+          {
+            "relativeStartSeconds": -0.8,
+            "ungatedLufs": -39.799
+          },
+          {
+            "relativeStartSeconds": -0.7,
+            "ungatedLufs": -41.502
+          },
+          {
+            "relativeStartSeconds": -0.6,
+            "ungatedLufs": -43.723
+          },
+          {
+            "relativeStartSeconds": -0.5,
+            "ungatedLufs": -46.203
+          },
+          {
+            "relativeStartSeconds": -0.4,
+            "ungatedLufs": -45.223
+          },
+          {
+            "relativeStartSeconds": -0.3,
+            "ungatedLufs": -44.344
+          },
+          {
+            "relativeStartSeconds": -0.2,
+            "ungatedLufs": -44.699
+          },
+          {
+            "relativeStartSeconds": -0.1,
+            "ungatedLufs": -43.956
+          },
+          {
+            "relativeStartSeconds": 0.0,
+            "ungatedLufs": -44.086
+          },
+          {
+            "relativeStartSeconds": 0.1,
+            "ungatedLufs": -44.103
+          },
+          {
+            "relativeStartSeconds": 0.2,
+            "ungatedLufs": -43.459
+          },
+          {
+            "relativeStartSeconds": 0.3,
+            "ungatedLufs": -43.315
+          },
+          {
+            "relativeStartSeconds": 0.4,
+            "ungatedLufs": -42.607
+          },
+          {
+            "relativeStartSeconds": 0.5,
+            "ungatedLufs": -42.056
+          },
+          {
+            "relativeStartSeconds": 0.6,
+            "ungatedLufs": -41.661
+          },
+          {
+            "relativeStartSeconds": 0.7,
+            "ungatedLufs": -41.704
+          },
+          {
+            "relativeStartSeconds": 0.8,
+            "ungatedLufs": -32.108
+          },
+          {
+            "relativeStartSeconds": 0.9,
+            "ungatedLufs": -29.281
+          },
+          {
+            "relativeStartSeconds": 1.0,
+            "ungatedLufs": -27.843
+          }
+        ],
+        "limit": "PCM repeat simulation; native browser loop scheduling still needs browser verification."
+      }
+    },
+    {
+      "id": "bronze",
+      "title": "观器·温金",
+      "file": "bronze-r3.mp3",
+      "url": "/media/audio/music-r3/bronze-r3.mp3",
+      "mimeType": "audio/mpeg",
+      "durationSeconds": 107.6,
+      "bytes": 1723052,
+      "sha256": "add0dcf300c7d20c89cf66e7bbc4aaed771fab121a1695ebcd6a451c9a9444da",
+      "sampleRate": 44100,
+      "channels": 2,
+      "nominalBitRate": 128000,
+      "source": {
+        "file": "03-bronze-scene-r3.wav",
+        "sha256": "ff84125946be92b739e9a0adf1a0d4a280a3e48ae37c29b8a9bb5586dd04553c",
+        "durationSeconds": 115.0,
+        "integratedLufs": -26.854,
+        "oversampledPeakDbtp": -12.322
+      },
+      "loop": {
+        "method": "tail-folded-into-head-complementary-raised-cosine",
+        "nativeLoop": true,
+        "loopStartSeconds": 0,
+        "loopEndSeconds": 107.6,
+        "sourceTrimEndSeconds": 109.4,
+        "crossfadeSeconds": 1.8,
+        "sourceTailStartSeconds": 107.6,
+        "sourceTailEndSeconds": 109.4,
+        "sourceTailRemovedAfterSeconds": 109.4,
+        "firstPlaybackPrefixChangedSeconds": 1.8,
+        "unchangedBodySourceStartSeconds": 1.8,
+        "unchangedBodySourceEndSeconds": 107.6,
+        "gainAppliedToWholeTrack": 1.0,
+        "pcmSeamAdjacentStep": 0.001281738,
+        "pcmNaturalSourceAdjacentStep": 0.001281738,
+        "initialPlaybackAdvice": "Fade in the player briefly; the first 1.8 seconds contain the previous tail and the original opening.",
+        "formula": "prefix[i] = tail[i] * (1-w[i]) + originalHead[i] * w[i]; w[i] = (1-cos(pi*i/(N-1)))/2; body is unchanged"
+      },
+      "pcmBeforeEncoding": {
+        "durationSeconds": 107.6,
+        "integratedLufs": -26.831,
+        "oversampledPeakDbtp": -12.322,
+        "samplePeakDbfs": -12.328,
+        "clippedSamples": 0,
+        "maximumAdjacentStep": 0.0187683,
+        "dcOffset": 0.0,
+        "monoCorrelation": 0.9875
+      },
+      "decoded": {
+        "durationSeconds": 107.6,
+        "integratedLufs": -26.831,
+        "oversampledPeakDbtp": -12.347,
+        "samplePeakDbfs": -12.352,
+        "clippedSamples": 0,
+        "maximumAdjacentStep": 0.0186962,
+        "dcOffset": 1.1e-07,
+        "monoCorrelation": 0.9875
+      },
+      "loudnessDeltaFromSceneLu": 0.023,
+      "codecLoudnessDeltaLu": 0.0,
+      "codecLeastSquaresGainDb": -0.0,
+      "codecRmsDifferenceDbfs": -77.565,
+      "gapless": {
+        "codec": "mp3float",
+        "sampleRate": 44100,
+        "channels": 2,
+        "containerStartSeconds": 0.025056689,
+        "containerDurationSeconds": 107.6,
+        "xingOrInfoHeaderPresent": true,
+        "gaplessSkipRecords": [
+          {
+            "skipSamples": 1105,
+            "discardPaddingSamples": 0
+          },
+          {
+            "skipSamples": 0,
+            "discardPaddingSamples": 1127
+          }
+        ],
+        "decodedFrames": 4745160,
+        "headOffsetSamples": 0,
+        "tailOffsetSamples": 0
+      },
+      "repeatBoundary": {
+        "adjacentStepAcrossRepeat": 0.002111184,
+        "nearZeroRunAcrossRepeatSeconds": 0.0,
+        "nearZeroThresholdDbfs": -90,
+        "levels400ms": [
+          {
+            "relativeStartSeconds": -1.2,
+            "ungatedLufs": -30.314
+          },
+          {
+            "relativeStartSeconds": -1.1,
+            "ungatedLufs": -28.894
+          },
+          {
+            "relativeStartSeconds": -1.0,
+            "ungatedLufs": -28.474
+          },
+          {
+            "relativeStartSeconds": -0.9,
+            "ungatedLufs": -28.937
+          },
+          {
+            "relativeStartSeconds": -0.8,
+            "ungatedLufs": -29.417
+          },
+          {
+            "relativeStartSeconds": -0.7,
+            "ungatedLufs": -30.112
+          },
+          {
+            "relativeStartSeconds": -0.6,
+            "ungatedLufs": -30.362
+          },
+          {
+            "relativeStartSeconds": -0.5,
+            "ungatedLufs": -28.358
+          },
+          {
+            "relativeStartSeconds": -0.4,
+            "ungatedLufs": -27.419
+          },
+          {
+            "relativeStartSeconds": -0.3,
+            "ungatedLufs": -27.512
+          },
+          {
+            "relativeStartSeconds": -0.2,
+            "ungatedLufs": -27.252
+          },
+          {
+            "relativeStartSeconds": -0.1,
+            "ungatedLufs": -28.807
+          },
+          {
+            "relativeStartSeconds": 0.0,
+            "ungatedLufs": -30.612
+          },
+          {
+            "relativeStartSeconds": 0.1,
+            "ungatedLufs": -32.164
+          },
+          {
+            "relativeStartSeconds": 0.2,
+            "ungatedLufs": -35.403
+          },
+          {
+            "relativeStartSeconds": 0.3,
+            "ungatedLufs": -36.365
+          },
+          {
+            "relativeStartSeconds": 0.4,
+            "ungatedLufs": -36.373
+          },
+          {
+            "relativeStartSeconds": 0.5,
+            "ungatedLufs": -37.283
+          },
+          {
+            "relativeStartSeconds": 0.6,
+            "ungatedLufs": -37.801
+          },
+          {
+            "relativeStartSeconds": 0.7,
+            "ungatedLufs": -34.41
+          },
+          {
+            "relativeStartSeconds": 0.8,
+            "ungatedLufs": -33.756
+          },
+          {
+            "relativeStartSeconds": 0.9,
+            "ungatedLufs": -33.237
+          },
+          {
+            "relativeStartSeconds": 1.0,
+            "ungatedLufs": -32.385
+          }
+        ],
+        "limit": "PCM repeat simulation; native browser loop scheduling still needs browser verification."
+      }
+    }
+  ],
+  "verificationLimits": "No new subjective-listening, real-device, long-reading or native browser scheduling claim from these file-level measurements."
+}

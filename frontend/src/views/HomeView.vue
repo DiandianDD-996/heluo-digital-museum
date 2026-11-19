@@ -8,6 +8,11 @@ import { useTheme } from '../stores/theme'
 import PointerDotField from '../components/PointerDotField.vue'
 
 const { locale } = useLocale()
+const programme = [
+  { zh: '入馆·河洛晨光', en: 'Morning Light over Heluo', scene: ['入馆与漫游', 'Collection walk'], time: '1:38', to: '/explore' },
+  { zh: '水岸·静读', en: 'Reading by the Water', scene: ['水鸟铜器 · 阅读', 'Water bird · Reading'], time: '1:42', to: '/artifacts/water-bird-bronze' },
+  { zh: '观器·温金', en: 'Bronze in Warm Light', scene: ['青铜鼎 · 三维近观', 'Bronze ding · In 3D'], time: '1:48', to: '/exhibits/heluo-bronze-ding-3d' },
+]
 const { isDark } = useTheme()
 const root = ref<HTMLElement | null>(null)
 let gsapContext: { revert: () => void } | undefined
@@ -133,6 +138,23 @@ onBeforeUnmount(() => {
       <div class="home-cover__foot" data-motion="location"><span>{{ copy.location }}</span><RouterLink class="home-link" to="/appointment"><Calendar aria-hidden="true" />{{ copy.visit }}</RouterLink></div>
     </section>
 
+    <section class="home-score home-content" aria-labelledby="score-title">
+      <header>
+        <p class="home-eyebrow">HELUO · SOUND PROGRAMME</p>
+        <h2 id="score-title">{{ locale === 'zh-CN' ? '展馆曲目单' : 'Gallery scores' }}</h2>
+        <p>{{ locale === 'zh-CN' ? '从入馆的晨光，到水岸的静读，再到鼎前的片刻停留。' : 'From the first light in the hall to a quiet moment beside the bronze ding.' }}</p>
+      </header>
+      <ol>
+        <li v-for="(piece, i) in programme" :key="piece.to">
+          <RouterLink :to="piece.to">
+            <small aria-hidden="true">0{{ i + 1 }}</small>
+            <span><strong>{{ locale === 'zh-CN' ? piece.zh : piece.en }}</strong><span>{{ piece.scene[locale === 'zh-CN' ? 0 : 1] }}</span></span>
+            <small>{{ piece.time }}</small><ArrowRight aria-hidden="true" />
+          </RouterLink>
+        </li>
+      </ol>
+    </section>
+
     <section class="home-closeup home-content" aria-labelledby="closeup-title">
       <figure class="home-closeup__figure">
         <img src="/media/editorial/hero-bronze-ding-home-640w-v1.webp" srcset="/media/editorial/hero-bronze-ding-home-384w-v1.webp 384w, /media/editorial/hero-bronze-ding-home-640w-v1.webp 640w" sizes="(max-width: 760px) calc(100vw - 40px), 480px" width="640" height="640" :alt="copy.closeNote" loading="lazy" decoding="async" />
@@ -153,6 +175,17 @@ onBeforeUnmount(() => {
 
 <style scoped>
 /* Home owns composition. Theme colours and interaction semantics stay shared. */
+.home-score { display: grid; grid-template-columns: 4fr 5fr; align-items: start; gap: 3rem; padding-block: 3.5rem; border-bottom: 1px solid var(--theme-border); }
+.home-score h2 { font: 400 2rem/1.35 var(--font-display); margin: 0 0 .75rem; }
+.home-score header > p:last-child { max-width: 25em; color: var(--theme-text-muted); line-height: 1.8; }
+.home-score ol { margin: 0; list-style: none; padding: 0; border-top: 1px solid var(--theme-border); }
+.home-score li { border-bottom: 1px solid var(--theme-border); }
+.home-score a { display: grid; grid-template-columns: 2ch 1fr auto 1rem; align-items: center; gap: 1rem; min-height: 64px; padding: .5rem .25rem; color: var(--theme-text-strong); text-decoration: none; }
+.home-score strong { display: block; font: 500 1.125rem/1.4 var(--font-display); }
+.home-score a:hover strong { text-decoration: underline; text-underline-offset: .25em; }
+.home-score a span span, .home-score small { color: var(--theme-text-muted); font-size: .8125rem; font-variant-numeric: tabular-nums; }
+.home-score svg { width: 1rem; }
+@media (max-width: 760px) { .home-score { grid-template-columns: 1fr; gap: 1.25rem; padding-block: 2.5rem; } }
 .museum-home { --home-canvas: var(--theme-surface-canvas); color: var(--theme-text); background: var(--home-canvas); }
 :global(html[data-theme="dark"]) .museum-home { --home-canvas: oklch(8% .014 170); }
 .museum-home svg { width: 20px; height: 20px; flex-shrink: 0; }
