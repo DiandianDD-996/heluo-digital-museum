@@ -85,3 +85,17 @@
 2. **档案移出打包资源。** `backend/src/main/resources/guide/ding-profile.json` 移至 `backend/src/test/resources/guide/ding-profile.json`，示例副本放 `docs/plans/luosheng-eval/ding-profile.example.json`。后端包不再包含可被误当成运行时来源的档案；运行时仍只读注入路径。
 
 验证：`mvn -B test` 170 项，0 失败、5 项按开关跳过；新增 `blank-stop` 参数用例覆盖新校验分支，原 `duplicate-stop` 断言同步为新消息。前端无改动，未重跑前端套件。部署文档 `deploy/README.md` 的参照路径已改为示例文件。未改公开 API、未启用候选、未调用真实模型。
+
+## 2026-11-21 · INT-1 语言资产数据化
+
+把散落在代码里的语言知识搬进一份可审阅、可校验的词表；事实仍只在证据卡里。
+
+新增 `frontend/src/assets/guide/lexicon.zh-CN.json`：看点标签、相对日期、人数词、站点关键词、检索词表与别名、建议问题、下一步看点。新增 `frontend/src/lib/luoshengLexicon.ts` 负责加载与校验：版本、重复 stop、空白或带首尾空格的标签、澄清选项与下一步指向不存在的看点、审阅说明指向不存在的标签，任一不合法即抛错。`luoshengIntent.ts` 改为消费词表，删除 `pointNames`、`relativeDays`、`digits`、`sitePatterns` 四组硬编码。
+
+新增 `docs/plans/luosheng-eval/sync-lexicon.mjs`：对照词表与证据包，检查卡片存在、修订号一致、标签必须是卡片别名或有审阅说明；卡片中未进入词表的别名只提示。删掉 `LS-DING-EARS` 的 `鼎耳` 别名后，脚本报错并以退出码 1 结束；原始包退出码 0。
+
+过程中修掉三处自身缺陷：`nextGlance` 与 `searchAliases` 曾被误按数值校验；证据检测正则曾把 `${labels.source}` 写进正则字面量导致模板不插值，已改为 `new RegExp` 构造；`--pack` 传绝对路径时 URL 拼接失败，已改用 `pathToFileURL`。
+
+验证：`vue-tsc -b` 通过；`vitest run` 80 文件、657 项通过（新增 13 项词表用例）；117 条金标问法行为不变。词表校验 `--check` 退出码 0。未改后端、未启用候选、未调用真实模型。
+
+边界：新增**别名**不需要改代码；新增**看点**仍受前端 `GuideStop` 与界面标签约束。

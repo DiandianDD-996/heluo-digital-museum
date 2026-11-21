@@ -1,5 +1,9 @@
 import type { GuideStop } from './luoshengPreview'
 import type { SiteStop } from './luoshengSiteGuide'
+import {
+  aliasFor, discoveryTermPattern, lexicon, peopleValue, pointLabelPattern, pointPattern,
+  relativeDatePattern, siteStopsMatching, vocabularyPattern,
+} from './luoshengLexicon'
 
 export function shanghaiDay(offset = 0, now = new Date()) {
   const shanghai = new Intl.DateTimeFormat('en-CA', {
@@ -17,7 +21,11 @@ export function isPublicSlotDate(date: string, now = new Date()) {
     && date >= shanghaiDay(0, now) && date <= shanghaiDay(13, now)
 }
 
-const digits: Record<string, number> = { 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 }
+/** Date words come from the lexicon so the parser and the data cannot drift. */
+const DATE_WORDS = Object.keys(lexicon.relativeDates)
+  .sort((left, right) => right.length - left.length)
+  .join('|')
+
 const numeral = '[+-]?\\d+(?:[.点]\\d+)?|负?[零〇一二两三四五六七八九十百千万点]+'
 const partyPattern = new RegExp(
   `(${numeral})(?:\\s*(?:至|到|或|[-~—–])\\s*(${numeral}))?\\s*(?:个|名)?\\s*(?:成人|儿童|大人|孩子|人|位|张票)`,
@@ -31,16 +39,16 @@ function requestedParty(text: string, defaultPeople: number) {
   if (matches.length !== 1 || matches[0]?.[2]) return 0
   const count = matches[0]![1]!
   if (/^\+?\d+$/.test(count)) return Number(count)
-  if (digits[count]) return digits[count]
+  const word = peopleValue(count)
+  if (word !== undefined) return word
   const tens = /^([一二两三四五六七八九])?十([一二三四五六七八九])?$/.exec(count)
-  return tens ? (digits[tens[1] ?? '一'] ?? 0) * 10 + (digits[tens[2] ?? ''] ?? 0) : 0
+  return tens ? (peopleValue(tens[1] ?? '一') ?? 0) * 10 + (peopleValue(tens[2] ?? '') ?? 0) : 0
 }
 
 type SlotIntent = { date: string; people: number } | { clarifyDate: true; people: number }
 
 const calendarDate = /(?<!\d)(?:(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})(?!\d)(?:\s*[日号])?|(\d{4})-(\d{1,2})-(\d{1,2})(?!\d)|(\d{1,2})\s*月\s*(\d{1,2})\s*[日号])/g
-const relativeDays = { 今天: 0, 明天: 1, 后天: 2, 大后天: 3 } as const
-const dateOnly = new RegExp(`^(?:那就|那)?\\s*(?:${calendarDate.source}|大后天|后天|明天|今天)\\s*(?:吧|呢)?[。!！?？]*$`)
+const dateOnly = new RegExp(`^(?:那就|那)?\\s*(?:${calendarDate.source}|${DATE_WORDS})\\s*(?:吧|呢)?[。!！?？]*$`)
 
 function parseSlots(question: string, now = new Date(), previousPeople?: number): SlotIntent | null {
   const text = question.normalize('NFKC').trim()
@@ -59,8 +67,8 @@ function parseSlots(question: string, now = new Date(), previousPeople?: number)
     const resolvedYear = chineseYear ?? isoYear ?? (isPublicSlotDate(nextYear, now) ? year + 1 : year)
     dates.add(`${resolvedYear}-${month}-${day}`)
   }
-  for (const [relative] of text.matchAll(/大后天|后天|明天|今天/g)) {
-    dates.add(shanghaiDay(relativeDays[relative as keyof typeof relativeDays], now))
+  for (const [relative] of text.matchAll(relativeDatePattern())) {
+    dates.add(shanghaiDay(lexicon.relativeDates[relative] ?? 0, now))
   }
   if (dates.size > 1 || /今明两?天|明后两?天|(?:到|至|或|[-–—~])\s*\d{1,2}\s*[日号]/.test(text.replace(calendarDate, ' '))) {
     return { clarifyDate: true, people }
@@ -77,13 +85,10 @@ function parseDeferred(question: string, now?: Date) {
   return slot ? { first: parts[1]!, slot } : null
 }
 
-const rejected = /^(?:然后|之后|再)?(?:我\s*)?(?:今天|明天|后天)?(?:先)?(?:不(?:想|要|用|需要|打算)?|别)(?:先|再)?(?:看|找|预约|订票)/
+const rejected = new RegExp(
+  `^(?:然后|之后|再)?(?:我\\s*)?(?:${DATE_WORDS})?(?:先)?(?:不(?:想|要|用|需要|打算)?|别)(?:先|再)?(?:看|找|预约|订票)`,
+)
 const rejectedArtifact = /^(?:我\s*)?(?:先)?(?:不(?:想|要|用|需要|打算)?|别)(?:先|再)?(?:看|找)\s*(.+)/
-const pointNames = {
-  ear: /^(?:鼎耳|耳朵|耳)$/,
-  feet: /^(?:三足|鼎足|足|脚|三只脚)$/,
-  motif: /^(?:纹样|花纹)$/,
-} satisfies Record<GuideStop, RegExp>
 
 /** A saved position supplies context only when the visitor actually requests it. */
 function matchesSavedLookpoint(question: string, stop: GuideStop) {
@@ -96,7 +101,7 @@ function matchesSavedLookpoint(question: string, stop: GuideStop) {
   if (/^(?:河洛)?青铜鼎$/.test(target)) return !!instruction
   const point = target.replace(/^(?:刚才|原来)?(?:的)?(?:那一?[只处个]|那个)?(?:的)?/, '')
     .replace(/^(?:河洛)?青铜鼎(?:的)?/, '')
-  return pointNames[stop].test(point) || (!!instruction && !target && /^(?:回去|返回)$/.test(text))
+  return pointPattern(stop).test(point) || (!!instruction && !target && /^(?:回去|返回)$/.test(text))
 }
 
 function parseDiscovery(question: string, onArtifact: boolean) {
@@ -113,29 +118,24 @@ function parseDiscovery(question: string, onArtifact: boolean) {
   if (/预约|订票|到馆|名额|门票|开放时间|时段/.test(positive)) return { kind: 'appointment' } as const
   const explicit = positive.match(/(?:想(?:找|看(?:看)?)|(?:只|要|先|接着|继续|改)看|(?:带|帮)我看|找(?:一件|找)?)([^，。！？,.!?]+)/)
   const term = explicit?.[1]?.replace(/^(?:个|一件|和)|(?:相关|有关)(?:的东西|的藏品)?$|(?:吧|呢|吗|呀)$/g, '').trim()
-  const searchingFromArtifact = exclusions.length > 0 || /(?:接着|继续)看(?:玉器|玉璧|水鸟)/.test(positive) || /想找|找(?:找|一件|别的)|只想看|改看|(?:帮|带)我找/.test(positive)
-  if (term && /玉器|玉璧|水鸟|青铜|鼎/.test(term) && (!onArtifact || searchingFromArtifact)) {
-    const keyword = term.match(/玉器|玉璧|水鸟|青铜鼎|鼎/)?.[0] ?? term
-    return { kind: 'search', keyword: keyword === '鼎' ? '青铜鼎' : keyword, short: false, exclusions } as const
+  const vocabulary = vocabularyPattern()
+  const searchingFromArtifact = exclusions.length > 0
+    || new RegExp(`(?:接着|继续)看(?:${discoveryTermPattern().source})`).test(positive)
+    || /想找|找(?:找|一件|别的)|只想看|改看|(?:帮|带)我找/.test(positive)
+  if (term && vocabulary.test(term) && (!onArtifact || searchingFromArtifact)) {
+    return { kind: 'search', keyword: aliasFor(term.match(vocabulary)?.[0] ?? term), short: false, exclusions } as const
   }
   if (term && (!onArtifact || searchingFromArtifact) && !/3\s*d|三维|展厅|模型/i.test(term)
       && !/^(?:什么|一件|一个)?(?:好看的|有意思的|有趣的)?$/.test(term)) {
     return { kind: 'search', keyword: term.slice(0, 40), short: false, exclusions } as const
   }
   if (exclusions.length || !positive) return { kind: 'clarify-discovery' } as const
-  if (!onArtifact && /五分钟|5\s*分钟|看一件|青铜鼎|鼎耳|别错过(?:这件|那个)?鼎/.test(positive)) {
+  const shortVisit = new RegExp(`五分钟|5\\s*分钟|看一件|别错过(?:这件|那个)?(?:${vocabulary.source})`)
+  if (!onArtifact && shortVisit.test(positive)) {
     return { kind: 'search', keyword: '青铜鼎', short: /分钟|看一件/.test(positive), exclusions } as const
   }
   return { kind: 'navigation' } as const
 }
-
-const sitePatterns = {
-  explore: /馆藏|藏品|文物|专题|搜索|检索/,
-  exhibits: /3\s*d|三维|数字展厅|模型|展厅|展馆/i,
-  appointment: /预约|订票|门票|到馆|线下|参观时间|开放时间|名额/,
-  shop: /文创|商店|商城|商品|纪念品|购物/,
-  ding: /青铜鼎|鼎耳|鼎足|三足|这件鼎/,
-} satisfies Record<SiteStop, RegExp>
 
 function asksAboutCurrentArticle(text: string) {
   const body = text.replace(/[?。!]+$/, '').replace(/^(?:请问|请|可以|能不能)\s*/, '')
@@ -183,11 +183,18 @@ export function parseIntent(question: string, context: IntentContext): Intent {
   }
   if (/这里|这一页|这个页面|当前页|我在哪/.test(topic)) return { kind: 'site-page', route: context.route }
 
-  const stops = (Object.keys(sitePatterns) as SiteStop[]).filter(stop => sitePatterns[stop].test(topic))
+  const labels = pointLabelPattern().source
+  const stops = siteStopsMatching(topic)
+  const mentionsEvidence = new RegExp(
+    `年代|朝代|出土|铸造|造的|来历|来源|出处|断过|残缺|多大|尺寸|重量|多重|材质|用途|用来|象征|含义`
+    + `|怎么知道|怎么看出来|再指|我说的是|我指的是|另一[只个对处面边]|另外一[只个对处面边]`
+    + `|这[只条处边个件两]|是实物|(?:它|实物|照片|图版).*(?:是|看|哪|怎么|什么)`
+    + `|^(?:我想|继续|接着|先)?看(?:${labels})`,
+  ).test(topic)
+  const mentionsPoint = new RegExp(`^(?:${labels})[。!?]*$|(?:三只脚|两条腿|缺了一条)`).test(topic)
   if (context.onArtifact && discovery.kind === 'navigation' && !stops.includes('shop')
       && !(stops.some(stop => stop !== 'ding') && /怎么进|怎么去|去哪里|在哪.*(?:看|进)|哪里能看|带我去|怎么搜/.test(topic))
-      && (/年代|朝代|出土|铸造|造的|来历|来源|出处|断过|残缺|多大|尺寸|重量|多重|材质|用途|用来|象征|含义|怎么知道|怎么看出来|再指|我说的是|我指的是|另一[只个对处面边]|另外一[只个对处面边]|这[只条处边个件两]|是实物|(?:它|实物|照片|图版).*(?:是|看|哪|怎么|什么)|^(?:我想|继续|接着|先)?看(?:鼎耳|三足|纹样|花纹|鼎足)/.test(topic)
-        || /^(?:脚|足|耳朵|鼎耳|三足|纹样)[。!?]*$|(?:三只脚|两条腿|缺了一条)/.test(topic))) {
+      && (mentionsEvidence || mentionsPoint)) {
     return { kind: 'object-evidence' }
   }
   if (discovery.kind === 'search') return { ...discovery, kind: 'discovery-search', deferredSlot: deferred?.slot }

@@ -73,6 +73,7 @@
 - 档案与签核卡片的长期一致性：目前靠每轮按修订号重新核对；需要内容更新流程配合。
 - 已处理：`GuideProfile` 内原 stop→view 常量已删除，`view` 字段一并移除（该字段从未被消费）；档案样例已移出 `main/resources`，改放 `docs/plans/luosheng-eval/ding-profile.example.json`，不再被打进后端包。
 - 仍遗留：看点词汇本身仍由前端 `GuideStop` 与界面标签固定；新增部位需要前端与文案同步，后端档案已可容纳任意非空 stop。
+- 语言资产（INT-1）：别名、相对日期、人数词、站点关键词与建议问题已移入 `frontend/src/assets/guide/lexicon.zh-CN.json`，新增别名不需要改代码；新增看点仍需改 `GuideStop` 枚举与界面标签。`sync-lexicon.mjs --check` 校验词表与证据卡一致。
 
 ## 复核条件
 
