@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "exhibits": [
+    {
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "zh-CN",
+      "plates": [
+        {"stop":"ear","cardId":"LS-DING-EARS","revision":1,"corrections":["鼎耳","耳朵","耳"],"elliptical":true},
+        {"stop":"feet","cardId":"LS-DING-FEET","revision":1,"corrections":["鼎足","三足","脚","腿"],"elliptical":true},
+        {"stop":"motif","cardId":"LS-DING-MOTIF","revision":2,"corrections":[],"elliptical":false}
+      ],
+      "factSources": {
+        "PROVENANCE": {"cardId":"LS-DING-SOURCE","revision":2},
+        "PERIOD": {"cardId":"LS-DING-PERIOD","revision":1},
+        "SIZE": {"cardId":"LS-DING-SIZE","revision":1}
+      },
+      "topicCardIds": ["LS-DING-EARS", "LS-DING-FEET", "LS-DING-MOTIF"]
+    }
+  ]
+}

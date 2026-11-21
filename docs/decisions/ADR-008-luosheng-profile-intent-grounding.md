@@ -71,7 +71,8 @@
 - 正式内容签核：六卡仍待签，正式卡包未生成。
 - 开启态部署、真机与真人试用：未执行。
 - 档案与签核卡片的长期一致性：目前靠每轮按修订号重新核对；需要内容更新流程配合。
-- 已知遗留：`GuideProfile` 内的 stop→view 映射仍为代码常量；`resources` 下的档案样例会被打包但不参与运行时，只能作为参照。
+- 已处理：`GuideProfile` 内原 stop→view 常量已删除，`view` 字段一并移除（该字段从未被消费）；档案样例已移出 `main/resources`，改放 `docs/plans/luosheng-eval/ding-profile.example.json`，不再被打进后端包。
+- 仍遗留：看点词汇本身仍由前端 `GuideStop` 与界面标签固定；新增部位需要前端与文案同步，后端档案已可容纳任意非空 stop。
 
 ## 复核条件
 

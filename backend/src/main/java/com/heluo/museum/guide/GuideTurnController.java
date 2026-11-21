@@ -182,8 +182,7 @@ class GuideTurnController {
     private static void validate(Turn input) {
         if (input.question() == null || input.question().isBlank() || input.question().length() > 300
                 || input.requestId() == null || input.visitId() == null || input.contextVersion() < 0
-                || !"zh-CN".equals(input.locale()) || !GuideProfile.slug(input.artifact()) || !GuideProfile.slug(input.exhibit())
-                || (input.lookpoint() != null && !GuideProfile.knownStop(input.lookpoint()))) {
+                || !"zh-CN".equals(input.locale()) || !GuideProfile.slug(input.artifact()) || !GuideProfile.slug(input.exhibit())) {
             throw new IllegalArgumentException("Invalid guide turn");
         }
     }

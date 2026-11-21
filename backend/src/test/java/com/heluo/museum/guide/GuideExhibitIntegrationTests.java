@@ -90,7 +90,7 @@ class GuideExhibitIntegrationTests {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"missing-file", "missing-field", "duplicate-stop", "invalid-revision"})
+    @ValueSource(strings = {"missing-file", "missing-field", "duplicate-stop", "blank-stop", "invalid-revision"})
     void invalidProfilePreventsTurnControllerStartup(String defect) throws Exception {
         var path = files.resolve(defect + ".json");
         if (!defect.equals("missing-file")) {
@@ -101,6 +101,7 @@ class GuideExhibitIntegrationTests {
             switch (defect) {
                 case "missing-field" -> exhibit.remove("artifactSlug");
                 case "duplicate-stop" -> plates.add(plates.get(0).deepCopy());
+                case "blank-stop" -> ((com.fasterxml.jackson.databind.node.ObjectNode) plates.get(0)).put("stop", " ear ");
                 case "invalid-revision" -> ((com.fasterxml.jackson.databind.node.ObjectNode) plates.get(0)).put("revision", 0);
                 default -> throw new AssertionError(defect);
             }
@@ -119,7 +120,7 @@ class GuideExhibitIntegrationTests {
                         .hasRootCauseMessage(switch (defect) {
                             case "missing-file" -> path.toString();
                             case "missing-field" -> "Invalid museum.guide.profile-path: expected exhibit slug, artifact slug and zh-CN locale";
-                            case "duplicate-stop" -> "Invalid museum.guide.profile-path: unknown or duplicate stop";
+                            case "duplicate-stop", "blank-stop" -> "Invalid museum.guide.profile-path: blank, padded or duplicate stop";
                             case "invalid-revision" -> "Invalid museum.guide.profile-path: cardId must be nonblank and revision must be positive";
                             default -> throw new AssertionError(defect);
                         }));

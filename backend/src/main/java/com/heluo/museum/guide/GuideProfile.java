@@ -16,9 +16,8 @@ import java.util.Set;
 
 /** Internal routing metadata, never a source of visitor-facing facts. */
 final class GuideProfile {
-    private static final Map<String, String> VIEWS = Map.of("ear", "top", "feet", "back", "motif", "relief");
     enum FactSource { PERIOD, SIZE, PROVENANCE }
-    record Plate(String stop, String cardId, int revision, String view, List<String> corrections, Boolean elliptical) {
+    record Plate(String stop, String cardId, int revision, List<String> corrections, Boolean elliptical) {
         Reference reference() { return new Reference(cardId, revision); }
     }
 
@@ -41,7 +40,6 @@ final class GuideProfile {
 
     private GuideProfile(Map<Key, Exhibit> exhibits) { this.exhibits = Map.copyOf(exhibits); }
     Exhibit find(String exhibit, String locale) { return exhibits.get(new Key(exhibit, locale)); }
-    static boolean knownStop(String stop) { return VIEWS.containsKey(stop); }
 
     static GuideProfile load(String path) {
         require(path != null && !path.isBlank(), "file is required for guide turns");
@@ -66,9 +64,9 @@ final class GuideProfile {
             var cards = new HashSet<String>();
             var corrections = new HashSet<String>();
             for (var plate : exhibit.plates()) {
-                require(plate != null && plate.stop() != null && knownStop(plate.stop()) && stops.add(plate.stop()),
-                        "unknown or duplicate stop");
-                require(VIEWS.get(plate.stop()).equals(plate.view()), "invalid view for stop " + plate.stop());
+                require(plate != null && plate.stop() != null && !plate.stop().isBlank()
+                        && plate.stop().equals(plate.stop().strip()) && stops.add(plate.stop()),
+                        "blank, padded or duplicate stop");
                 checkReference(plate.reference());
                 require(cards.add(plate.cardId()), "duplicate plate card");
                 require(plate.corrections() != null && plate.elliptical() != null, "missing correction or follow-up policy");
@@ -85,7 +83,7 @@ final class GuideProfile {
                     "topicCardIds must be unique plate cards");
             var immutable = new Exhibit(exhibit.exhibitSlug(), exhibit.artifactSlug(), exhibit.locale(),
                     exhibit.plates().stream().map(plate -> new Plate(plate.stop(), plate.cardId(), plate.revision(),
-                            plate.view(), List.copyOf(plate.corrections()), plate.elliptical())).toList(),
+                            List.copyOf(plate.corrections()), plate.elliptical())).toList(),
                     Map.copyOf(exhibit.factSources()), List.copyOf(topics));
             require(entries.putIfAbsent(new Key(exhibit.exhibitSlug(), exhibit.locale()), immutable) == null,
                     "duplicate exhibit and locale");

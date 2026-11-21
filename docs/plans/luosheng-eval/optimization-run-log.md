@@ -69,10 +69,19 @@
 - [frontend/src/lib/luoshengSlots.ts](C:/Users/Jie/Documents/博物馆/frontend/src/lib/luoshengSlots.ts)
 - [frontend/src/lib/luoshengTurns.spec.ts](C:/Users/Jie/Documents/博物馆/frontend/src/lib/luoshengTurns.spec.ts)
 - [backend/src/main/java/com/heluo/museum/guide/GuideProfile.java](C:/Users/Jie/Documents/博物馆/backend/src/main/java/com/heluo/museum/guide/GuideProfile.java)
-- [backend/src/main/resources/guide/ding-profile.json](C:/Users/Jie/Documents/博物馆/backend/src/main/resources/guide/ding-profile.json)
+- [backend/src/test/resources/guide/ding-profile.json](C:/Users/Jie/Documents/博物馆/backend/src/test/resources/guide/ding-profile.json)（原 `main/resources` 副本已移出打包资源）
 - [backend/src/test/java/com/heluo/museum/guide/GuideGroundedDraftTests.java](C:/Users/Jie/Documents/博物馆/backend/src/test/java/com/heluo/museum/guide/GuideGroundedDraftTests.java)
 - [backend/src/test/resources/guide/jade-evidence.json](C:/Users/Jie/Documents/博物馆/backend/src/test/resources/guide/jade-evidence.json)
 - [backend/src/test/resources/guide/jade-profile.json](C:/Users/Jie/Documents/博物馆/backend/src/test/resources/guide/jade-profile.json)
 - [docs/plans/luosheng-eval/optimization-run-log.md](C:/Users/Jie/Documents/博物馆/docs/plans/luosheng-eval/optimization-run-log.md)
 - [frontend/src/lib/luoshengIntent.spec.ts](C:/Users/Jie/Documents/博物馆/frontend/src/lib/luoshengIntent.spec.ts)
 - [frontend/src/lib/luoshengIntent.ts](C:/Users/Jie/Documents/博物馆/frontend/src/lib/luoshengIntent.ts)
+
+## 2026-11-21 · 遗留清理（ADR-008 已记录项）
+
+两项遗留在不改变对外行为的前提下收掉：
+
+1. **删除 `view` 字段与 stop→view 常量。** `GuideProfile` 内的 `VIEWS` 映射已移除，`Plate` 不再携带从未被消费的 `view`。stop 改为数据驱动：只要求非空、去空白、同展品内唯一。控制器原有的 `knownStop` 校验一并删除，改由已有的“按展品查档案”判断（`profile.plate(lookpoint) == null` 返回非法参数）。
+2. **档案移出打包资源。** `backend/src/main/resources/guide/ding-profile.json` 移至 `backend/src/test/resources/guide/ding-profile.json`，示例副本放 `docs/plans/luosheng-eval/ding-profile.example.json`。后端包不再包含可被误当成运行时来源的档案；运行时仍只读注入路径。
+
+验证：`mvn -B test` 170 项，0 失败、5 项按开关跳过；新增 `blank-stop` 参数用例覆盖新校验分支，原 `duplicate-stop` 断言同步为新消息。前端无改动，未重跑前端套件。部署文档 `deploy/README.md` 的参照路径已改为示例文件。未改公开 API、未启用候选、未调用真实模型。
