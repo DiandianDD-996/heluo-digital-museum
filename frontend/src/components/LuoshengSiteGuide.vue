@@ -10,6 +10,7 @@ import { findGuideArtifacts, guideArtifactCover, guideArtifactReason } from '../
 import { useLuoshengTurns } from '../lib/luoshengTurns'
 import { GUIDE_ARTIFACT, type GuideStop } from '../lib/luoshengPreview'
 import { readGuideSlots } from '../lib/luoshengSlots'
+import { clarifyOptionsFor, nextGlanceFor, suggestionsFor } from '../lib/luoshengSuggestions'
 import { apiGet } from '../lib/api'
 
 const route = useRoute()
@@ -33,6 +34,7 @@ type Reply = {
   date?: string; resume?: true
   clarifySlotPeople?: number
   clarification?: boolean
+  insufficient?: boolean
   citations?: { label: string; source?: string }[]
 }
 const scope = computed(() => visit && expanded.value ? {
@@ -183,6 +185,34 @@ const answer = computed(() => submitted.value
   ? renderSiteIntent(parseIntent(submitted.value, { route: routeName.value, onArtifact: false }))
   : explainSitePage(routeName.value))
 const prompts = ['这个网站能做什么？', '从哪里开始逛？', '怎么预约参观？']
+const showMoreSuggestions = ref(false)
+const slowResponse = ref(false)
+let slowTimer: ReturnType<typeof setTimeout> | undefined
+
+// Suggestions are reviewed content, never generated. They lead with the visitor's
+// current part and fall back to the exhibit's global questions.
+const suggestions = computed(() => suggestionsFor({
+  exhibit: object.value?.exhibit,
+  lookpoint: visit?.lookpoint,
+  route: routeName.value,
+  mode: unifiedReply.value ? 'after-answer' : 'empty',
+}))
+const visibleSuggestions = computed(() => showMoreSuggestions.value
+  ? [...suggestions.value.primary, ...suggestions.value.more]
+  : suggestions.value.primary)
+const clarifyOptions = computed(() => unifiedReply.value?.clarification
+  ? clarifyOptionsFor(object.value?.exhibit)
+  : [] as ReturnType<typeof clarifyOptionsFor>)
+const nextGlance = computed(() => nextGlanceFor(object.value?.exhibit, visit?.lookpoint))
+
+watch(() => turns.state.value.status, status => {
+  if (slowTimer) clearTimeout(slowTimer)
+  slowTimer = undefined
+  slowResponse.value = false
+  if (status !== 'pending') return
+  // Only admit a wait that actually happens; never stage fake progress steps.
+  slowTimer = setTimeout(() => { slowResponse.value = true }, 2000)
+})
 const stopIcons = { explore: Collection, exhibits: Box, appointment: Calendar, shop: Goods, ding: Box }
 
 function destination(stop: SiteStop) {
@@ -321,7 +351,16 @@ watch(() => visit?.targetFailure, failure => {
           <img v-if="unifiedReply?.cover && unifiedReply.cover !== failedCover" :key="unifiedReply.cover"
             :src="unifiedReply.cover" class="site-guide-cover" alt="" width="64" height="64" decoding="async"
             @error="failedCover = unifiedReply.cover" />
-          <p class="site-guide-answer" role="status">{{ unifiedText }}</p>
+          <p class="site-guide-answer" role="status" aria-live="polite" aria-atomic="true">{{ unifiedText }}</p>
+        </div>
+        <p v-if="slowResponse" class="site-guide-progress" role="status" aria-live="polite">正在核对资料…</p>
+        <div v-if="clarifyOptions.length > 1" class="site-guide-clarify" role="group" aria-label="请选择你想问的部位">
+          <p>你现在问的是哪一处？</p>
+          <button v-for="stop in clarifyOptions" :key="stop" type="button" class="site-guide-start"
+            @click="ask(stopLabels[stop])">{{ stopLabels[stop] }}</button>
+        </div>
+        <div v-if="unifiedReply?.insufficient" class="site-guide-insufficient" role="note">
+          <p>这一点现有资料还不能确认。可以先看当前展签，或换个问法。</p>
         </div>
         <button v-if="unifiedReply?.retrySearch" type="button" class="site-guide-start" @click="retrySearch">重试搜索</button>
         <RouterLink v-if="visit.targetFailure && turns.state.value.status === 'idle'" to="/explore" class="site-guide-start">探索公开馆藏</RouterLink>
@@ -383,9 +422,19 @@ watch(() => visit?.targetFailure, failure => {
         </nav>
       </div>
       <footer class="site-guide-composer">
-        <div class="site-guide-prompts" role="group" aria-label="导览操作">
-          <button v-for="prompt in (visit ? (object ? [] : routeName === 'appointment' ? ['明天还有可约时段吗？'] : ['我只有五分钟，带我看一件']) : prompts)" :key="prompt" type="button" @click="ask(prompt)">{{ prompt }}</button>
-          <button v-if="visit" type="button" @click="endVisit">我先自己逛</button>
+        <div class="site-guide-prompts" role="group" aria-label="建议问题">
+          <template v-if="visit">
+            <button v-for="prompt in visibleSuggestions" :key="prompt" type="button" @click="ask(prompt)">{{ prompt }}</button>
+            <button v-if="suggestions.more.length" type="button" :aria-expanded="showMoreSuggestions"
+              @click="showMoreSuggestions = !showMoreSuggestions">{{ showMoreSuggestions ? '收起' : '更多' }}</button>
+            <button v-if="nextGlance && object?.exhibit" type="button" @click="showPlate(nextGlance, false)">
+              再看{{ stopLabels[nextGlance] }}
+            </button>
+            <button type="button" @click="endVisit">我先自己逛</button>
+          </template>
+          <template v-else>
+            <button v-for="prompt in prompts" :key="prompt" type="button" @click="ask(prompt)">{{ prompt }}</button>
+          </template>
         </div>
         <form class="site-guide-form" @submit.prevent="submitQuestion">
           <input ref="input" v-model="question" :aria-label="visit ? '问洛笙' : '问洛笙怎么逛馆'" :placeholder="object ? '例如，另一只在哪里？' : visit && routeName === 'appointment' ? '例如，明天还有三个人的名额吗？' : '例如，在哪能看 3D？'" :maxlength="visit ? 300 : 160"
@@ -615,6 +664,25 @@ watch(() => visit?.targetFailure, failure => {
   gap: .55rem;
 }
 .site-guide-response .site-guide-answer { flex: 1; min-inline-size: 0; }
+.site-guide-progress {
+  margin: 0;
+  color: var(--guide-muted);
+  font-size: .8125rem;
+}
+.site-guide-clarify, .site-guide-insufficient {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--guide-edge);
+  border-radius: .65rem;
+}
+.site-guide-clarify > p, .site-guide-insufficient > p {
+  margin: 0;
+  color: var(--guide-ink);
+  font-size: .875rem;
+  line-height: 1.6;
+}
+.site-guide-clarify > button { justify-self: start; }
 .site-guide-cover {
   flex: 0 0 auto;
   object-fit: cover;

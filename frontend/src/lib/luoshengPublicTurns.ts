@@ -52,5 +52,7 @@ export async function askPublicGuide(input: PublicTurn, signal: AbortSignal) {
   return {
     text: result.text ?? fallback[result.kind] ?? '自由问答暂不可用，可以继续阅读公开展签。',
     citations, plate, generated: result.generated, clarification: result.kind === 'CLARIFY',
+    // The server always sends text here, so the panel needs the kind to explain the gap.
+    insufficient: result.kind === 'INSUFFICIENT_EVIDENCE' || result.kind === 'DISPUTED_EVIDENCE',
   }
 }

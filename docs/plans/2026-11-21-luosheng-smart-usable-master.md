@@ -539,6 +539,7 @@ INT-2（受控分类器）和任何新增公共端点，在实现前必须先向
 | A | WP2 | 通过 | `codex/feat-guide-baseline` / `38f574b` + 未提交变更 | 117 条金标全过；组件测试确认仅取证发请求；前端类型、643 项单测、默认构建和预算全过 | [执行证据](luosheng-eval/optimization-run-log.md#2026-11-21--wp2-意图契约) | 旧入口零引用；未启用候选 |
 | A | WP3 | 通过 | `codex/feat-guide-baseline` / `38f574b` + 未提交变更 | Maven 164/169 通过（5 跳过）；关闭态 Chrome 1/1；固定替身样本 v5 7/10 接受、3/10 拒绝、0/3 假阳性 | [对照与文件清单](luosheng-eval/optimization-run-log.md#2026-11-21--wp3-句级引用) | 仅内部协议调整，未测真实模型；未开启候选 |
 | B | INT-1 | 通过 | `codex/feat-guide-baseline` + 未提交变更 | 词表通过 657 项前端测试、类型检查与 `--check` 一致性校验；删除卡片别名时校验以退出码 1 失败 | [执行记录](luosheng-eval/optimization-run-log.md#2026-11-21--int-1-语言资产数据化) | 仅前端；新增别名无需改码，新增看点仍受 `GuideStop` 约束 |
+| B | INT-5 | 通过 | `codex/feat-guide-baseline` + 未提交变更 | 前端 82 文件 669 项、类型检查、构建与预算全过；缺证分类待服务端字段 | [执行记录](luosheng-eval/optimization-run-log.md#2026-11-21--int-5-交互易用性) | 未做 390/1440 实页观感 |
 | B | INT-2 | 未开始 | | | | |
 | B | INT-3 | 未开始 | | | | |
 | B | INT-4 | 未开始 | | | | |
