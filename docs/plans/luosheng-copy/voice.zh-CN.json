@@ -73,7 +73,7 @@
     "people": "一共几位？每次预约支持 1–30 人。",
     "repeat": "我先按{choice}来答；如果不是，你再告诉我。"
   },
-  "actionLead": {
+  "actionTemplates": {
     "plate": "点「{label}」，亲手核对一下。",
     "source": "下方有可点开的公开资料，可以核对来源。",
     "appointment": "去预约页可以选日期和时段。",
@@ -110,22 +110,33 @@
     {
       "scene": "侧视图问足数",
       "question": "我数来数去只有两条腿，是缺了一条吗？",
-      "answer": "在这张侧视图里，有一只足被器身挡住了，不是少了一条。点「看背视图」，中间那只也能看见。两张图的差异可以用固定视角的遮挡解释，不能据此判断原器缺损或修复。"
+      "composition": [
+        { "role": "answer", "source": "card LS-DING-FEET", "text": "在这张侧视图里，能看见两只足。换到背视图，中间和两侧各有一只。" },
+        { "role": "action", "template": "plate", "stop": "feet" },
+        { "role": "boundary", "source": "card LS-DING-FEET", "text": "两张图的差异可以用固定视角的遮挡解释。" }
+      ],
+      "note": "answer 和 boundary 必须是卡片原文；只有 action 由模板渲染。"
     },
     {
       "scene": "问纹样寓意",
       "question": "这些纹样象征什么？",
-      "answer": "纹样的象征含义没有已审来源，我不能替你下结论。在这张图里，能确认的是器腹凸起的宽线和内转轮廓；你可以沿着较宽的线往下看，找到它转折的地方。"
+      "composition": [
+        { "role": "answer", "source": "card LS-DING-MOTIF", "text": "纹样的象征含义没有已审来源。" },
+        { "role": "boundary", "source": "card LS-DING-MOTIF", "text": "这张图能确认的是器腹凸起的宽线和内转轮廓。" }
+      ],
+      "note": "卡片不支持寓意时，只能照录边界句，不得自行补解释。"
     },
     {
       "scene": "证据不足",
       "question": "它以前断过吗？",
-      "answer": "现有已审资料还不足以确认这一点。缺的是原器的修复记录；你可以先看下方的馆藏原页，核对参考实物编号。"
+      "composition": [],
+      "note": "任何卡都找不到能直接支撑的完整原文时，返回弃答结构；不得用「可能」「也许」补足。"
     }
   ],
   "notes": [
     "本文件只放非事实文案；事实正文只能来自已签核证据卡。",
-    "examples 用于校准语气，不是可复制的答案；正式回答必须逐句通过 quote 校验。",
-    "占位符 {point}、{label}、{options}、{date}、{choice} 由调用方替换。"
+    "examples 是渲染结果的组成示意，不是可复制的答案；answer 与 boundary 必须逐句通过原文校验。",
+    "actionTemplates 对应生成 payload 中的 voice.actionTemplates；占位符 {point}、{label} 由后端用档案与界面标签替换。",
+    "占位符 {options}、{date}、{choice} 用于澄清与时段文案，由调用方替换。"
   ]
 }

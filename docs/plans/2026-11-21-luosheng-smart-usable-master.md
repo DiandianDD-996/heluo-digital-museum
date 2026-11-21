@@ -295,21 +295,23 @@ INT-2（受控分类器）和任何新增公共端点，在实现前必须先向
      "bannedPhrases": ["一定是", "肯定是", "毫无疑问", "据我所知"]
    }
    ```
-2. 生成 v6 的结构（仍是 JSON）：
+2. 生成 v6 的结构（仍是 JSON；**事实句原文照录**，与已落地的 v5 一致）：
    ```json
    {
      "sentences": [
-       { "role": "answer", "text": "……", "slot": 1, "quote": "卡原文片段" },
-       { "role": "action", "text": "……", "slot": 1, "quote": "卡原文片段" },
-       { "role": "boundary", "text": "……", "slot": 2, "quote": "卡原文片段" }
+       { "role": "answer", "slot": 1, "text": "证据卡中的完整连续句段。" },
+       { "role": "action", "template": "plate", "stop": "feet" },
+       { "role": "boundary", "slot": 1, "text": "证据卡中的另一句完整原文。" }
      ],
-     "references": [1, 2]
+     "references": [1]
    }
    ```
-   - `role=answer` 必须在前；`action` 可选但最多一句；`boundary` 可选。
-   - **每个 `role` 为 answer/action/boundary 的句子都必须带 quote 且通过子串校验。**
-   - 允许最多一句 `role=connective` 的过渡句，不带 quote，但必须逐字来自声音包 `transitions`，不得由模型自由生成。
+   - `answer` 恰好一句且排第一；`boundary`、`action`、`connective` 各最多一句；总计 1–4 句。
+   - **`answer` / `boundary` 的 `text` 必须是该 slot 证据的连续完整句段，不得改写或删限定语**（沿用 v5 的 `completeSpan`）。
+   - `action` 不自写文字，只返回声音包内的模板编号与允许的 `stop`；由后端渲染。
+   - `connective` 必须逐字来自声音包 `transitions`。
    - 总长 ≤300 码点，单句 ≤120 码点。
+   - 不采用“自由措辞 + quote 支撑”：固定对照已证明它会放过“真引文配新事实”（v5 假阳性 0/3，旧式自由措辞为 3/3）。
 3. 三类事实必须区分措辞：
    - 图版可见 → “在这张图里能看到……”；
    - 馆方记录 → “参考馆藏的公开记录写明……”；
@@ -532,10 +534,10 @@ INT-2（受控分类器）和任何新增公共端点，在实现前必须先向
 | 阶段 | 工作包 | 状态 | 分支/HEAD | 命令与结果 | 修改文件 | 备注 |
 | --- | --- | --- | --- | --- | --- | --- |
 | LANG | 文案源包 | 已交付 | | 已写 5 份源文件 | `docs/plans/luosheng-copy/*` | 待馆方审阅；执行端只集成 |
-| A | WP0 | 未开始 | | | | |
-| A | WP1 | 未开始 | | | | |
-| A | WP2 | 未开始 | | | | |
-| A | WP3 | 未开始 | | | | |
+| A | WP0 | 通过 | `codex/feat-guide-baseline` / `38f574b` | 干净树；前端类型、524 项单测、默认构建和预算通过；Maven 153/158 通过、5 项按开关跳过；离线 62/62 | [基线日志](luosheng-eval/optimization-run-log.md)、本节、项目状态、追踪表 | 无真实模型或生产数据；无业务改动 |
+| A | WP1 | 通过：可复用 | `codex/feat-guide-baseline` / `38f574b` + 未提交变更 | 红测 2 例 404/200 差异；绿测 Maven 159/164、5 跳过；默认构建和关闭态浏览器 1/1；Java 卡号硬编码归零 | [改动量与证据](luosheng-eval/optimization-run-log.md#2026-11-21--wp1-档案化实验) | 第二展项仅用合成卡、档案和 H2 数据，不改变公开 API |
+| A | WP2 | 通过 | `codex/feat-guide-baseline` / `38f574b` + 未提交变更 | 117 条金标全过；组件测试确认仅取证发请求；前端类型、643 项单测、默认构建和预算全过 | [执行证据](luosheng-eval/optimization-run-log.md#2026-11-21--wp2-意图契约) | 旧入口零引用；未启用候选 |
+| A | WP3 | 通过 | `codex/feat-guide-baseline` / `38f574b` + 未提交变更 | Maven 164/169 通过（5 跳过）；关闭态 Chrome 1/1；固定替身样本 v5 7/10 接受、3/10 拒绝、0/3 假阳性 | [对照与文件清单](luosheng-eval/optimization-run-log.md#2026-11-21--wp3-句级引用) | 仅内部协议调整，未测真实模型；未开启候选 |
 | B | INT-1 | 未开始 | | | | |
 | B | INT-2 | 未开始 | | | | |
 | B | INT-3 | 未开始 | | | | |

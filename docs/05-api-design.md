@@ -6,9 +6,11 @@
 
 受控候选 `POST /api/v1/guide/turns` 默认关闭。浏览器同源 JSON 请求携带 `question`、UUID `requestId` 和 `visitId`、递增的 `contextVersion`、`locale`、`artifact`、`exhibit` 和可空 `lookpoint`。服务端在同一短时会话中按访次隔离，重新核对公开关联和当前签核卡包，复用每分钟限额、请求去重、并发和当日调用上限。回应含 `kind`、`text`、`citations`、`plate` 和 `generated`，禁止缓存。旧版本及重复请求返回冲突，非同源请求返回禁止，未公开关联返回找不到。
 
-对于「另一只呢」这类位置追问，服务端根据已确认的鼎耳或三足话题重新核对对应卡片。资料有效时返回 `PLATE_OBSERVATION`、卡片正文和修订依据、`plate` 以及 `generated: false`。缺少指代时返回 `CLARIFY`。游客收起面板保留 `visitId`，明确结束参观后重开使用新的 `visitId`。
+对于「另一只呢」这类位置追问，服务端根据已确认看点和展项路由档案重新核对对应卡片。资料有效时返回 `PLATE_OBSERVATION`、卡片正文和修订依据、`plate` 以及 `generated: false`。缺少指代时返回 `CLARIFY`。内部按展项和语言取只读档案；缺失映射按展项不可用处理，不返回通用回答。档案不替代证据包签核，找不到档案指定的卡或修订时不借用旧证据。游客收起面板保留 `visitId`，明确结束参观后重开使用新的 `visitId`。公开请求、响应字段与既有看点枚举不变。
 
 同源问答客户端以 8 秒为请求超时，不自动重试。生成超时、繁忙、不可用、额度用尽、暂停及网络故障不展示旧轮依据。若有已确认看点，「读当前讲解」重新读取该展项的已发布讲解并恢复当前视角。此动作不提交问答。
+
+内部生成协议 `luosheng-structured-v5` 只接受严格 JSON 的 `sentences[{text,slot,quote}]` 和 `references`。引文在 NFKC / 空白归一后须为对应当轮证据的连续原文（至少 6 码点）；展示正文还须包含引文并与完整原文片段一致，避免真实引文搭配未审说法或截去句中限定语。校验条数、逐条和总长度以及去重后引用与实际使用的槽位；任一失败整份拒绝。对外仍为 `GENERATION_UNAVAILABLE`；内部记 `guide_generation_rejected` 与实例计数 `museum.guide.generation.rejected`，不记正文、引文或问题。显式弃答仍走缺证通道。交付复核、16 KiB 输入上限、8 秒生成等待、单并发及当日额度不变。
 
 青铜鼎单独断代问法使用 `PERIOD` 固定回复（`generated: false`）。有可见且带公开链接的 `LS-DING-PERIOD@1` 时使用其正文。只有 `LS-DING-SOURCE@2` 时，引导核对馆方记录。两张卡都不可用时返回 `INSUFFICIENT_EVIDENCE`。出土地追问以来源卡独立核对，返回 `FIND_SPOT_UNKNOWN`。两类回复保持游客当前图版。
 
