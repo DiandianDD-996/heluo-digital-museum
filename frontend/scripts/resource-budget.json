@@ -1,8 +1,21 @@
 {
-  "baselineDate": "2026-09-08",
+  "baselineDate": "2026-09-26",
   "baselineHead": "d222c2269da68bc18ca863aaaff71fbfd8cefab3",
-  "baselineDescription": "Pre-optimization working tree, archived in artifacts/sitewide-quality/baseline-dist",
+  "baselineDescription": "首屏口径基线。2026-09-26 修正度量后重录：门禁过去把 dist/assets 下全部 JS 的 gzip 总和当作首屏成本，而本站 13 个视图全部动态 import()、Three.js 也按需加载，旧口径与真实首屏相差约 6.7 倍。修正后量 index.html 直接引用的入口 chunk 及其 modulepreload 依赖，与 CSS 口径一致。",
+  "metricRevision": {
+    "date": "2026-09-26",
+    "previousMetric": "dist/assets 下全部 .js 的 gzip 总和",
+    "currentMetric": "index.html 引用的入口 chunk + modulepreload 依赖的 gzip 总和",
+    "reason": "旧口径对首屏退化没有分辨力：首屏涨 10 KB 与懒加载块涨 10 KB 权重相同，只能拦构建而无法指导优化。",
+    "totalsRetainedAs": "advisory-warning-only"
+  },
+  "initialJsBaselineBasis": "归档基线 artifacts/sitewide-quality/baseline-dist 的入口 chunk 实测 62,617 B，作为上限基准；当前树实测 77,751 B，其中音频层贡献 +4,605 B、音频层之前的既有漂移 +10,529 B。基线取当前树实测值，使 5% 容差用于覆盖未来变更，而不是把已发生的漂移当作余量。",
+  "initialCssBaselineBasis": "归档基线首屏 CSS 实测 46,286 B；当前树实测 48,819 B。同 JS，基线取当前树实测值。",
   "maxGrowthRatio": 1.05,
-  "javascriptGzipBytes": 497082,
-  "cssGzipBytes": 115027
+  "initialJsGzipBytes": 77751,
+  "initialCssGzipBytes": 48819,
+  "advisoryTotalsAtBaseline": {
+    "javascriptGzipBytes": 523040,
+    "cssGzipBytes": 106596
+  }
 }

@@ -1,22 +1,27 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { motion } from 'motion-v'
 import { gsap } from 'gsap'
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { apiGet } from '../lib/api'
 import { mediaSrcset } from '../lib/responsiveMedia'
-import { createGsapContext, isConstrainedGsapReveal, shouldRunGsapReveal } from '../lib/gsap'
+import { createGsapContext, ensureScrollTrigger, isConstrainedGsapReveal, shouldRunGsapReveal } from '../lib/gsap'
+import { audioSystem } from '../lib/audioSystem'
 import { localizedContent } from '../lib/contentLocale'
 import type { ArticleDetail, ArtifactDetail } from '../lib/content'
 import InlineStatus from '../components/InlineStatus.vue'
 import LoadingSkeleton from '../components/LoadingSkeleton.vue'
 import PlainTextLinks from '../components/PlainTextLinks.vue'
+import { GUIDE_ARTIFACT, GUIDE_EXHIBIT } from '../lib/luoshengPreview'
 import { useLocale } from '../stores/locale'
-
-gsap.registerPlugin(ScrollTrigger)
+import { unifiedGuideEnabled, useLuoshengVisit } from '../stores/luoshengVisit'
 
 const route = useRoute()
+const LuoshengPreset = import.meta.env.VITE_GUIDE_PRESET_ENABLED === 'true' ||
+  (import.meta.env.VITE_GUIDE_SITE_ENABLED === 'true' && import.meta.env.VITE_GUIDE_TURNS_ENABLED === 'true')
+  ? defineAsyncComponent(() => import('../components/LuoshengPreset.vue')) : null
+const LuoshengPreview = import.meta.env.DEV && !LuoshengPreset
+  ? defineAsyncComponent(() => import('../components/LuoshengPreview.vue')) : null
 const router = useRouter()
 const { locale } = useLocale()
 const imageFailed = ref(false)
@@ -39,8 +44,25 @@ const article = ref<ArticleDetail | null>(null)
 const readingProgress = ref(0)
 const root = ref<HTMLElement | null>(null)
 let gsapContext: gsap.Context | undefined
+// Component-scoped, so a route change into another article starts a fresh
+// narrative while a locale re-render inside the same article cannot re-gong.
+let narrativeCue: 'idle' | 'opened' | 'ended' = 'idle'
 
 const isArtifact = computed(() => route.name === 'artifact-detail')
+const visit = unifiedGuideEnabled ? useLuoshengVisit() : null
+watch([artifact, loading, isEnglish], ([item, pending, english]) => {
+  if (!visit || pending || english || !item || route.name !== 'artifact-detail' || route.params.slug !== item.slug) return
+  visit.object = {
+    path: route.path, slug: item.slug, title: item.title, summary: item.summary,
+    exhibit: item.slug === GUIDE_ARTIFACT && item.exhibits.some(value => value.slug === GUIDE_EXHIBIT) ? GUIDE_EXHIBIT : undefined,
+  }
+})
+watch([article, loading, isEnglish], ([item, pending, english]) => {
+  if (!visit || route.name !== 'article-detail') return
+  visit.article = !pending && !english && item && route.params.slug === item.slug
+    ? { path: route.path, title: item.title, summary: item.summary }
+    : null
+})
 const detail = computed(() => {
   const source = artifact.value ?? article.value
   return source ? localizedContent(source, locale.value) : null
@@ -64,13 +86,29 @@ watch([detail, locale], () => {
 
 function setupScrollNarrative() {
   if (!shouldRunGsapReveal() || !root.value || !detail.value) return
+  // Registered here, inside `setup`, rather than at module scope:
+  // `gsap.registerPlugin` reads `window.matchMedia` the moment it runs, so a
+  // top-level call makes this module unimportable anywhere that API is
+  // missing. The local binding keeps the calls below reading as they did.
+  const ScrollTrigger = ensureScrollTrigger()
   gsapContext?.revert()
+  narrativeCue = 'idle'
   gsapContext = createGsapContext(root.value, () => {
     const constrained = isConstrainedGsapReveal()
     const duration = constrained ? 0.18 : 0.42
     const offset = constrained ? 7 : 14
     const stagger = constrained ? 0.04 : 0.056
-    const headerTimeline = gsap.timeline({ defaults: { ease: 'power3.out' } })
+    const headerTimeline = gsap.timeline({
+      defaults: { ease: 'power3.out' },
+      // The opening voice belongs to the very first painted frame of the
+      // article. Bundling it here means a reader who lands mid-page (the
+      // shell is already mounted) still hears it exactly once.
+      onStart: () => {
+        if (narrativeCue !== 'idle') return
+        narrativeCue = 'opened'
+        void audioSystem.playNarrative('opening', { volume: 0.26 })
+      },
+    })
     headerTimeline
       .from('[data-motion="detail-index"]', { autoAlpha: 0, x: constrained ? 0 : -12, duration: constrained ? 0.16 : 0.28 }, 0)
       .from('[data-motion="detail-header"] > *', { autoAlpha: 0, y: constrained ? 5 : 14, duration: constrained ? 0.18 : 0.34, stagger: constrained ? 0.025 : 0.055, clearProps: 'transform' }, constrained ? 0.02 : 0.06)
@@ -110,6 +148,14 @@ function setupScrollNarrative() {
     if (related.length) {
       ScrollTrigger.batch('[data-motion-page="content-detail"] [data-motion="related"]', {
         start: 'top 88%', once: true, onEnter: (elements) => {
+          // The related region is the article's true end — the CTA below it
+          // is shared footer furniture, not the reading itself. Guarded on
+          // `ended` alone so a reader who deep-links past the header still
+          // gets a closing note rather than silence.
+          if (narrativeCue !== 'ended') {
+            narrativeCue = 'ended'
+            void audioSystem.playNarrative('ending', { volume: 0.28 })
+          }
           const timeline = gsap.timeline({ defaults: { ease: 'power3.out' } })
           timeline
             .fromTo(elements, { autoAlpha: 0, y: offset }, { autoAlpha: 1, y: 0, duration: constrained ? 0.18 : 0.36, stagger: constrained ? 0.04 : 0.072, overwrite: 'auto', clearProps: 'opacity,visibility,transform' })
@@ -127,11 +173,14 @@ function setupScrollNarrative() {
 let detailRequestId = 0
 async function loadDetail() {
   const requestId = ++detailRequestId
+  const path = route.path
+  const target = visit?.target
   loading.value = true
   error.value = ''
   artifact.value = null
   article.value = null
   imageFailed.value = false
+  narrativeCue = 'idle'
   const slug = String(route.params.slug)
   try {
     if (isArtifact.value) {
@@ -142,9 +191,16 @@ async function loadDetail() {
       if (requestId === detailRequestId) article.value = data
     }
   } catch (reason) {
-    if (requestId === detailRequestId) error.value = reason instanceof Error ? reason.message : '内容加载失败，请稍后重试。'
+    if (requestId === detailRequestId && path === route.path) {
+      if (visit && route.name === 'article-detail') visit.resumePoint = null
+      error.value = reason instanceof Error ? reason.message : '内容加载失败，请稍后重试。'
+    }
   } finally {
     if (requestId !== detailRequestId) return
+    if (target?.path && route.path === target.path) {
+      if (!artifact.value || artifact.value.slug !== slug) visit?.failTarget(target, 'content')
+      else if (!artifact.value.exhibits.some(item => item.slug === GUIDE_EXHIBIT)) visit?.failTarget(target, 'plate')
+    }
     loading.value = false
     await nextTick()
     setupScrollNarrative()
@@ -182,6 +238,16 @@ onBeforeUnmount(() => { detailRequestId += 1; gsapContext?.revert(); window.remo
       <div v-if="artifact.collectionLocation" data-motion="facts"><dt>{{ copy.location }}</dt><dd>{{ artifact.collectionLocation }}</dd></div>
     </dl>
 
+    <LuoshengPreview
+      v-if="LuoshengPreview && !isEnglish && artifact?.slug === GUIDE_ARTIFACT && artifact.exhibits.some(item => item.slug === GUIDE_EXHIBIT)"
+      place="artifact"
+    />
+    <LuoshengPreset
+      v-if="LuoshengPreset && !isEnglish && artifact?.slug === GUIDE_ARTIFACT && artifact.exhibits.some(item => item.slug === GUIDE_EXHIBIT)"
+      :exhibit-slug="GUIDE_EXHIBIT"
+    />
+    <button v-if="visit?.object?.path === route.path && (!visit.object.exhibit || !LuoshengPreview)" type="button"
+      class="museum-button" @click="visit.openFrom($event.currentTarget as HTMLElement)">问洛笙</button>
     <section class="detail-reading"><aside data-motion="reading-note"><span>{{ copy.contents }}</span><nav v-if="contents.length > 1" class="detail-toc" :aria-label="copy.contents"><a v-for="item in contents" :key="item.id" :href="`#${item.id}`">{{ item.title }}</a></nav><p v-else>{{ copy.note }}</p><p v-if="isConcept" class="detail-source">{{ copy.source }}</p><i data-motion="reading-rule" aria-hidden="true"></i></aside><div class="detail-content"><template v-for="(block, index) in contentBlocks" :key="`${index}-${block.text}`"><h2 v-if="block.heading" :id="`reading-section-${index}`" data-motion="paragraph">{{ block.text }}</h2><p v-else data-motion="paragraph"><PlainTextLinks :text="block.text" /></p></template></div></section>
 
   <section v-if="artifact && artifact.exhibits.length" class="related-exhibits"><p class="section-label" data-motion="related-heading">{{ copy.related }}</p><h2 data-motion="related-heading">{{ copy.next }}</h2><RouterLink v-for="exhibit in artifact.exhibits" :key="exhibit.slug" class="related-exhibit" data-motion="related" :to="`/exhibits/${exhibit.slug}`"><img v-if="exhibit.coverImageUrl" data-motion="related-media" :src="exhibit.coverImageUrl" :alt="exhibit.title" loading="lazy" decoding="async" /><div data-motion="related-copy"><h3>{{ exhibit.title }}</h3><p>{{ exhibit.summary }}</p><span>{{ copy.enter }} →</span></div></RouterLink></section>

@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "locale": "zh-CN",
+  "brand": {
+    "name": "洛笙",
+    "role": "导览向导"
+  },
+  "entry": {
+    "open": "问洛笙",
+    "close": "收起",
+    "expand": "展开",
+    "collapse": "收起",
+    "end": "结束这次导览",
+    "selfTour": "我先自己逛"
+  },
+  "input": {
+    "placeholder": "问一件展品，或说你想看什么",
+    "send": "发送",
+    "sending": "发送中",
+    "retry": "重试",
+    "cancel": "取消"
+  },
+  "empty": {
+    "title": "想从哪儿看起？",
+    "body": "可以问眼前这件展品，也可以说你想找什么。",
+    "suggestionsLabel": "可以这样问"
+  },
+  "progress": {
+    "checking": "正在核对资料…",
+    "slow": "还在核对，请稍等。"
+  },
+  "clarify": {
+    "lookpoint": "你现在问的是鼎耳、三足，还是纹样？",
+    "discovery": "可以换一件。你想看哪类藏品？",
+    "date": "想查哪一天的公开时段？例如「明天」或「11 月 23 日」。",
+    "people": "一共几位？每次预约支持 1–30 人。"
+  },
+  "insufficient": {
+    "title": "这一点现有资料还不能确认",
+    "body": "缺的是：{missing}。",
+    "next": "你可以继续问：",
+    "fallback": "也可以先看当前页面的公开资料。"
+  },
+  "actions": {
+    "lookPlate": "看{point}",
+    "returnPlate": "回到{point}",
+    "more": "更多",
+    "less": "收起",
+    "readSource": "查看依据",
+    "openSource": "打开公开资料",
+    "goAppointment": "去预约页",
+    "askAgain": "换个问法",
+    "helpful": "有帮助",
+    "unhelpful": "没帮助",
+    "feedbackThanks": "记下了，谢谢。"
+  },
+  "plateViewLabels": {
+    "ear": "看俯视图",
+    "feet": "看背视图",
+    "motif": "看纹样局部"
+  },
+  "errors": {
+    "network": "网络没有连上。可以重试，或先看当前页面的公开资料。",
+    "search": "馆藏搜索暂时不可用。可以重试这次搜索，或换一个问题。",
+    "generation": "这次回答没有生成出来。可以先看已审展签，或换个问法。",
+    "timeout": "这次核对超时了。已审展签还能看，可以稍后再问。",
+    "busy": "现在问的人有点多。可以先看已审展签，稍后再试。",
+    "limit": "今天的问答额度用完了。已审展签和公开资料仍然可以看。",
+    "paused": "问答暂时关闭。已审展签和公开资料仍然可以看。",
+    "unknown": "这次没有理解你的问题。可以换个说法，或点下面的建议问题。"
+  },
+  "a11y": {
+    "answerRegion": "洛笙的回答",
+    "suggestions": "建议问题",
+    "clarification": "请选择你想问的部位",
+    "close": "关闭洛笙面板",
+    "input": "向洛笙提问"
+  },
+  "notes": [
+    "plateViewLabels 必须覆盖词表中所有 stop；新增 stop 时同步增加。",
+    "本文件只放界面文案，不放事实正文。",
+    "执行代理不得在 Vue 组件中硬编码这些字符串。"
+  ]
+}

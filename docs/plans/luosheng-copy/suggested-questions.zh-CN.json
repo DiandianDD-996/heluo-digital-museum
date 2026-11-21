@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "locale": "zh-CN",
+  "rules": {
+    "maxPerPoint": 3,
+    "maxFollowUps": 2,
+    "maxChars": 14,
+    "requireSupports": true
+  },
+  "exhibits": {
+    "heluo-bronze-ding-3d": {
+      "artifactSlug": "heluo-bronze-ding",
+      "points": {
+        "ear": [
+          {
+            "q": "这两个把手是做什么的？",
+            "kind": "boundary",
+            "supports": ["LS-DING-EARS"],
+            "why": "高频误解；卡内明确不能由形状推断用途"
+          },
+          {
+            "q": "为什么不能确定它是把手？",
+            "kind": "boundary",
+            "supports": ["LS-DING-EARS"],
+            "why": "直接练习证据边界，避免把观察说成史实"
+          },
+          {
+            "q": "换个角度看鼎耳",
+            "kind": "action",
+            "supports": ["LS-DING-EARS"],
+            "why": "可执行动作；由游客点击，不声称自动切换"
+          }
+        ],
+        "feet": [
+          {
+            "q": "只看见两足，是不是少了一足？",
+            "kind": "answer",
+            "supports": ["LS-DING-FEET"],
+            "why": "最容易误解的图版差异，卡内有遮挡解释"
+          },
+          {
+            "q": "背视图里能看到几只足？",
+            "kind": "answer",
+            "supports": ["LS-DING-FEET"],
+            "why": "可核对的具体观察，不依赖推断"
+          },
+          {
+            "q": "这是不是修复过的？",
+            "kind": "boundary",
+            "supports": ["LS-DING-FEET"],
+            "why": "明确不能从固定视角判断修复史"
+          }
+        ],
+        "motif": [
+          {
+            "q": "这些纹样象征什么？",
+            "kind": "boundary",
+            "supports": ["LS-DING-MOTIF"],
+            "why": "高频问题；卡内明确没有已审寓意来源"
+          },
+          {
+            "q": "纹样在图上哪里？",
+            "kind": "answer",
+            "supports": ["LS-DING-MOTIF"],
+            "why": "可指认的视觉细节，适合第一次观看"
+          },
+          {
+            "q": "看纹样局部",
+            "kind": "action",
+            "supports": ["LS-DING-MOTIF"],
+            "why": "可执行动作，与图版按钮一致"
+          }
+        ]
+      },
+      "global": [
+        {
+          "q": "这件鼎参考的是哪件藏品？",
+          "kind": "answer",
+          "supports": ["LS-DING-SOURCE"],
+          "why": "来源核心问题，卡内有公开编号"
+        },
+        {
+          "q": "它是在洛阳出土的吗？",
+          "kind": "boundary",
+          "supports": ["LS-DING-SOURCE"],
+          "why": "公开记录为空，必须回答不能确认"
+        },
+        {
+          "q": "图版是原器照片吗？",
+          "kind": "boundary",
+          "supports": ["LS-DING-SOURCE"],
+          "why": "数字模型与原器的边界，避免误导"
+        }
+      ]
+    }
+  },
+  "notes": [
+    "每条建议问题必须能被 supports 中的卡回答；回答可以是边界说明或弃答。",
+    "不得出现未证前提，例如「鼎耳为什么是把手」。",
+    "新增展品时先有已签核卡，再写建议问题。"
+  ]
+}

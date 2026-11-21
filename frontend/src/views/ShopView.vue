@@ -6,15 +6,18 @@ let cartQueue = Promise.resolve()
 <script setup lang="ts">
 import '../assets/control-surface-polish.css'
 import '../assets/public-responsive-polish.css'
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { motion } from 'motion-v'
+import { gsap } from 'gsap'
 import { ShoppingBag } from '@element-plus/icons-vue'
 import { apiGet, apiRequest } from '../lib/api'
 import { resolveProductPresentation } from '../lib/productPresentation'
 import { mediaSizes, mediaSrcset } from '../lib/responsiveMedia'
+import { createGsapContext, revealFigures, revealSequence, shouldRunGsapReveal } from '../lib/gsap'
 import { useAuthStore } from '../stores/auth'
 import { useLocale } from '../stores/locale'
+import { audioSystem } from '../lib/audioSystem'
 import BottomSheet from '../components/BottomSheet.vue'
 import CartPanelContent from '../components/CartPanelContent.vue'
 import FluidButton from '../components/FluidButton.vue'
@@ -95,6 +98,11 @@ function useFallbackProductImage(event: Event, product: Product) {
 const stockUnit = (stock: number) => locale.value === 'en-US' && stock === 1 ? 'item' : t.value.shopText.items
 
 let productRequestId = 0
+// The storefront announces itself once per mounted page, not once per
+// request: `loadProducts` also runs from the retry button and the category
+// filter re-renders the same grid, so an unguarded cue would strike again on
+// a retry that changed nothing the visitor had not already seen.
+let storefrontCued = false
 
 async function loadProducts() {
   const requestId = ++productRequestId
@@ -103,6 +111,16 @@ async function loadProducts() {
   try {
     const result = await apiGet<Product[]>('/products')
     if (requestId === productRequestId) products.value = result
+    // 'discovery' rather than 'opening': nothing has begun here — the hall is
+    // already open and the visitor is browsing. What this moment marks is
+    // stock appearing where there was a skeleton, and discovery is the voice
+    // the system reserves for that (it is the same cue the 3D viewer uses on
+    // its first compiled frame). 'opening' would claim an arrival that has
+    // already happened.
+    if (requestId === productRequestId && result.length && !storefrontCued) {
+      storefrontCued = true
+      void audioSystem.playNarrative('discovery', { volume: 0.22 })
+    }
   } catch (reason) {
     if (requestId === productRequestId) productError.value = reason instanceof Error ? reason.message : '商品加载失败。'
   } finally {
@@ -306,23 +324,73 @@ async function checkout() {
     actionError.value = reason instanceof Error ? reason.message : '下单或支付失败。'; checkoutState.value = 'error'
   }
 }
+const root = ref<HTMLElement | null>(null)
+let gsapContext: ReturnType<typeof createGsapContext>
+
+/**
+ * The storefront's entrance is the shop's own voice: the intro sets the
+ * room, then the objects arrive, then the bag states its terms on the
+ * right. The product cards are already carried by `motion-v` — they fade
+ * and lift themselves on mount — so this deliberately does not animate
+ * them again, which would put two systems on the same properties.
+ */
+function setupEntrance() {
+  if (!shouldRunGsapReveal() || !root.value) return
+  gsapContext?.revert()
+  gsapContext = createGsapContext(root.value, () => {
+    revealSequence('[data-motion="shop-intro"] > *', { stagger: 0.07 })
+    revealSequence('[data-motion="shop-panel"] > *', { stagger: 0.06, delay: 0.18 })
+  })
+}
+
 onMounted(async () => {
+  setupEntrance()
   await auth.initialize()
   restorePendingCheckout()
   await Promise.all([loadProducts(), loadCart()])
   await resumePendingAdd()
 })
+
+/**
+ * A placed order is the storefront's one irreversible moment, so it gets a
+ * taller entrance than anything else on the page. `checkoutState` rather
+ * than the message text drives it: the state machine already knows whether
+ * this was a success or a failure, and the two cases should not look alike.
+ */
+/**
+ * A placed order is the storefront's one irreversible moment, so it gets a
+ * taller entrance than anything else on the page. `checkoutState` rather
+ * than the message text drives it: the state machine already knows whether
+ * this was a success or a failure, and the two cases should not look alike.
+ *
+ * Deliberately no audio cue here. Both outcomes already ring: the message
+ * below renders an `InlineStatus`, which carries `data-state` regardless of
+ * whether it is announced, and the delegated layer listens for exactly that
+ * attribute. A cue added here would be a second bell on the same event.
+ */
+watch(checkoutState, async (state) => {
+  if (state === 'idle' || !shouldRunGsapReveal()) return
+  await nextTick()
+  const panel = root.value?.querySelectorAll<HTMLElement>('.cart-panel [role="status"], .cart-panel .state-panel')
+  if (!panel?.length) return
+  const { offset, duration } = revealFigures()
+  gsap.fromTo(panel, { autoAlpha: 0, y: offset }, {
+    autoAlpha: 1, y: 0, duration, ease: 'power3.out', clearProps: 'opacity,visibility,transform',
+  })
+})
+
+onBeforeUnmount(() => gsapContext?.revert())
 </script>
 
 <template>
-  <section class="shop-page">
+  <section ref="root" class="shop-page" data-motion-page="shop">
     <section class="shop-content">
       <div
         v-pointer-surface="{ kind: 'product', maxTilt: 0, lift: 0 }"
         class="shop-object-studio-surface"
         aria-hidden="true"
       ></div>
-      <header class="shop-intro" data-glass="light">
+      <header class="shop-intro" data-motion="shop-intro" data-glass="light">
         <p class="eyebrow">HELUO CULTURAL STORE</p>
         <h1>{{ shopTitle }}</h1>
         <div class="shop-category-nav" data-galaxy-segmented data-glass="compact" role="group" :aria-label="shopCopy.categories"><button type="button" :class="{ active: activeCategory === 'all' }" :aria-pressed="activeCategory === 'all'" @click="activeCategory = 'all'">{{ shopCopy.all }}</button><button type="button" :class="{ active: activeCategory === 'objects' }" :aria-pressed="activeCategory === 'objects'" @click="activeCategory = 'objects'">{{ shopCopy.category }}</button><button type="button" :class="{ active: activeCategory === 'textiles' }" :aria-pressed="activeCategory === 'textiles'" @click="activeCategory = 'textiles'">{{ shopCopy.apparel }}</button><button type="button" :class="{ active: activeCategory === 'paper' }" :aria-pressed="activeCategory === 'paper'" @click="activeCategory = 'paper'">{{ shopCopy.paper }}</button></div>
@@ -348,7 +416,7 @@ onMounted(async () => {
       <ShoppingBag aria-hidden="true" /><span>{{ shopCopy.bag }}</span><motion.sup :key="itemCount" :initial="{ scale: 0.75 }" :animate="{ scale: 1 }">{{ itemCount }}</motion.sup>
     </motion.button>
 
-    <aside class="cart-panel" data-glass="light" data-glass-controls :aria-label="shopCopy.bag">
+    <aside class="cart-panel" data-motion="shop-panel" data-glass="light" data-glass-controls :aria-label="shopCopy.bag">
       <header class="cart-heading"><span class="cart-heading__icon" aria-hidden="true"><ShoppingBag /></span><div><p>{{ shopCopy.selection }}</p><h2>{{ shopCopy.bag }}</h2></div><motion.span :key="itemCount" class="cart-count" :initial="{ scale: 0.78 }" :animate="{ scale: 1 }">{{ itemCount }} {{ shopCopy.unit }}</motion.span></header>
       <CartPanelContent
         :logged-in="auth.loggedIn"

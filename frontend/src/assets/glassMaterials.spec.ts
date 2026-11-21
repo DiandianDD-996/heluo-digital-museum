@@ -21,6 +21,37 @@ function vueSources(path: string): string[] {
   })
 }
 
+/**
+ * True when some opening tag in `source` has exactly the given class list
+ * and every listed attribute with the given value.
+ *
+ * This replaced literal-substring assertions on the opening tags, which
+ * failed for the wrong reason every time a template gained an unrelated
+ * attribute: HTML attribute order carries no meaning, so
+ * `class="auth-panel" data-glass="dark"` stopped matching the moment a
+ * `data-motion` hook was added between them. The contract these tests
+ * exist to protect is which element declares which treatment — not the
+ * spelling or order of its attributes.
+ *
+ * Class tokens are compared as a set so an ordering change in the class
+ * list cannot break the test either, and the tag pattern stops at the
+ * closing `>` so a match cannot run on into a sibling element.
+ *
+ * Attributes are matched only when listed, because some of these surfaces
+ * bind theirs dynamically (`:data-glass="isDark ? 'dark' : 'light'"`) and
+ * asserting a literal value there would pin the expression's spelling
+ * rather than the treatment it produces.
+ */
+function declaresTreatment(source: string, classes: string[], attributes: Record<string, string> = {}): boolean {
+  const wanted = new Set(classes)
+  return [...source.matchAll(/<[^>]*>/g)].some((match) => {
+    const tag = match[0]
+    const classList = (/(?:^|\s)class="([^"]*)"/.exec(tag)?.[1] ?? '').split(/\s+/).filter(Boolean)
+    if (classList.length !== wanted.size || !classList.every((token) => wanted.has(token))) return false
+    return Object.entries(attributes).every(([name, value]) => new RegExp(`(?:^|\\s)${name}="([^"]*)"`).exec(tag)?.[1] === value)
+  })
+}
+
 describe('museum glass material contract', () => {
   it('defines each canonical tier token once', () => {
     const tokens = [
@@ -110,20 +141,22 @@ describe('museum glass material contract', () => {
 
   it('registers public, account, exhibit, mobile and admin surfaces', () => {
     const sources = vueSources(srcPath).join('\n')
-    const requiredMarkers = [
-      'class="site-header" data-glass="light"',
-      'class="home-cover"',
-      'class="collection-filters gallery-filters"',
-      'class="exhibits-intro" data-glass="light"',
-      'class="exhibit-panel exhibit-panel-desktop" data-glass="dark"',
-      'class="booking-page appointment-workbench"',
-      'class="product-copy" data-glass="light"',
-      'class="auth-panel" data-glass="dark"',
-      'class="bottom-sheet" :class="panelClass" data-glass="light"',
-      'class="admin-sidebar" :data-glass="isDark ? \'dark\' : \'light\'"',
-      'class="dashboard-summary" data-glass="light"',
+    const requiredSurfaces: Array<[string[], Record<string, string>]> = [
+      [['site-header'], { 'data-glass': 'light' }],
+      [['home-cover'], {}],
+      [['collection-filters', 'gallery-filters'], {}],
+      [['exhibits-intro'], { 'data-glass': 'light' }],
+      [['exhibit-panel', 'exhibit-panel-desktop'], { 'data-glass': 'dark' }],
+      [['booking-page', 'appointment-workbench'], {}],
+      [['product-copy'], { 'data-glass': 'light' }],
+      [['auth-panel'], { 'data-glass': 'dark' }],
+      [['bottom-sheet'], { 'data-glass': 'light' }],
+      [['admin-sidebar'], {}],
+      [['dashboard-summary'], { 'data-glass': 'light' }],
     ]
 
-    for (const marker of requiredMarkers) expect(sources).toContain(marker)
+    for (const [classes, attributes] of requiredSurfaces) {
+      expect(declaresTreatment(sources, classes, attributes), `${classes.join('.')} surface is missing`).toBe(true)
+    }
   })
 })

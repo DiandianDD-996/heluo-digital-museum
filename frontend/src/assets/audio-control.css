@@ -1,0 +1,200 @@
+/* Header sound control: one master switch plus an expandable panel.
+   Colours come from theme tokens so the surface follows light/dark without
+   a second palette; layout is the only thing defined here. */
+
+.audio-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.audio-control .audio-toggle { color: inherit; }
+
+.audio-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: calc(0px - var(--audio-panel-offset, 0px));
+  z-index: 60;
+  display: grid;
+  gap: 12px;
+  width: min(260px, calc(100vw - 32px));
+  padding: 14px;
+  border: 1px solid var(--theme-border-strong);
+  border-radius: var(--theme-card-radius, 10px);
+  background: var(--theme-surface-raised);
+  box-shadow: var(--theme-shadow-float);
+  color: var(--theme-text-strong);
+  font: 500 13px/1.5 var(--font-body);
+  text-align: left;
+}
+
+/* Keep the ten-pixel visual gap inside the hoverable control. */
+.audio-panel::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  left: 0;
+  height: 10px;
+}
+
+/* A hairline of colour at the top edge, so the panel reads as attached to
+   the button rather than floating loose over the header. */
+.audio-panel::before {
+  content: '';
+  position: absolute;
+  inset: -1px -1px auto;
+  height: 2px;
+  border-radius: 10px 10px 0 0;
+  background: linear-gradient(90deg, transparent, var(--theme-accent, var(--theme-action)), transparent);
+  opacity: .55;
+}
+
+.audio-panel__title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  font: 600 12px/1.4 var(--font-body);
+  letter-spacing: .04em;
+  color: var(--theme-text-muted);
+}
+
+.audio-panel__title em {
+  font-style: normal;
+  color: var(--theme-action);
+}
+
+.audio-panel__switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--theme-control-min, 44px);
+  padding-inline: 12px;
+  border: 1px solid var(--theme-border-strong);
+  border-radius: var(--theme-control-radius, 6px);
+  background: var(--theme-surface-control);
+  color: var(--theme-text-strong);
+  font: 600 13px/1 var(--font-body);
+  cursor: pointer;
+}
+
+.audio-panel__switch:hover { background: var(--theme-surface-control-hover); }
+
+.audio-panel__switch i {
+  width: 30px;
+  height: 16px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--theme-border-strong);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--theme-text-muted) 30%, transparent);
+  transition: background var(--theme-motion-duration, .2s) ease;
+}
+
+.audio-panel__switch[aria-pressed='true'] i { background: var(--theme-action); }
+
+.audio-panel__fieldset {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.audio-panel__fieldset legend {
+  padding: 0;
+  color: var(--theme-text-muted);
+  font: 600 12px/1.4 var(--font-body);
+  letter-spacing: .04em;
+}
+
+.audio-panel__tiers {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.audio-panel__tier {
+  min-height: 34px;
+  padding: 0;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--theme-control-radius, 6px);
+  background: var(--theme-surface-control);
+  color: var(--theme-text-muted);
+  font: 600 12px/1 var(--font-body);
+  cursor: pointer;
+}
+
+.audio-panel__tier:hover { background: var(--theme-surface-control-hover); color: var(--theme-text-strong); }
+
+.audio-panel__tier.is-active {
+  border-color: var(--theme-action);
+  background: var(--theme-action);
+  color: var(--theme-primary-text);
+}
+
+.audio-panel__check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 32px;
+  cursor: pointer;
+}
+
+.audio-panel__check input {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  accent-color: var(--theme-action);
+  cursor: pointer;
+}
+
+.audio-panel__hint {
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--theme-border);
+  color: var(--theme-text-muted);
+  font: 400 12px/1.6 var(--font-body);
+}
+
+/* The panel is a preference surface, not a data panel: its colours are
+   opaque so a translucent header cannot wash out the tier chips. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .audio-panel { background: var(--theme-surface); backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .audio-panel__switch i { transition-duration: 0ms; }
+  .audio-panel-enter-active,
+  .audio-panel-leave-active { transition-duration: 0ms !important; }
+}
+
+@media (forced-colors: active) {
+  .audio-panel { border-color: CanvasText; background: Canvas; color: CanvasText; }
+  .audio-panel__tier.is-active { border-color: Highlight; background: Highlight; color: HighlightText; }
+  .audio-panel__switch[aria-pressed='true'] i { background: Highlight; }
+}
+
+/* Enter and leave keep the panel anchored to the button: a scale from the
+   top-right corner rather than the centre, so it reads as unfolding. */
+.audio-panel-enter-active,
+.audio-panel-leave-active {
+  transition: opacity .18s ease, transform .18s ease;
+  transform-origin: top right;
+}
+
+.audio-panel-enter-from,
+.audio-panel-leave-to {
+  opacity: 0;
+  transform: translateY(-6px) scale(.96);
+}
+
+/* Narrow headers already hide the text on sibling controls; the icon alone
+   still carries the state, and the label would push the brand out. */
+@media (max-width: 900px) {
+  .audio-control .audio-toggle span { display: none; }
+  .audio-control .audio-toggle { padding-inline: 0; }
+}

@@ -61,6 +61,12 @@ async function reconcile(orderId: number) {
 }
 
 async function pay(order: Order) {
+  // No audio cue here on purpose. Both outcomes of this action already ring:
+  // `pay` sets `message` or `error`, and the `InlineStatus` pair below
+  // renders either as a fresh status node with `data-state`, which the
+  // delegated layer observes. Adding one would be a second bell on the same
+  // event — and this is the duplicate-payment path a visitor reaches from
+  // the store, so it should sound identical to checkout instead of richer.
   if (payingId.value !== null) return
   payingId.value = order.id
   message.value = ''

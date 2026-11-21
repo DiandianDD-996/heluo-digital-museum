@@ -4,9 +4,11 @@ const apiGet = vi.hoisted(() => vi.fn())
 const apiRequest = vi.hoisted(() => vi.fn())
 const auth = vi.hoisted(() => ({ initialize: vi.fn(), loggedIn: true, token: 'token', user: { nickname: 'Default name', email: 'default@example.test' }, initializationError: '' }))
 const router = vi.hoisted(() => ({ push: vi.fn() }))
+const route = vi.hoisted(() => ({ query: {} as Record<string, string> }))
 vi.mock('../lib/api', async () => ({ ...await vi.importActual('../lib/api'), apiGet, apiRequest }))
 vi.mock('../stores/auth', () => ({ useAuthStore: () => auth }))
-vi.mock('vue-router', async () => ({ ...await vi.importActual('vue-router'), useRouter: () => router }))
+vi.mock('vue-router', async () => ({ ...await vi.importActual('vue-router'), useRouter: () => router, useRoute: () => route }))
+import { reactive } from 'vue'
 import AppointmentView from './AppointmentView.vue'
 import { clearAppointmentDraft, readAppointmentDraft, saveAppointmentDraft } from '../stores/appointmentDraft'
 const slot = { id: 10, visitDate: '2026-09-09', startTime: '09:00:00', endTime: '11:00:00', remainingPeople: 12 }
@@ -15,7 +17,46 @@ const render = () => mount(AppointmentView, { global: { stubs: { BottomSheet: tr
 describe('appointment recovery', () => {
   beforeEach(() => {
     clearAppointmentDraft(); vi.useRealTimers(); vi.setSystemTime(new Date('2026-09-08T06:00:00Z'))
+    route.query = reactive({})
     apiGet.mockReset().mockResolvedValue([slot]); apiRequest.mockReset(); router.push.mockReset(); auth.loggedIn = true; auth.initialize.mockResolvedValue(undefined)
+  })
+  it('previews the requested date without selecting a time or creating an appointment', async () => {
+    route.query = { date: slot.visitDate }
+    const wrapper = render()
+    await flushPromises()
+    expect(wrapper.get('.appointment-selected-date').text()).toBe(slot.visitDate)
+    expect(wrapper.get('.appointment-time').attributes('aria-pressed')).toBe('false')
+    expect(apiRequest).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+  it('drops an old time while switching the preview date and never restores it after a failed refresh', async () => {
+    route.query.date = slot.visitDate
+    const wrapper = render()
+    await flushPromises()
+    await wrapper.get('.appointment-time').trigger('click')
+    expect(wrapper.get('.appointment-time').attributes('aria-pressed')).toBe('true')
+
+    let finishOldRefresh!: (value: unknown) => void
+    const oldRefresh = new Promise(resolve => { finishOldRefresh = resolve })
+    apiGet.mockReturnValueOnce(oldRefresh).mockRejectedValueOnce(new Error('offline'))
+    route.query.date = '2026-09-10'
+    await flushPromises()
+    expect(wrapper.find('.appointment-times').exists()).toBe(false)
+    route.query.date = '2026-09-11'
+    await flushPromises()
+    finishOldRefresh([{ ...slot, visitDate: '2026-09-10' }])
+    await flushPromises()
+    expect(wrapper.find('.appointment-empty[role="alert"]').exists()).toBe(true)
+    expect(wrapper.find('.appointment-times').exists()).toBe(false)
+    await wrapper.get('form.appointment-details').trigger('submit')
+    expect(apiRequest).not.toHaveBeenCalled()
+
+    apiGet.mockResolvedValueOnce([{ ...slot, id: 11, visitDate: '2026-09-11' }])
+    await wrapper.get('.appointment-empty button').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('.appointment-selected-date').text()).toBe('2026-09-11')
+    expect(wrapper.get('.appointment-time').attributes('aria-pressed')).toBe('false')
+    wrapper.unmount()
   })
   it('keeps fields across a login detour and revalidates the selected slot', async () => {
     const first = render()

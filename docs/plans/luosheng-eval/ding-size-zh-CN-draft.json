@@ -1,0 +1,11 @@
+{
+  "id": "LS-DING-SIZE",
+  "revision": 1,
+  "exhibitSlug": "heluo-bronze-ding-3d",
+  "artifactSlug": "heluo-bronze-ding",
+  "locale": "zh-CN",
+  "status": "DRAFT",
+  "text": "克利夫兰艺术博物馆的馆藏记录显示，参考实物《Tripod (Ding)》（馆藏号 1962.281）的整体尺寸为 24.5 × 20 厘米。馆方在这一字段中只列了两个整体尺寸数值。数字模型与鼎耳、鼎足等局部尺寸需另行测量。",
+  "aliases": ["整体尺寸", "它多大", "尺寸多少"],
+  "publicSource": "https://www.clevelandart.org/art/1962.281"
+}

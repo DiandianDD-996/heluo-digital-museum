@@ -1,0 +1,27 @@
+services:
+  # One-click local test image: the SAME jar that runs in production, just
+  # pointed at a local file-based H2 database (see application-pocketbay.yml)
+  # instead of MySQL, so there is nothing else to provision. Frontend and
+  # backend are baked into a single image — the Vue build is copied into
+  # the Spring Boot jar's static resources — so this one container serves
+  # the whole site.
+  museum:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: heluo-museum:local
+    container_name: heluo-museum-local
+    restart: unless-stopped
+    ports:
+      - "${MUSEUM_LOCAL_PORT:-8088}:8080"
+    environment:
+      MUSEUM_PUBLIC_BASE_URL: http://localhost:${MUSEUM_LOCAL_PORT:-8088}
+    volumes:
+      # Persists the H2 database file across restarts/rebuilds.
+      - museum-local-data:/data
+      # Local-only secrets (JWT signing key, bootstrap admin) — gitignored,
+      # already present at the repo root; never baked into the image.
+      - ./pocketbay.properties:/app/pocketbay.properties:ro
+
+volumes:
+  museum-local-data:

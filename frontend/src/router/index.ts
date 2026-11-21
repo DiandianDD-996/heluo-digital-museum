@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouterScrollBehavior } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { installInkTransitions } from '../lib/inkTransitions'
 const HomeView = () => import('../views/HomeView.vue')
 const ExploreView = () => import('../views/ExploreView.vue')
 const ExhibitsView = () => import('../views/ExhibitsView.vue')
@@ -58,6 +59,8 @@ router.beforeEach(async (to) => {
 })
 
 export default router
+
+installInkTransitions(router)
 
 
 

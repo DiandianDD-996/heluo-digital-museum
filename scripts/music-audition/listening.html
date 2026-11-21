@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>河洛 · 配乐试听室</title>
+  <style>
+    :root{--mist:#edf2ef;--paper:#fafcfa;--ink:#203c38;--muted:#526a63;--bronze:#846137;--line:#c4d1ca;--body:"Microsoft YaHei UI","PingFang SC",sans-serif;--display:"Noto Serif SC","STZhongsong","SimSun",serif;--utility:"Consolas",monospace}
+    *{box-sizing:border-box}body{margin:0;background:var(--mist);color:var(--ink);font:15px/1.75 var(--body)}
+    main{max-width:1060px;margin:auto;padding:52px 32px 36px}header{display:flex;gap:32px;align-items:end;justify-content:space-between;margin-bottom:32px}
+    .brand{font-size:12px;letter-spacing:.22em;color:var(--muted);margin:0 0 10px}h1{font:normal clamp(30px,4vw,44px)/1.3 var(--display);letter-spacing:.09em;margin:0}header p{max-width:390px;margin:0;color:var(--muted)}
+    button,a,input,audio{touch-action:manipulation}button{font:inherit;cursor:pointer}button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid var(--bronze);outline-offset:4px}a{color:var(--ink);text-underline-offset:4px}
+    .tracks{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 0 22px}.track{text-align:left;padding:20px 22px;border:1px solid var(--line);border-radius:10px;background:transparent;color:var(--ink);min-height:110px}.track[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+    .track small{display:block;font-size:12px;letter-spacing:.12em;margin-bottom:7px}.track strong{display:block;font:normal 21px/1.45 var(--display)}.track .mood{display:block;font-size:12px;margin-top:7px;opacity:.8}
+    .listening{background:var(--paper);border:1px solid var(--line);border-radius:14px;overflow:hidden}.player{padding:28px 30px 24px}.player-head{display:flex;justify-content:space-between;gap:20px;align-items:start}.player-head h2{font:normal 26px/1.4 var(--display);margin:0 0 6px}.description{color:var(--muted);max-width:650px;margin:0}.duration{font:14px var(--utility);white-space:nowrap;color:var(--bronze);padding-top:10px}
+    fieldset{padding:0;border:0;margin:24px 0 10px}legend{font-size:12px;color:var(--muted);margin-bottom:8px}.modes{display:flex;flex-wrap:wrap;gap:10px}.modes label{display:inline-flex;gap:8px;align-items:center;padding:9px 12px;border:1px solid var(--line);border-radius:6px;cursor:pointer;min-height:44px}.modes input{accent-color:var(--ink);width:16px;height:16px}.mode-note{font-size:13px;color:var(--muted);margin:0 0 16px;min-height:24px}audio{display:block;width:100%;margin-top:10px;min-height:54px}
+    .status-row{display:flex;gap:20px;justify-content:space-between;align-items:center;font-size:12px;margin-top:10px}.status-row p{margin:0;color:var(--muted)}.download{white-space:nowrap}
+    .timeline{border-top:1px solid var(--line);padding:20px 30px 25px}.caption{font-size:12px;color:var(--muted);margin:0 0 12px}.sections{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px}.section{border:0;border-top:3px solid var(--line);background:transparent;text-align:left;padding:9px 4px 4px;color:var(--muted);min-height:60px;font-size:12px}.section[aria-current="true"]{border-color:var(--bronze);color:var(--ink)}.section time{display:block;font:13px var(--utility);margin-bottom:5px}.section:hover{background:var(--mist)}
+    .context{display:grid;grid-template-columns:180px 1fr;gap:30px;padding:26px 30px 30px;border-top:1px solid var(--line)}.context h3{font:normal 18px/1.55 var(--display);margin:0 0 5px}.context small{color:var(--muted);font-size:12px}.context p{margin:0 0 14px}.context p:last-child{margin:0}.context-copy{max-width:710px;color:var(--muted);font-size:14px;line-height:1.95}
+    footer{margin-top:22px;color:var(--muted);font-size:12px}footer p{margin:4px 0}.feedback{color:var(--ink);font-size:14px;margin-bottom:10px}code{font-family:var(--utility)}
+    @media(max-width:650px){main{padding:28px 18px}header{display:block}header p{margin-top:18px}.tracks{gap:7px}.track{padding:14px 10px;min-height:116px}.track strong{font-size:17px}.track small,.track .mood{font-size:11px;letter-spacing:0}.player,.timeline{padding:22px 18px}.player-head h2{font-size:23px}.duration{font-size:12px}.context{grid-template-columns:1fr;gap:14px;padding:22px 18px}.sections{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.section{font-size:11px;padding-right:2px;overflow-wrap:anywhere}.status-row{align-items:start}.modes label{font-size:13px}}
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div><p class="brand">河洛数字博物馆 · 场景乐章</p><h1>配乐试听室</h1></div>
+    <p>从晨光入馆，循水岸静读，沿青铜器形近观。听主题如何生长、转折，又带着变化回来。</p>
+  </header>
+  <nav class="tracks" aria-label="选择试听场景" id="tracks"></nav>
+  <article class="listening">
+    <div class="player">
+      <div class="player-head"><div><h2 id="title"></h2><p class="description" id="description"></p></div><span class="duration" id="duration" aria-label="当前乐章时长"></span></div>
+      <fieldset id="revision-field"><legend>编曲版本</legend><div class="modes" id="revisions"></div></fieldset>
+      <p class="mode-note" id="revision-note">切换保留同一秒数；超过所选版本的长度时从头开始。各版段落不同，同一秒数不代表同一乐句。</p>
+      <fieldset><legend>试听音量</legend><div class="modes">
+        <label><input type="radio" name="mode" value="scene" checked>建议页面音量</label>
+        <label><input type="radio" name="mode" value="audition">等响度对比</label>
+      </div></fieldset>
+      <p class="mode-note" id="mode-note"></p>
+      <audio id="audio" controls preload="metadata" aria-label="当前配乐播放器"></audio>
+      <div class="status-row"><p id="status" role="status">点击播放开始试听。</p><a class="download" id="download" download>下载当前 WAV</a></div>
+    </div>
+    <div class="timeline"><p class="caption">乐章展开 · 点击从对应位置听起</p><div class="sections" id="sections"></div></div>
+    <div class="context"><div><h3 id="context-title"></h3><small id="context-label"></small></div><div class="context-copy" id="context-copy"></div></div>
+  </article>
+  <footer>
+    <p class="feedback">建议先完整听一首，再回听让你记住或分心的乐句；也可以切换旧版，比较主题、层次与整体走向。</p>
+    <p>原创采样编排试听稿 · 使用已核实的录音音源制作。具体曲目尚待听感确认，未替换网站配乐。</p>
+    <p>录音音源：VSCO 2 CE，CC0。Sam Gossner / Versilian Studios、Simon Dalzell / Ivy Audio；切样 Elan Hickler / Soundemote。<a href="source-samples/SOURCE-LICENSE.md">来源记录</a></p>
+  </footer>
+</main>
+<script>
+  const report = __REPORT__;
+  const scenes = {
+    home: {label:'首页迎宾',mood:'明朗 · 舒展 · 从容',heading:'进入展馆',caption:'听欢迎感与主题展开',paragraphs:['让音乐伴随进入展馆的第一眼。可以先记住最初的旋律，再听它怎样经过不同声部的回应，渐渐打开空间。','完整听过之后，留意哪一句留下了印象，以及主题带着变化回来的时候，是否自然、亲近。']},
+    reading: {label:'水鸟阅读',mood:'清润 · 连贯 · 有呼吸',heading:'观察入口｜先看姿态',caption:'配合正文阅读，感受注意力',paragraphs:['这是一件由项目组自主创作的概念展品，并非真实馆藏复原。水鸟昂首而立，细长颈部把视线从足部引向头部，收拢的双翼则让身体保持稳定。观看它时，可以先不判断它属于哪个年代，只留意一条曲线怎样让金属显得轻盈，又怎样在静止中保留欲行、欲飞的张力。','青铜通常给人厚重、坚固的印象，水鸟却代表水岸、迁徙与季节变化。创作把两种相反感受放在一起：坚硬材料承载柔软羽翼，稳定足部托起向前伸展的长颈。表面的河流旋纹不是对古代纹样的复制，而是用连续线条提示羽毛、水波与时间流动。']},
+    bronze: {label:'青铜鼎近观',mood:'温厚 · 清楚 · 有纵深',heading:'沿着器形听',caption:'听主题、展开与回归',paragraphs:['把注意力放在器腹的转折、足部的支撑和纹样的走向。跟随弦乐的线条，听拨弦如何回应，也听主题在展开之后如何回来。','这里希望有器物的分量，也有靠近它的温度。留意让你记住的乐句，和中段层次打开之后，声音是否仍然清楚、适合静静观察。']}
+  };
+  const audio = document.querySelector('#audio');
+  const requestedRevision = new URL(location.href).searchParams.get('revision');
+  let revision = report.revisions.some(item => item.id === requestedRevision) ? requestedRevision : report.defaultRevision;
+  const initialTracks = report.revisions.find(item => item.id === revision).tracks;
+  let selected = initialTracks.find(track => track.id === report.defaultTrack) || initialTracks[0];
+  let mode = 'scene';
+  let version = 0;
+  let loading = false;
+  let pendingTime = 0;
+  let pendingResume = false;
+  let restartedForLength = false;
+  const format = seconds => `${Math.floor(seconds / 60).toString().padStart(2,'0')}:${Math.floor(seconds % 60).toString().padStart(2,'0')}`;
+  const status = text => document.querySelector('#status').textContent = text;
+
+  function loadAudio(preserveTime = false) {
+    const currentVersion = ++version;
+    const time = preserveTime ? (loading ? pendingTime : audio.currentTime) : 0;
+    const resume = preserveTime && (loading ? pendingResume : !audio.paused);
+    pendingTime = time;
+    pendingResume = resume;
+    restartedForLength = false;
+    loading = true;
+    audio.pause();
+    const resource = selected[mode];
+    audio.src = resource.file;
+    document.querySelector('#duration').textContent = format(resource.durationSeconds);
+    document.querySelector('#download').href = resource.file;
+    document.querySelector('#mode-note').textContent = mode === 'scene'
+      ? '保留各场景的轻重关系；阅读版更轻，适合边看正文边听。'
+      : '不同曲目与版本已匹配实际响度，便于比较旋律、音色与衔接。';
+    status('正在读取音频…');
+    audio.addEventListener('loadedmetadata', () => {
+      if (currentVersion !== version) return;
+      const beyondEnd = time >= audio.duration;
+      restartedForLength = beyondEnd;
+      audio.currentTime = beyondEnd ? 0 : Math.max(0, time);
+      document.querySelector('#duration').textContent = format(audio.duration);
+      pendingTime = audio.currentTime;
+      loading = false;
+      status(beyondEnd ? '所选版本较短，已回到开头。' : '已就绪，点击播放开始试听。');
+      if (resume) audio.play().catch(() => {if (currentVersion === version) status('点击播放器继续试听。');});
+    }, {once:true});
+    audio.load();
+  }
+
+  function selectTrack(id, preserveTime = false) {
+    selected = report.revisions.find(item => item.id === revision).tracks.find(track => track.id === id);
+    const scene = scenes[id];
+    document.querySelectorAll('.track').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.id === id)));
+    document.querySelector('#title').textContent = selected.title;
+    document.querySelector('#description').textContent = selected.description;
+    document.querySelector('#context-title').textContent = scene.heading;
+    document.querySelector('#context-label').textContent = scene.caption;
+    const text = document.querySelector('#context-copy');
+    text.replaceChildren(...scene.paragraphs.map(value => {const p=document.createElement('p');p.textContent=value;return p;}));
+    document.querySelector('#sections').replaceChildren(...selected.sections.map(section => {
+      const button = document.createElement('button');
+      button.className = 'section';
+      button.type = 'button';
+      button.dataset.start = section.start;
+      button.dataset.end = section.end;
+      const time = document.createElement('time');time.textContent = format(section.start);
+      const label = document.createElement('span');label.textContent = section.label.split('：').pop();
+      button.append(time,label);
+      button.setAttribute('aria-label', `从 ${format(section.start)} 听起：${section.label}`);
+      button.addEventListener('click', () => {if (audio.readyState > 0) {audio.currentTime=section.start;audio.play().catch(() => status('点击播放器继续试听。'));}});
+      return button;
+    }));
+    loadAudio(preserveTime);
+  }
+
+  for (const track of report.tracks) {
+    const button = document.createElement('button');
+    button.className = 'track';button.type='button';button.dataset.id=track.id;
+    const small=document.createElement('small');small.textContent=scenes[track.id].label;
+    const name=document.createElement('strong');name.textContent=track.title;
+    const mood=document.createElement('span');mood.className='mood';mood.textContent=scenes[track.id].mood;
+    button.append(small,name,mood);button.addEventListener('click',()=>selectTrack(track.id));
+    document.querySelector('#tracks').append(button);
+  }
+  for (const item of report.revisions) {
+    const label = document.createElement('label');
+    const input = document.createElement('input');
+    input.type='radio';input.name='revision';input.value=item.id;input.checked=item.id===revision;
+    input.addEventListener('change',()=>{revision=input.value;selectTrack(selected.id,true);});
+    label.append(input,document.createTextNode(item.label));
+    document.querySelector('#revisions').append(label);
+  }
+  document.querySelector('#revision-field').hidden = report.revisions.length < 2;
+  document.querySelector('#revision-note').hidden = report.revisions.length < 2;
+  document.querySelectorAll('input[name="mode"]').forEach(input=>input.addEventListener('change',()=>{mode=input.value;loadAudio(true);}));
+  audio.addEventListener('timeupdate',()=>document.querySelectorAll('.section').forEach(button=>button.setAttribute('aria-current',String(audio.currentTime>=Number(button.dataset.start)&&audio.currentTime<Number(button.dataset.end)))));
+  audio.addEventListener('play',()=>{status(`${restartedForLength?'所选版本较短，从开头继续。 ':''}正在试听 ${selected.title} · ${revision.toUpperCase()}`);restartedForLength=false;});
+  audio.addEventListener('pause',()=>{if(!loading&&audio.readyState>0)status(`已暂停 · ${format(audio.currentTime)}`);});
+  audio.addEventListener('ended',()=>status('这一首已结束。可以换一个场景，或点选乐句重听。'));
+  audio.addEventListener('error',()=>{loading=false;pendingResume=false;status('音频加载失败，请刷新页面或下载当前 WAV 后播放。');});
+  selectTrack(selected.id);
+</script>
+</body>
+</html>

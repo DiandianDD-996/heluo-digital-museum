@@ -90,7 +90,7 @@ describe('first-visit route runtime contract', () => {
     const appointment = read('src/views/AppointmentView.vue')
     const fields = read('src/components/AppointmentContactFields.vue')
     expect(appointment).toContain('v-if="!mobileDatePicker" class="appointment-details"')
-    expect(appointment).toContain(':disabled="!selectedSlot || Boolean(message)"')
+    expect(appointment).toContain(':disabled="!slotChoicesReady || !selectedSlot || Boolean(message)"')
     expect(appointment).toContain('panel-class="appointment-bottom-sheet appointment-refined-sheet"')
     expect(appointment.match(/<AppointmentContactFields /g)).toHaveLength(2)
     for (const autocomplete of ['name', 'tel', 'email']) expect(fields).toContain(`autocomplete="${autocomplete}"`)

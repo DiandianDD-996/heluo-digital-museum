@@ -7,8 +7,11 @@ import { Box, Connection, InfoFilled, VideoPlay } from '@element-plus/icons-vue'
 import { qualityLabel, type PointCloudQuality } from '../lib/pointCloudQuality'
 import { apiGet } from '../lib/api'
 import BottomSheet from '../components/BottomSheet.vue'
+import { GUIDE_ARTIFACT, GUIDE_EXHIBIT, readGuideHandoff, type GuideView } from '../lib/luoshengPreview'
 import { useLocale } from '../stores/locale'
+import { unifiedGuideEnabled, useLuoshengVisit } from '../stores/luoshengVisit'
 import { createGsapContext, isConstrainedGsapReveal, shouldRunGsapReveal } from '../lib/gsap'
+import { audioSystem } from '../lib/audioSystem'
 import { requiresManualExhibitActivation, selectExhibitModelSource } from '../lib/exhibitInteraction'
 import { consumeExhibitRuntimeRecovery, reloadExhibitRuntime } from '../lib/exhibitRuntimeRecovery'
 
@@ -23,9 +26,20 @@ interface Exhibit {
 interface ViewerController { rotate:()=>void; zoomIn:()=>void; zoomOut:()=>void; resetView:()=>void; setView:(view:ViewName, options?: { animated?: boolean })=>void; setMode:(mode:'solid'|'points')=>void }
 
 const route = useRoute()
+const LuoshengPreset = import.meta.env.VITE_GUIDE_PRESET_ENABLED === 'true' ||
+  (import.meta.env.VITE_GUIDE_SITE_ENABLED === 'true' && import.meta.env.VITE_GUIDE_TURNS_ENABLED === 'true')
+  ? defineAsyncComponent(() => import('../components/LuoshengPreset.vue')) : null
+const LuoshengPreview = import.meta.env.DEV && !LuoshengPreset
+  ? defineAsyncComponent(() => import('../components/LuoshengPreview.vue')) : null
 const { locale } = useLocale()
 const exhibit = ref<Exhibit|null>(null)
 const loading = ref(true)
+const visit = unifiedGuideEnabled ? useLuoshengVisit() : null
+watch([exhibit, loading, locale], ([item, pending, language]) => {
+  if (!visit || pending || language !== 'zh-CN' || !item || route.name !== 'exhibit-detail' || route.params.slug !== item.slug) return
+  visit.object = { path: route.path, slug: item.artifact.slug, title: item.artifact.title,
+    summary: item.summary, exhibit: item.slug === GUIDE_EXHIBIT && item.artifact.slug === GUIDE_ARTIFACT ? GUIDE_EXHIBIT : undefined }
+})
 const error = ref('')
 const viewer = ref<ViewerController|null>(null)
 const displayMode = ref<'solid'|'points'>('solid')
@@ -43,6 +57,11 @@ const pointCloudLoading = ref(false)
 const pointCloudFailed = ref(false)
 let gsapContext: gsap.Context | undefined
 let modelPreloadLink: HTMLLinkElement | undefined
+// Both cues are per-exhibit, not per-session: `resetViewerRuntime` clears
+// them on every load, so returning to this route re-arms the discovery bell
+// while a re-render or a mode toggle cannot strike it twice.
+let discoveryCued = false
+let awakenCued = false
 const ThreeExhibitViewer = defineAsyncComponent({
   loader: () => import('../components/ThreeExhibitViewer.vue'),
   delay: 0,
@@ -97,6 +116,11 @@ const exhibitDescription = computed(() => {
 const renderedQuality = computed(() => locale.value === 'zh-CN' ? qualityLabel(renderQuality.value) : ({ high:'High quality', medium:'Balanced quality', low:'Performance mode', mobile:'Mobile quality', fallback:'Solid fallback' }[renderQuality.value]))
 const activeModel = computed(() => exhibit.value ? selectExhibitModelSource(exhibit.value, preferMobileModel.value) : null)
 const viewerInteractive = computed(() => viewerRuntimeState.value === 'ready')
+const guidePointCloud = computed(() => {
+  if (!viewerInteractive.value || renderQuality.value === 'fallback' || pointCloudFailed.value) return undefined
+  if (pointCloudLoading.value) return 'loading'
+  return displayMode.value === 'points' ? 'active' : 'ready'
+})
 const posterStatus = computed(() => viewerRuntimeState.value === 'error' ? viewerRuntimeError.value || copy.value.viewerUnavailable : copy.value.posterHint)
 const formattedModelSize = computed(() => {
   const bytes = activeModel.value?.sizeBytes
@@ -148,6 +172,8 @@ function preloadActiveModel() {
 
 function resetViewerRuntime() {
   clearModelPreload()
+  discoveryCued = false
+  awakenCued = false
   const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection
   const coarsePointer = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches
   const manualActivation = requiresManualExhibitActivation({
@@ -157,7 +183,11 @@ function resetViewerRuntime() {
     memoryGiB: (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
   })
   preferMobileModel.value = manualActivation || window.innerWidth <= 760
-  viewerRuntimeRequested.value = consumeExhibitRuntimeRecovery() || !manualActivation
+  const guideHandoff = route.params.slug === GUIDE_EXHIBIT && (
+    (import.meta.env.DEV && readGuideHandoff(window.history.state) !== null)
+    || (!!visit?.target && visit.target.path === route.path)
+  )
+  viewerRuntimeRequested.value = consumeExhibitRuntimeRecovery() || (!manualActivation && !guideHandoff)
   viewerRuntimeState.value = viewerRuntimeRequested.value ? 'activating' : 'poster'
   viewerRuntimeError.value = ''
   viewerKey.value += 1
@@ -184,10 +214,24 @@ function activateViewer() {
   viewerRuntimeRequested.value = true
   viewerRuntimeState.value = 'activating'
   viewerRuntimeError.value = ''
+  // Mirrors HomeView's hero cue: the bronze voice answers the visitor's own
+  // gesture, so it lands as consent being honoured rather than as ambient
+  // noise arriving while they are still reading the poster.
+  if (!awakenCued) {
+    awakenCued = true
+    void audioSystem.playInteraction('awaken-bronze', { volume: 0.24 })
+  }
 }
 
 function handleViewerState(state: ViewerRuntimeState) {
   viewerRuntimeState.value = state
+  // The first compiled frame is the real moment of arrival — the poster and
+  // the loading states precede it, so a cue fired earlier would beat the
+  // model onto the screen and stop meaning "here it is".
+  if (state === 'ready' && !discoveryCued) {
+    discoveryCued = true
+    void audioSystem.playNarrative('discovery', { volume: 0.26 })
+  }
   if (state === 'ready' || state === 'error') clearModelPreload()
   if (state !== 'error') viewerRuntimeError.value = ''
 }
@@ -199,6 +243,7 @@ function handlePointCloudState(state: 'idle' | 'loading' | 'ready' | 'error') {
 
 async function load() {
   const requestId = ++detailRequestId
+  const target = visit?.target
   resetViewerRuntime()
   loading.value = true
   error.value = ''
@@ -210,6 +255,10 @@ async function load() {
   catch (reason) { if (requestId === detailRequestId) error.value = reason instanceof Error ? reason.message : copy.value.loadFailed }
   finally {
     if (requestId !== detailRequestId) return
+    if (target?.path && route.path === target.path) {
+      if (!exhibit.value || exhibit.value.slug !== route.params.slug) visit?.failTarget(target, 'content')
+      else if (exhibit.value.artifact.slug !== GUIDE_ARTIFACT) visit?.failTarget(target, 'plate')
+    }
     loading.value = false
     await nextTick()
     revealExhibitShell()
@@ -222,6 +271,14 @@ function selectMode(mode:'solid'|'points') {
 }
 function togglePointCloud() { selectMode(displayMode.value === 'points' ? 'solid' : 'points') }
 function chooseView(view:ViewName) { if (!viewerInteractive.value) return; activeView.value = view; viewer.value?.setView(view, { animated: true }) }
+function orientFromGuide(view: GuideView) {
+  if (!viewerInteractive.value) return
+  chooseView(view)
+  root.value?.querySelector('.exhibit-scene')?.scrollIntoView({ behavior: 'instant', block: 'start' })
+}
+function showGuidePoints() {
+  if (guidePointCloud.value === 'ready') selectMode('points')
+}
 function reset() { if (!viewerInteractive.value) return; activeView.value = 'front'; viewer.value?.resetView() }
 onMounted(load)
 watch(() => route.params.slug, load)
@@ -307,6 +364,18 @@ onBeforeUnmount(() => {
       <div class="view-switcher" data-motion="dock-section"><h2>{{ copy.viewsTitle }}</h2><div tabindex="0" role="group" :aria-label="copy.viewsTitle"><button v-for="view in views" :key="view.key" type="button" :class="{ active: activeView === view.key }" :data-view="view.key" :aria-label="view.label" :aria-pressed="activeView === view.key" :disabled="!viewerInteractive" @click="chooseView(view.key)"><img :src="view.thumbnail || exhibit.coverImageUrl" alt=""/><span>{{ view.label }}</span></button></div></div>
       <div class="exhibit-location" data-motion="dock-section"><svg viewBox="0 0 120 54" aria-hidden="true"><path d="M5 34 C18 8 34 42 51 20 S82 13 96 31 108 44 116 18"/><circle cx="8" cy="33" r="3"/></svg><p><span>{{ copy.current }}</span><b>{{ displayTitle }}</b>{{ exhibit.collectionLocation || copy.digitalExhibit }}</p></div>
     </section>
+    <LuoshengPreview
+      v-if="LuoshengPreview && locale === 'zh-CN' && exhibit.slug === GUIDE_EXHIBIT && exhibit.artifact.slug === GUIDE_ARTIFACT"
+      place="exhibit"
+      :viewer-status="viewerRuntimeState === 'ready' || viewerRuntimeState === 'error' || viewerRuntimeState === 'poster' ? viewerRuntimeState : 'loading'"
+      :point-cloud="guidePointCloud"
+      @orient="orientFromGuide"
+      @show-points="showGuidePoints"
+    />
+    <LuoshengPreset
+      v-if="LuoshengPreset && locale === 'zh-CN' && exhibit.slug === GUIDE_EXHIBIT && exhibit.artifact.slug === GUIDE_ARTIFACT"
+      :exhibit-slug="GUIDE_EXHIBIT"
+    />
     <article class="exhibit-description"><p class="eyebrow">EXHIBIT NOTES</p><p v-for="part in exhibitDescription" :key="part">{{ part }}</p></article>
     <BottomSheet :open="mobileInfoOpen" :title="copy.infoTitle" :snap-point="mobileInfoSnapPoint" @close="mobileInfoOpen = false" @update:snap-point="mobileInfoSnapPoint = $event">
       <div class="mobile-exhibit-info"><h2>{{ displayTitle }}</h2><dl><div v-for="fact in exhibitFacts" :key="fact.label"><dt>{{ fact.label }}</dt><dd>{{ fact.value }}</dd></div></dl><div class="mode-switch" data-galaxy-segmented :aria-label="copy.renderMode"><button type="button" :class="{ active: displayMode === 'solid' }" :aria-pressed="displayMode === 'solid'" :disabled="!viewerInteractive" @click="selectMode('solid')">{{ copy.solid }}</button><button type="button" :class="{ active: displayMode === 'points' }" :aria-pressed="displayMode === 'points'" :aria-busy="pointCloudLoading" :disabled="!viewerInteractive || pointCloudLoading || renderQuality === 'fallback'" @click="selectMode('points')">{{ pointCloudLoading ? copy.pointCloudBusy : copy.points }}</button></div><p v-if="pointCloudFailed" role="status">{{ copy.pointCloudFailed }}</p><div class="exhibit-panel-actions"><RouterLink :to="`/artifacts/${exhibit.artifact.slug}`">{{ copy.artifact }}　→</RouterLink><RouterLink to="/appointment">{{ copy.booking }}</RouterLink></div></div>

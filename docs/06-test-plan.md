@@ -1,5 +1,45 @@
 # 测试与验收计划
 
+## 2026-11-21 洛笙连续澄清计数
+
+轮次单测核对只有面板接受的结果才触发计数，上一轮答复不跨过期回复、切换范围或失败。开启的候选浏览器从普通公众页面连续提交同一句无看点指代，核对同源 204 回执只含连续澄清类别且无 Cookie 或 Referer；MockMvc 核对两种分类只增相应指标，并拒绝跨站与未知类别。默认关闭产物仍须通过现有隔离检查。合成回归不计入真人或真实模型测试。
+
+## 2026-09-27 R3录音配乐接入回归
+
+单测覆盖录音媒体的手势解锁、同曲延续、两媒体上限、快速往返、过期异步播放、静音、加载失败、隐藏暂停和资源释放；声音控件覆盖悬停/点击、触摸、键盘焦点与窄屏面板。另检查持久化的音效关闭偏好及关闭后旧异步音效不复活。
+
+在 `frontend/` 运行 `corepack pnpm exec vitest run --maxWorkers=1`、`corepack pnpm typecheck`、`corepack pnpm build`；构建包含既有首屏预算和新增三曲6MB资源门禁。真实浏览器脚本 `node scripts/music-r3-browser-check.mjs` 默认连接4198开发候选；本地Docker使用 `MUSIC_R3_BASE_URL=http://localhost:8088`，覆盖1440/390px、双主题双语控件、代表页面真实导航、原生循环、音乐/音效独立开关和故障降级。
+
+在仓库根执行 `node scripts/music-audition/check-production.mjs` 核对实际8088健康、构建身份与媒体访问。浏览器脚本不伪造后端数据、不拦截正常音频播放，故障场景单独注入503；隐藏恢复采用明确标记的可见性事件注入，不能当作实体设备后台切换验证。三轮试听方向已获用户认可，网页循环的主观听感、长时间阅读和实体设备仍需独立人工确认。实际结果见 [R3接入计划](plans/2026-09-27-music-r3-integration.md)。
+
+本轮结果：72文件476测试、类型检查、生产构建及两项资源预算通过；4198开发候选与8088实际Docker各29项浏览器检查通过、页面异常0、业务写入0；生产HTTP核验11组通过，48个JS/CSS及三首MP3与构建一致。未重跑后端全套、MySQL和业务写入，不扩展到这些范围。
+
+## 2026-09-26 全站沉浸式视听升级回归
+
+**沙箱限制（影响命令记录方式）**：工作区 `node_modules` 由 Windows 侧 pnpm 安装，其符号链接在 Linux 侧读取返回 `EIO`，故 `pnpm test` / `pnpm typecheck` / `pnpm build` **无法原地执行**。本节全部结果来自隔离副本 `/tmp/vt`（`rsync` 同步源码，副本自带独立 `node_modules`）。同步严格单向（源码树 → 副本）。因此**不得**把这些结果记为"项目自身脚本已运行"。浏览器实页验收的脚本同样在该副本运行，`artifacts/immersive-audiovisual-2026-09-26/` 内的脚本**不含 `node_modules` 与 `axe.min.js`**，需按该目录 README 补齐依赖后方可复现。
+
+自动化：`vue-tsc -b --force` 通过（无输出）；`vitest run` 69 文件 435 测试全部通过；`vite build` 通过；`bundle-budget.mjs` 门禁通过（首屏 CSS 48,819 B ≤ 80,000 B；首屏 JS 78,274 B ≤ 81,638 B；全量 JS 526,433 B / CSS 106,597 B）。
+
+新增/扩展的音频与动效测试：`audioBus.spec.ts`（总线、默认静音、偏好持久化、存储降级、四档增益与无跳变、环境音切换契约）、`musicGenerator.spec.ts`（固定种子可复现）、`musicDirector.spec.ts`、`audioScenes.spec.ts`（路由→音景映射全覆盖）、`interactionSound.spec.ts`（共享控件反馈与防疲劳）、`gsap.spec.ts` 与 `motionFrame.spec.ts`（降级原语与帧预算）；各页面 `*.spec.ts` 以源码断言核对 `static` / `prefers-reduced-motion` 下不注册 ScrollTrigger。
+
+门禁外发现：14 个 `frontend/src` 文件曾被改写为 CRLF（HEAD 均为 LF，仓库无 `.gitattributes`）。`git diff` 归一化行尾故不显示差异，但 `git diff --check` 读原始字节会把每行报成 trailing whitespace，直接导致 §5.1 门禁失败。已还原为 LF 并复核残留为 0。
+
+浏览器实页验收：已执行，**5 项未通过**。脚本、112 张截图与原始 JSON 见 `artifacts/immersive-audiovisual-2026-09-26/`。沙箱每次 bash 调用自成进程组并随即回收，故不启用监听端口的服务器，改以 Playwright 路由拦截同时承担静态服务与 `/api/v1` 桩（该端口无进程监听）。
+
+通过项：112/112 状态完成渲染、控制台异常 0、`h1` 齐备、文档级横向溢出 0、图片无破、`[data-motion]` 无残留不可见节点；音频图 17/17；键盘可达性 9/10；音效控件 17/22；`prefers-reduced-motion` 下 5 页均为 `static` 且装饰动效未播放。
+
+未通过项（**均为既有缺陷或本轮首次暴露，非本轮视听改造的回归；本轮未修改任何生产源码**）：`AudioControl.vue` 悬停与点击冲突（**依偏好而不同**：新用户点击可展开，已开启音效的回访用户悬停展开后同一次点击立即关闭）；`Escape` 未归还焦点（`root.value.focus?.()` 对无 `tabindex` 的 `<div>` 是静默空操作）；移动端面板左移出屏 28px（被 `body { overflow-x: clip }` 静默裁切，故溢出检测读数为 0）；`.section-label` 浅色对比度 3.64；`.status-badge--warning` 浅色对比度 4.25。另确认 `.profile-record-actions { min-width: max-content }`（`main.css:621`）导致订单卡溢出，A/B 注入改 `min-width: 0` 后 6/6 不再溢出，但仅在该懒挂载区真正挂上时出现。以上修复均涉及 `assets/main.css`、`assets/explore-gallery.css`、`assets/theme-controls.css` 与 `AudioControl.vue`，属本轮范围之外，按 `AGENTS.md` §3 待用户确认后作为独立步骤处理。
+
+**axe 基线口径**：计划所称"112 状态 0 violations"**属实**，基线文件为 `artifacts/premium-visual-2026-09-12/accessibility/summary.json`（`buildSignature=010de749acd6…`，0 violation 对象 / 120 incomplete）。但该基线**只覆盖采集时已挂载的 DOM**：`ProfileView` 记录区受 `IntersectionObserver` 门控，采集未滚动，故 `.section-label` 与 `.status-badge--warning` 既不在 violations 也不在 incomplete——本轮 8 项 axe 发现应定性为**首次暴露**而非回归。同目录体系下另有 `premium-visual-2026-09-10/accessibility/summary.json`（`aaf4543…`，含 4 项 `/explore` 浅色对比度违规），**那不是基线**，是当日修复前的采集。详见 [视听升级计划](plans/2026-09-26-immersive-audiovisual-upgrade.md) §7.6。
+
+**仍未覆盖**：全部 `/api/v1` 响应由桩生成，**真实后端未被调用**，故后端行为、权限边界与数据一致性未覆盖；音量分档与 BGM 的响度平衡仅验证增益值与无跳变，未经听感校准；`prefers-reduced-motion` 已验证，但真机帧率与触控体验未测。**主观听感与真机帧率属人工确认，未确认，不由单测代替。** 全仓库 `git diff --check` 仍有约 6,000 行历史遗留发现（`.github/`、`AGENTS.md`、`assets/` 等），与本轮无关，未清理。实际证据与未覆盖边界见 [视听升级计划](plans/2026-09-26-immersive-audiovisual-upgrade.md) §7。
+
+## 2026-09-21 视听升级回归
+
+新增 `audioSystem.spec.ts` 验证默认静音、显式保存偏好、减少动态效果和浏览器能力/存储缺失；`homeEntrance.spec.ts` 验证同标签页首次开场与存储不可用降级。前端类型检查使用 `vue-tsc -b`，全量单测在本机使用 `corepack pnpm exec vitest run --maxWorkers=1` 避免并发 worker 超时。
+
+Docker 实页核对音效控件尺寸/描边、双主题、开关持久化、首页返回及馆藏导航；主观听感、真机帧率和业务写入不由单测代替。实际结果见 [视听收口计划](plans/2026-09-21-audiovisual-stabilization.md)。
+
 ## 2026-09-17 双语搜索回归
 
 自动化入口：后端 `BilingualSearchTests`、`BilingualMigrationTests`、`BootstrapDataInitializerTests`；前端 `contentLocale.spec.ts`、Explore/Admin 相关测试；浏览器 `e2e/bilingual-search.e2e.ts`。实际运行结果记录在 [实施计划](plans/2026-09-17-explore-bilingual-search.md)，本节不单独宣称验收通过。

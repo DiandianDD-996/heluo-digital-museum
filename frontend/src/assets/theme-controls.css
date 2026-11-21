@@ -206,16 +206,16 @@ html[data-theme="dark"] {
 
 /* Shared control ownership outranks legacy page materials without adding a new stylesheet. */
 html[data-theme] #app .app-shell :where(h1, h2, h3, p, span, small, strong, a, button, input, select, textarea, label) { letter-spacing: 0 !important; }
-html[data-theme] #app #main-content :is(button, input, select, textarea, label, .status-badge) { font-family: var(--font-body) !important; font-style: normal !important; }
+html[data-theme] #app #main-content :is(button, input, select, textarea, label, .status-badge):not(:where([data-local-control-theme] *)) { font-family: var(--font-body) !important; font-style: normal !important; }
 html[data-theme] #app #main-content :is(input, select, textarea) { font-size: 16px; }
-html[data-theme] #app #main-content :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+html[data-theme] #app #main-content :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea):not(:where([data-local-control-theme] *)) {
   border-color: var(--theme-field-boundary) !important;
   border-radius: 6px !important;
   background: var(--theme-surface-content) !important;
   color: var(--theme-text-strong) !important;
   box-shadow: none !important;
 }
-html[data-theme] #app #main-content :is(input, textarea)::placeholder { color: var(--theme-text-muted) !important; opacity: 1; }
+html[data-theme] #app #main-content :is(input, textarea):not(:where([data-local-control-theme] *))::placeholder { color: var(--theme-text-muted) !important; opacity: 1; }
 html[data-theme] #app #main-content :is(input, select, textarea):focus-visible { outline: 2px solid var(--theme-focus); outline-offset: 2px; }
 html[data-theme] #app #main-content .museum-search-field input { border: 0 !important; background: transparent !important; outline: 0; }
 html[data-theme] #app #main-content :is(.fluid-button, .admin-action-button, .museum-search-field__submit) {

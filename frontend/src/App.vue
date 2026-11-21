@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, watch, watchEffect } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, watch, watchEffect } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { setUnauthorizedHandler } from './lib/api'
 import { User } from '@element-plus/icons-vue'
+import { musicDirector } from './lib/musicDirector'
+import { installInteractionSounds, removeInteractionSounds } from './lib/interactionSound'
 import { useAuthStore } from './stores/auth'
 import { useLocale } from './stores/locale'
 import { useTheme } from './stores/theme'
+import { unifiedGuideEnabled, useLuoshengVisit } from './stores/luoshengVisit'
+import AudioControl from './components/AudioControl.vue'
 import LoadingSkeleton from './components/LoadingSkeleton.vue'
 import MuseumBrandSeal from './components/MuseumBrandSeal.vue'
 import PointerCursor from './components/PointerCursor.vue'
@@ -42,7 +46,32 @@ const isAdminRoute = computed(() => route.path.startsWith('/admin'))
 const showMobileTabs = computed(() => !isAdminRoute.value && !route.path.startsWith('/login') && !route.path.startsWith('/reset-password'))
 const shellRouteClass = computed(() => `app-shell--${String(route.name ?? 'unknown')}`)
 const showSiteFooter = computed(() => !isAdminRoute.value && route.name !== 'appointment' && route.name !== 'shop')
+const SiteGuide = import.meta.env.DEV || import.meta.env.VITE_GUIDE_SITE_ENABLED === 'true'
+  ? defineAsyncComponent(() => import('./components/LuoshengSiteGuide.vue'))
+  : null
+const siteGuideRoutes = ['home', 'explore', 'artifact-detail', 'article-detail', 'exhibits', 'exhibit-detail', 'appointment', 'shop']
+const visit = unifiedGuideEnabled ? useLuoshengVisit() : null
+watch(() => route.path, path => {
+  visit?.enterPath(path, String(route.name))
+  if (!siteGuideRoutes.includes(String(route.name))) visit?.end()
+}, { flush: 'sync' })
+watch([locale, () => auth.token], ([language]) => {
+  if (!visit) return
+  visit.end()
+  if (language !== 'zh-CN') visit.object = null
+}, { flush: 'sync' })
 onMounted(auth.initialize)
+// Interaction cues cover the whole app from one place, so a control added
+// to any view is heard without its author wiring anything.
+onMounted(installInteractionSounds)
+onBeforeUnmount(removeInteractionSounds)
+// The soundscape follows the route for the whole app, not per page: the
+// bed is meant to be continuous, and a page that started its own would
+// restart the music on every navigation.
+musicDirector.setRoute(route.name, route.params.slug)
+musicDirector.init()
+watch([() => route.name, () => route.params.slug], ([name, slug]) => musicDirector.setRoute(name, slug))
+onBeforeUnmount(() => musicDirector.reset())
 watch(() => route.path, async (_, previousPath) => {
   if (!previousPath) return
   await nextTick()
@@ -76,6 +105,7 @@ watchEffect(() => {
           <RouterLink v-if="auth.isAdmin" to="/admin">{{ t.admin }}</RouterLink>
         </nav>
         <div class="site-utilities">
+          <AudioControl />
           <button class="theme-toggle" data-glass="compact" data-glass-interactive type="button" :aria-label="isDark ? (locale === 'zh-CN' ? '切换到浅色模式' : 'Switch to light mode') : (locale === 'zh-CN' ? '切换到深色模式' : 'Switch to dark mode')" :aria-pressed="isDark" @click="toggleTheme">
             <svg v-if="isDark" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42" /></svg>
             <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.5A8 8 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z" /></svg>
@@ -103,5 +133,6 @@ watchEffect(() => {
         <RouterLink to="/appointment"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16" /></svg><span>{{ shellCopy.mobile[3] }}</span></RouterLink>
         <RouterLink to="/shop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1 12H6zM8 9V7a4 4 0 0 1 8 0v2" /></svg><span>{{ shellCopy.mobile[4] }}</span></RouterLink>
       </nav>
+      <SiteGuide v-if="SiteGuide && locale === 'zh-CN' && siteGuideRoutes.includes(String(route.name))" />
   </div>
 </template>

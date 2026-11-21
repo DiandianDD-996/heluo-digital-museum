@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 import { gsap } from 'gsap'
 import { apiGet } from '../lib/api'
 import { createGsapContext, isConstrainedGsapReveal, shouldRunGsapReveal } from '../lib/gsap'
+import { audioSystem } from '../lib/audioSystem'
 import InlineStatus from '../components/InlineStatus.vue'
 import LoadingSkeleton from '../components/LoadingSkeleton.vue'
 import PointerDotField from '../components/PointerDotField.vue'
@@ -14,6 +15,9 @@ const loading=ref(true);
 const error=ref('')
 const root = ref<HTMLElement | null>(null)
 let gsapContext: gsap.Context | undefined
+// Deliberately not module-level: a module flag would survive the route and
+// silence the discovery cue for the rest of the tab session.
+let discoveryCued = false
 const { locale } = useLocale()
 const copy = computed(() => locale.value === 'en-US' ? {
   title: 'Bring one object closer.', intro: 'Explore a Heluo bronze ding in 3D. Rotate, zoom, switch between solid and point-cloud views, and read the exhibit notes.', interaction: 'Interaction', interactionDetail: 'Rotate · Zoom · Read · Switch viewpoints', retry: 'Try again', loading: 'Loading digital exhibits', emptyTitle: 'The gallery is being prepared', emptyText: 'There are no published digital exhibits yet. Explore the collection stories first.', explore: 'Explore the collection →', list: 'Digital exhibit list', related: 'Related artifact', start: 'Start exploring'
@@ -27,6 +31,13 @@ function revealExhibits() {
   if (!shouldRunGsapReveal() || !root.value || items.value.length === 0) return
   gsapContext?.revert()
   gsapContext = createGsapContext(root.value, () => {
+    // The grid landing is this page's discovery beat. Fired after the reveal
+    // guard, so an empty gallery or a failed load stays silent instead of
+    // announcing exhibits that never arrived.
+    if (!discoveryCued) {
+      discoveryCued = true
+      void audioSystem.playNarrative('discovery', { volume: 0.24 })
+    }
     const cards = gsap.utils.toArray<HTMLElement>('[data-motion="item"]', root.value).slice(0, 12)
     if (!cards.length) return
     const constrained = isConstrainedGsapReveal()
@@ -61,8 +72,13 @@ async function loadExhibits() {
     revealExhibits()
   }
 }
+function openExhibit() {
+  // Clicking a card is the gallery's one commit action — the bronze voice
+  // confirms the choice at the moment it is made, before the route swaps.
+  void audioSystem.playInteraction('awaken-bronze', { volume: 0.22 })
+}
 onMounted(loadExhibits)
-onBeforeUnmount(() => gsapContext?.revert())
+onBeforeUnmount(() => { discoveryCued = false; gsapContext?.revert() })
 </script>
 <template>
   <section ref="root" class="curation-page exhibits-page" data-motion-page="exhibits">
@@ -77,6 +93,6 @@ onBeforeUnmount(() => gsapContext?.revert())
     <button v-if="error" class="state-panel__action" type="button" @click="loadExhibits">{{ copy.retry }}</button>
     <LoadingSkeleton v-if="loading" :lines="4" :label="copy.loading" />
     <section v-else-if="!error && items.length===0" class="state-panel state-panel--action"><div aria-hidden="true">◇</div><h2>{{ copy.emptyTitle }}</h2><p>{{ copy.emptyText }}</p><RouterLink to="/explore">{{ copy.explore }}</RouterLink></section>
-    <section v-else-if="!error" class="exhibit-grid" :aria-label="copy.list"><RouterLink v-for="(item, index) in items" :key="item.slug" data-motion="item" data-galaxy-card v-pointer-surface="{ kind: 'exhibit', maxTilt: 1.15 }" :to="`/exhibits/${item.slug}`"><span class="exhibit-card-index" data-motion="card-index">0{{ index + 1 }}</span><img data-motion="card-media" :src="coverFor(item)" :alt="displayItem(item).title" loading="lazy" decoding="async" /><div data-motion="card-copy"><p class="card-meta">{{ copy.related }} · {{ displayItem(item).artifactTitle }}</p><h2>{{ displayItem(item).title }}</h2><p>{{ displayItem(item).summary }}</p><span>{{ copy.start }} <b>→</b></span></div></RouterLink></section>
+    <section v-else-if="!error" class="exhibit-grid" :aria-label="copy.list"><RouterLink v-for="(item, index) in items" :key="item.slug" data-motion="item" data-galaxy-card v-pointer-surface="{ kind: 'exhibit', maxTilt: 1.15 }" :to="`/exhibits/${item.slug}`" @click="openExhibit"><span class="exhibit-card-index" data-motion="card-index">0{{ index + 1 }}</span><img data-motion="card-media" :src="coverFor(item)" :alt="displayItem(item).title" loading="lazy" decoding="async" /><div data-motion="card-copy"><p class="card-meta">{{ copy.related }} · {{ displayItem(item).artifactTitle }}</p><h2>{{ displayItem(item).title }}</h2><p>{{ displayItem(item).summary }}</p><span>{{ copy.start }} <b>→</b></span></div></RouterLink></section>
   </section>
 </template>

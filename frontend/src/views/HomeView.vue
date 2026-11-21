@@ -5,11 +5,16 @@ import { RouterLink } from 'vue-router'
 import { ArrowRight, Calendar, DataBoard } from '@element-plus/icons-vue'
 import { useLocale } from '../stores/locale'
 import { useTheme } from '../stores/theme'
+import { audioSystem } from '../lib/audioSystem'
+import { claimHomeEntrance } from '../lib/homeEntrance'
 import PointerDotField from '../components/PointerDotField.vue'
+import HeluoPattern from '../components/HeluoPattern.vue'
 
 const { locale } = useLocale()
 const { isDark } = useTheme()
 const root = ref<HTMLElement | null>(null)
+const heluoPattern = ref<InstanceType<typeof HeluoPattern> | null>(null)
+const showPattern = ref(false)
 let gsapContext: { revert: () => void } | undefined
 let unmounted = false
 const copy = computed(() => locale.value === 'zh-CN'
@@ -78,13 +83,119 @@ async function revealHome() {
   if (!gsapModule) return
   const { gsap } = gsapModule
   if (unmounted || root.value !== scope || !shouldLoadHomeGsap()) return
+
+  if (!claimHomeEntrance()) return
+
+  // Mount the Heluo pattern overlay first so its SVG exists before the
+  // timeline below queries it — v-if means the ref is null until then.
+  showPattern.value = true
+  await nextTick()
+  if (unmounted || root.value !== scope) return
+
   gsapContext?.revert()
   gsapContext = gsap.context(() => {
     const timeline = gsap.timeline({ defaults: { ease: 'power3.out' } })
+    const patternSvg = heluoPattern.value?.svg
+
+    // Stage 1: Heluo pattern generation (0-800ms)
+    if (patternSvg) {
+      const patternElements = patternSvg.querySelectorAll('.pattern-element')
+      patternElements.forEach((el) => {
+        const pathLength = el.getAttribute('pathLength') || '400'
+        gsap.set(el, {
+          strokeDasharray: pathLength,
+          strokeDashoffset: pathLength
+        })
+      })
+
+      // A small ascending "bianzhong phrase": one cached bell buffer,
+      // pitch-shifted per element via playbackRate so the four corners
+      // read as a rising chime rather than four identical clicks.
+      const corners = patternSvg.querySelectorAll('.heluo-pattern .pattern-corner')
+      const cornerRates = [0.84, 0.94, 1.06, 1.19]
+
+      timeline
+        .to('.heluo-pattern .pattern-center', {
+          strokeDashoffset: 0,
+          duration: 0.42,
+          ease: 'power2.inOut',
+          onStart: () => void audioSystem.playInteraction('click', { rate: 0.72, volume: 0.42, pan: 0 })
+        }, 0)
+
+      corners.forEach((corner, i) => {
+        timeline.to(corner, {
+          strokeDashoffset: 0,
+          duration: 0.26,
+          ease: 'power2.inOut',
+          onStart: () => void audioSystem.playInteraction('click', {
+            rate: cornerRates[i],
+            volume: 0.3,
+            pan: [-0.5, 0.5, -0.3, 0.3][i],
+          }),
+        }, 0.16 + i * 0.09)
+      })
+
+      timeline
+        .to('.heluo-pattern .pattern-line', {
+          strokeDashoffset: 0,
+          duration: 0.25,
+          stagger: 0.06,
+          ease: 'power1.inOut'
+        }, 0.4)
+        .to('.heluo-pattern .pattern-diagonal', {
+          strokeDashoffset: 0,
+          duration: 0.2,
+          stagger: 0.05,
+          ease: 'power1.inOut'
+        }, 0.55)
+        .to('.heluo-pattern .pattern-taiji', {
+          strokeDashoffset: 0,
+          duration: 0.3,
+          ease: 'power2.inOut',
+        }, 0.65)
+        .to('.heluo-pattern .pattern-glow', {
+          opacity: 0.25,
+          scale: 1.4,
+          duration: 0.5,
+          transformOrigin: 'center',
+          ease: 'power2.out',
+          onStart: () => void audioSystem.playInteraction('success', { volume: 0.32 }),
+        }, 0.78)
+        .to('.heluo-pattern .pattern-glow', {
+          opacity: 0,
+          duration: 0.5,
+          ease: 'power1.in',
+        }, 1.05)
+    }
+
+    // Decorative entrance runs alongside readable content, never gates actions.
     timeline
-      .from('[data-motion="hero-veil"]', { autoAlpha: 0, duration: 0.48 }, 0)
-      .from('[data-motion="intro-eyebrow"]', { autoAlpha: 0, y: 9, duration: 0.3 }, 0)
-      .from('[data-motion="intro-title"]', { autoAlpha: 0, duration: 0.18 }, 0.07)
+      .to('.heluo-pattern', {
+        scale: 1.5,
+        opacity: 0,
+        duration: 0.6,
+        ease: 'power2.in',
+        onStart: () => void audioSystem.playTransition('reveal', { volume: 0.3 }),
+        onComplete: () => { showPattern.value = false }
+      }, 0.8)
+      .from('.corridor-home__hero-media', {
+        scale: 1.015,
+        duration: 0.6,
+        ease: 'power2.out'
+      }, 0)
+
+    // Content appears immediately; CTA and location remain visible throughout.
+    timeline
+      .from('[data-motion="intro-eyebrow"]', {
+        autoAlpha: 0,
+        y: 12,
+        duration: 0.3,
+        onStart: () => void audioSystem.playInteraction('awaken-jade', { volume: 0.24 })
+      }, 0)
+      .from('[data-motion="intro-title"]', {
+        autoAlpha: 0,
+        duration: 0.18
+      }, 0.07)
       .from('[data-motion="intro-title-line"]', {
         yPercent: 112,
         rotation: 1.2,
@@ -92,15 +203,15 @@ async function revealHome() {
         duration: 0.52,
         stagger: 0.075,
         clearProps: 'transform',
+        ease: 'power3.out'
       }, 0.08)
-      .from('[data-motion="intro-copy"]', { autoAlpha: 0, y: 9, duration: 0.34 }, 0.31)
-      .from('[data-motion="intro-cta"]', {
+      .from('[data-motion="intro-copy"]', {
         autoAlpha: 0,
         y: 9,
-        duration: 0.32,
-        clearProps: 'transform',
-      }, 0.38)
-      .from('[data-motion="location"]', { autoAlpha: 0, y: 8, duration: 0.24 }, 0.5)
+        duration: 0.34
+      }, 0.2)
+    timeline.timeScale(1.4)
+
   }, scope)
 }
 
@@ -120,6 +231,7 @@ onBeforeUnmount(() => {
     <section class="home-cover">
       <picture><source media="(max-width: 760px)" :srcset="heroMedia.mobileSrcset" sizes="100vw" /><img class="corridor-home__hero-media" :src="heroMedia.src" :srcset="heroMedia.srcset" sizes="100vw" width="1672" height="941" alt="" fetchpriority="high" decoding="async" /></picture>
       <div class="home-cover__veil" data-motion="hero-veil" aria-hidden="true"></div>
+      <HeluoPattern v-if="showPattern" ref="heluoPattern" />
       <PointerDotField variant="image" />
       <div class="home-cover__copy">
         <p class="home-eyebrow" data-motion="intro-eyebrow">{{ locale === 'en-US' ? 'One object, a living story' : '从一件器物，走进河洛文明' }}</p>
@@ -143,7 +255,7 @@ onBeforeUnmount(() => {
 
     <section class="home-themes home-content" aria-labelledby="curation-title">
       <header class="home-section-heading"><div><p class="home-eyebrow">{{ copy.curation }}</p><h2 id="curation-title">{{ copy.note }}</h2></div><p>{{ copy.themesIntro }}</p></header>
-      <div class="home-themes__grid"><RouterLink v-for="card in featureCards" :key="card.index" :to="{ path: card.to, query: { category: ({ '01': 'BRONZE', '02': 'JADE', '03': 'RIVER' } as Record<string, string>)[card.index] } }" class="home-theme">
+      <div class="home-themes__grid"><RouterLink v-for="card in featureCards" :key="card.index" v-artifact-awaken="{ material: ({ '01': 'bronze', '02': 'jade', '03': 'ink' } as Record<string, 'bronze' | 'jade' | 'ink'>)[card.index] }" :to="{ path: card.to, query: { category: ({ '01': 'BRONZE', '02': 'JADE', '03': 'RIVER' } as Record<string, string>)[card.index] } }" class="home-theme">
         <div class="home-theme__media"><img :src="card.image" :srcset="card.srcset" sizes="(max-width: 760px) 112px, (max-width: 1100px) 30vw, 380px" width="384" height="384" alt="" loading="lazy" decoding="async" /></div><div class="home-theme__copy"><h3>{{ card.title }}</h3><p>{{ card.text }}</p></div><ArrowRight aria-hidden="true" />
       </RouterLink></div>
     </section>
@@ -251,4 +363,3 @@ html[data-theme="dark"] .home-cover__intro { color: var(--theme-text-strong); }
 @media (prefers-reduced-motion: reduce) { .museum-home * { transition: none; } .home-theme:hover img { transform: none; } }
 @media (forced-colors: active) { .home-cover__veil { background: Canvas; } .home-primary { border-color: ButtonText; } }
 </style>
-

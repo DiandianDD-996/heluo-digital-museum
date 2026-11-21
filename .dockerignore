@@ -6,6 +6,7 @@
 frontend/dist
 backend/target
 assets
+artifacts
 docs
 deploy
 coverage

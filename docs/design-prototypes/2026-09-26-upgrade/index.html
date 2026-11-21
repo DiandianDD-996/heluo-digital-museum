@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>河洛数字博物馆：视觉升级方向</title>
+  <style>
+    :root { color-scheme: light; --ink:#172321; --paper:#e9e5db; --line:#a8ada3; --jade:#326f60; --red:#a63e2d; --sans:"Microsoft YaHei","PingFang SC",sans-serif; --serif:"STSong","Songti SC","SimSun",serif; }
+    * { box-sizing:border-box; } body { margin:0; background:var(--paper); color:var(--ink); font-family:var(--sans); } a { color:inherit; text-decoration:none; }
+    .page { width:min(1280px,calc(100% - 48px)); margin:auto; padding:42px 0 72px; } .top { display:flex; justify-content:space-between; gap:24px; padding-bottom:54px; border-bottom:1px solid var(--ink); } .seal { width:52px; height:52px; display:grid; place-items:center; background:var(--red); color:#fff6e8; font-family:var(--serif); font-size:26px; } h1 { max-width:790px; margin:12px 0 0; font-family:var(--serif); font-size:clamp(42px,7vw,92px); line-height:1.04; font-weight:500; letter-spacing:0; } .intro { max-width:490px; margin:34px 0 0; font-size:16px; line-height:1.9; color:#47534e; }
+    .directions { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-top:56px; } .direction { min-height:540px; position:relative; overflow:hidden; padding:24px; color:#f4efe4; background:#1b2925; display:flex; flex-direction:column; justify-content:space-between; transition:transform .24s ease; } .direction:hover { transform:translateY(-4px); } .direction::before { content:""; position:absolute; inset:0; opacity:.78; background-size:cover; background-position:center; transition:transform .7s ease; } .direction:hover::before { transform:scale(1.045); } .direction > * { z-index:1; position:relative; } .direction.a::before { background-image:linear-gradient(180deg,rgba(20,37,36,.12),rgba(20,37,36,.86)),url('../../../frontend/public/media/editorial/hero-bronze-ding.webp'); background-position:center; } .direction.b::before { background-image:linear-gradient(180deg,rgba(27,45,39,.05),rgba(27,45,39,.88)),url('../../../frontend/public/media/editorial/heluo-river-map-home-640w-v1.webp'); } .direction.c::before { background-image:linear-gradient(180deg,rgba(7,11,10,.05),rgba(7,11,10,.95)),url('../../../frontend/public/media/editorial/exhibit-ding-moonlight.webp'); background-position:center; } .tag { display:inline-block; width:max-content; padding:6px 10px; border:1px solid rgba(255,255,255,.62); font-size:12px; } .direction h2 { margin:0; font-family:var(--serif); font-size:44px; font-weight:500; line-height:1.1; } .direction p { max-width:300px; margin:12px 0 0; line-height:1.7; color:#e2e5db; } .link { display:inline-flex; align-items:center; width:max-content; min-height:44px; padding:0 15px; background:#e6dbc4; color:#182521; font-size:14px; } .notes { display:grid; grid-template-columns:1fr 1fr; gap:38px; margin:58px 0 0; padding-top:24px; border-top:1px solid var(--line); } .notes h3 { margin:0 0 10px; font-size:14px; font-weight:700; } .notes p { margin:0; color:#52605a; font-size:14px; line-height:1.8; }
+    @media (max-width:760px) { .page{width:min(100% - 32px,1280px);padding-top:24px}.top{display:block;padding-bottom:38px}h1{font-size:50px}.directions{grid-template-columns:1fr;margin-top:34px}.direction{min-height:440px}.notes{grid-template-columns:1fr;gap:22px;margin-top:38px} }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="top"><div><div class="seal" aria-hidden="true">河</div><h1>三种河洛，<br>三种进入博物馆的方式。</h1></div><p class="intro">这不是换颜色或重排卡片，而是为既有内容、馆藏、三维展项与预约体验重新选择一条最有辨识度的信息主线。每个方向均使用项目已有资产，不改变业务能力。</p></header>
+    <section class="directions" aria-label="视觉方向">
+      <a class="direction a" href="a-luoshu/index.html"><span class="tag">方向 A</span><div><h2>洛书九宫</h2><p>以河图洛书的秩序为入口。每个格子不只是导航，而是河洛文明的一枚坐标。</p></div><span class="link">查看方案</span></a>
+      <a class="direction b" href="b-scroll/index.html"><span class="tag">方向 B</span><div><h2>河洛长卷</h2><p>让器物、河流与时代沿一卷画徐徐展开。浏览从筛选，变成沿河行走。</p></div><span class="link">查看方案</span></a>
+      <a class="direction c" href="c-theatre/index.html"><span class="tag">方向 C</span><div><h2>器物剧场</h2><p>用暗室、光束与一件器物一幕的节奏，把数字展项提升为首页体验。</p></div><span class="link">查看方案</span></a>
+    </section>
+    <section class="notes"><div><h3>建议的判断尺度</h3><p>A 更适合建立独有的品牌记忆；B 最适合内容叙事与文化教育；C 最适合突出 3D 数字展项和沉浸感。</p></div><div><h3>此次概念阶段</h3><p>只新增文档样稿，不修改现有前端代码、路由、接口或测试。用户选定方向后，再制定生产升级的拆分计划和验收矩阵。</p></div></section>
+  </main>
+</body>
+</html>

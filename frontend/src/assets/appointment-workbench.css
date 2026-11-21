@@ -148,6 +148,13 @@ html[data-theme] :is(.appointment-workbench, .appointment-refined-sheet) .appoin
 .appointment-notice { padding-top: var(--space-6); }
 .appointment-notice p { margin-top: var(--space-3); color: var(--appointment-muted); font-size: .6875rem; line-height: 1.85; }
 .appointment-inline-note { padding: var(--space-4) 0; color: var(--appointment-muted); font-size: .75rem; line-height: 1.7; }
+.appointment-guide-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-block-start: var(--space-3);
+}
+.appointment-guide-actions > .fluid-button { min-block-size: 44px; }
 .appointment-result { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-5, 1.25rem) 0; border-bottom: 1px solid var(--theme-border); color: var(--theme-text-strong); }
 .appointment-result > svg { width: 24px; height: 24px; flex: 0 0 24px; color: var(--theme-success); }
 .appointment-result h2 { font: 600 1rem/1.5 var(--font-body); }

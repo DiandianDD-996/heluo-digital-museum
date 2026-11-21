@@ -9,6 +9,8 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --ignore-scripts --node-linker=hoisted
 COPY . .
 ENV CI=true
+ARG VITE_GUIDE_SITE_ENABLED=false
+ARG VITE_GUIDE_TURNS_ENABLED=false
 # CI runs vue-tsc separately. Keep the image build focused on the production
 # bundle so a registry-side vue-tsc package issue cannot block containerization.
 RUN ./node_modules/.bin/vite build

@@ -35,7 +35,8 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.POST,
                                 "/api/v1/auth/register", "/api/v1/auth/login",
                                 "/api/v1/auth/password-reset/request",
-                                "/api/v1/auth/password-reset/confirm").permitAll()
+                                "/api/v1/auth/password-reset/confirm",
+                                "/api/v1/guide/turns", "/api/v1/guide/journey").permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/", "/index.html", "/favicon.ico", "/favicon.svg", "/assets/**", "/media/**",
                                 "/explore", "/artifacts/*", "/articles/*", "/exhibits", "/exhibits/*",
@@ -48,7 +49,7 @@ public class SecurityConfiguration {
                                 "/admin", "/admin/operations").permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/categories/**", "/api/v1/artifacts/**", "/api/v1/articles/**",
-                                "/api/v1/exhibits/**", "/api/v1/products/**", "/api/v1/search",
+                                "/api/v1/exhibits/**", "/api/v1/guide/exhibits/*", "/api/v1/products/**", "/api/v1/search",
                                 "/api/v1/appointment-slots/**").permitAll()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers(PocketBaySpaController::isPublicPageRequest).permitAll()

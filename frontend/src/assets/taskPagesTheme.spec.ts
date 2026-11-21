@@ -26,7 +26,15 @@ describe('task page theme contract', () => {
   })
 
   it('scopes account access separately from the existing profile workspace', () => {
-    expect(login).toContain('<section class="auth-page task-auth-page">')
+    // Matched by class set rather than a literal opening tag: the page
+    // section also carries a `data-motion-page` hook, and an assertion on
+    // the exact string would fail on any attribute added before or after
+    // `class` — order that carries no meaning in HTML.
+    const sectionTag = [...login.matchAll(/<[^>]*>/g)]
+      .map((match) => match[0])
+      .find((tag) => (/(?:^|\s)class="([^"]*)"/.exec(tag)?.[1] ?? '').split(/\s+/).includes('task-auth-page'))
+    expect(sectionTag).toBeDefined()
+    expect(sectionTag).toContain('auth-page')
     expect(css).toContain('.task-auth-page .auth-panel')
     expect(css).toContain('.profile-page .profile-account-panel')
     expect(css).toContain('html #app .task-auth-page .auth-panel[data-glass="dark"]')

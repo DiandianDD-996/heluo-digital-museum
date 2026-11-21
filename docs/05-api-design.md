@@ -1,5 +1,25 @@
 # REST API 契约
 
+## 洛笙本机模型预览
+
+回环测试入口 `POST /api/v1/__guide-test/context` 与 `POST /api/v1/__guide-test/turns` 可在专用预览进程中接受 `X-Guide-Mode: model`。该模式要求浏览器同源请求，使用独立短期会话。回复以 `generated` 区分模型正文与展签固定回复，`observations` 返回经过复查的看点编号以定位本地图版。无模式头时沿用原合成接口。此路径仅存在于测试类中。
+
+受控候选 `POST /api/v1/guide/turns` 默认关闭。浏览器同源 JSON 请求携带 `question`、UUID `requestId` 和 `visitId`、递增的 `contextVersion`、`locale`、`artifact`、`exhibit` 和可空 `lookpoint`。服务端在同一短时会话中按访次隔离，重新核对公开关联和当前签核卡包，复用每分钟限额、请求去重、并发和当日调用上限。回应含 `kind`、`text`、`citations`、`plate` 和 `generated`，禁止缓存。旧版本及重复请求返回冲突，非同源请求返回禁止，未公开关联返回找不到。
+
+对于「另一只呢」这类位置追问，服务端根据已确认的鼎耳或三足话题重新核对对应卡片。资料有效时返回 `PLATE_OBSERVATION`、卡片正文和修订依据、`plate` 以及 `generated: false`。缺少指代时返回 `CLARIFY`。游客收起面板保留 `visitId`，明确结束参观后重开使用新的 `visitId`。
+
+同源问答客户端以 8 秒为请求超时，不自动重试。生成超时、繁忙、不可用、额度用尽、暂停及网络故障不展示旧轮依据。若有已确认看点，「读当前讲解」重新读取该展项的已发布讲解并恢复当前视角。此动作不提交问答。
+
+青铜鼎单独断代问法使用 `PERIOD` 固定回复（`generated: false`）。有可见且带公开链接的 `LS-DING-PERIOD@1` 时使用其正文。只有 `LS-DING-SOURCE@2` 时，引导核对馆方记录。两张卡都不可用时返回 `INSUFFICIENT_EVIDENCE`。出土地追问以来源卡独立核对，返回 `FIND_SPOT_UNKNOWN`。两类回复保持游客当前图版。
+
+`REFERENCE_FACTS` 用于尺寸问法或同时问断代和出土地的轮次。接口按分项返回有证据的正文及各自出处。整体尺寸须有可见的 `LS-DING-SIZE@1` 及其公开链接。局部尺寸和出土地若缺资料，回复分别提示。该路径不调用模型，响应沿用 `text` 和 `citations`。
+
+同源问答响应写入 `guide_turn` 事件，并按固定结果类别汇总到进程内计时器 `museum.guide.turn.duration`。事件字段为结果类别、是否交付生成答案、依据数量和服务端耗时。通过本地预算后进入模型适配器时另记 `guide_generation_started` 和 `museum.guide.generation.started`，即使适配器失败也计一次；澄清、固定讲解及预算拒绝不记。提问、正文、访次、展品和代词上下文均不进入这些事件字段。没有新增公开指标接口；服务端耗时、浏览器从发送到正文和依据可读的耗时、供应商用量与账单分别记录。
+
+受控候选开启时，同源 `POST /api/v1/guide/journey` 接受 JSON `kind`，允许 `plate-attempted`、`plate-arrived`、`return-attempted`、`return-arrived`、`clarification-single` 和 `clarification-repeated`，成功返回 204。客户端省略 Cookie 和来源页，只发类别。服务端只累加实例内 `museum.guide.journey` 计数。到达事件由页面确认对象和看点后发出。面板接受澄清结果时只报一次；上一轮可见答复也是澄清才归入 `repeated`，切页、关闭、看点变化和失败轮次不会跨界配对。浏览器尽力发送，运营按 `return.arrived / return.attempted` 观察趋势。跨实例采集及重启连续性需在部署环境配置，指标不开放给公众读取。
+
+模型模式的 `citations` 可返回经复查的公开馆藏来源。展签只允许显示已核对的克利夫兰馆藏条目 1962.281 链接。自我介绍、能力说明、问候和致谢在预览页面内应答。
+
 ## 2026-09-17 双语内容检索契约
 
 - `GET /search` 以及 `GET /artifacts`、`GET /articles` 的 `keyword` 同时匹配中文标题/摘要和英文标题/摘要；英文大小写不敏感，首尾空白被去除，`%`、`_`、`!` 按字面匹配。连续短语不拆词，不提供同义词或语义搜索。
@@ -133,9 +153,12 @@ Content-Type: application/json; charset=utf-8
 | GET | `/articles/{slug}` | 公开 | `slug` | 文章详情、封面、分类和正文。 |
 | GET | `/exhibits` | 公开 | `page`、`size`、`artifactSlug?` | 可公开展示的 3D 展项卡片。 |
 | GET | `/exhibits/{slug}` | 公开 | `slug` | 说明、封面、默认模型字段，以及可空的 `mobileModelUrl`、`mobileModelSizeBytes`。 |
+| GET | `/guide/exhibits/{slug}` | 启用后可匿名读取 | `slug`、`locale`（默认 `zh-CN`） | 返回 `exhibitSlug`、`locale`、`available` 和 `entries`。每项含 `cardId`、`revision`、`text`、可空的 `publicSource`。 |
 | GET | `/search` | 公开 | `keyword`、`type=all|artifact|article`、`page`、`size` | 标题/摘要匹配的混合结果。 |
 
 公开详情若为草稿、撤回或软删除，统一返回 `404 RESOURCE_NOT_FOUND`。`modelSourceRef`、后台操作人和资产源文件路径不返回给前端。
+
+预设讲解接口默认关闭。启用后，公开展项缺少指定语言的有效讲解，或签核指纹与卡包不匹配时，返回 `200`、`available: false` 和空数组。成功响应带 `Cache-Control: no-store`。格式错误的语言参数返回 `422 VALIDATION_ERROR`。
 
 3D 展项详情中的模型字段约定：
 

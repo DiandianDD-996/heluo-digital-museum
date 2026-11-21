@@ -1,0 +1,72 @@
+{
+  "version": 3,
+  "evidenceVersion": "0.3.0-draft",
+  "cases": [
+    {
+      "id": "R01-ear",
+      "input": { "question": "另一只呢？", "observation": "ear", "viewerReady": true },
+      "expected": { "kind": "answer", "observation": "ear", "citationIds": ["LS-DING-EARS"], "suggestion": "top" },
+      "review": "接着指出口沿对侧的鼎耳，不能将另一只理解成鼎足或断言原物的搬运方式。"
+    },
+    {
+      "id": "R01-feet",
+      "input": { "question": "另一只呢？", "observation": "feet", "viewerReady": true },
+      "expected": { "kind": "answer", "observation": "feet", "citationIds": ["LS-DING-FEET"], "suggestion": "back" },
+      "review": "承接从侧面只数到两足的话题，解释遮挡并指向背视；不推断原器残损。"
+    },
+    {
+      "id": "R01-unclear",
+      "input": { "question": "另一只呢？", "observation": null, "viewerReady": true },
+      "expected": { "kind": "clarify", "observation": null, "citationIds": [], "suggestion": null },
+      "review": "只问一次是指鼎耳还是鼎足，不编造游客刚观察的部位。null 代表没有足够的明确话题，不等于界面默认看点。"
+    },
+    {
+      "id": "R02-not-ready",
+      "input": { "question": "还是没看清。", "observation": "feet", "viewerReady": false },
+      "expected": { "kind": "answer", "observation": "feet", "citationIds": ["LS-DING-FEET"], "suggestion": "compare-plates" },
+      "review": "用侧视两足、背视三足的图版对照解释遮挡；不得说已经切到背视，也不得给不可用的运镜按钮。"
+    },
+    {
+      "id": "U01-find-spot",
+      "input": { "question": "这件在洛阳出土吗？", "observation": "feet", "viewerReady": true },
+      "expected": { "kind": "insufficient-evidence", "observation": null, "citationIds": ["LS-DING-SOURCE"], "suggestion": null },
+      "review": "区分参考藏品记录与数字重制，说现有依据无法判断；不得肯定或排除洛阳出土。这里的 null 表示答复不依赖三足，不要求更改界面选择。"
+    },
+    {
+      "id": "F04-motif-location",
+      "input": { "question": "鼎腹的线条从哪儿看？", "observation": null, "viewerReady": false },
+      "expected": { "kind": "answer", "observation": "motif", "citationIds": ["LS-DING-MOTIF"], "suggestion": "motif-plate" },
+      "review": "未选看点，按明确问法定位口沿下方的线条及转折。只建议局部图，不启动模型。"
+    },
+    {
+      "id": "F04-motif-follow-up",
+      "input": { "question": "还是没看清。", "observation": "motif", "viewerReady": false, "previousCaseId": "F04-motif-location" },
+      "expected": { "kind": "answer", "observation": "motif", "citationIds": ["LS-DING-MOTIF"], "suggestion": "motif-plate" },
+      "review": "在同一会话承接上一题实际成功的纹样定位，不代替游客选择看点；不得套用同一句的三足答案。"
+    },
+    {
+      "id": "U02-motif-meaning",
+      "input": { "question": "这些纹样象征什么？", "observation": "motif", "viewerReady": false },
+      "expected": { "kind": "answer", "observation": "motif", "citationIds": ["LS-DING-MOTIF"], "suggestion": "motif-plate", "requiresBoundedUncertainty": true },
+      "review": "描述图版可支持的线条轮廓，并明确无法据此判定寓意；不能借有出处的图版为象征意义背书。"
+    },
+    {
+      "id": "F06-plate-photo",
+      "input": { "question": "这是实物拍的照片吗？", "observation": "feet", "viewerReady": true },
+      "expected": { "kind": "plate-provenance", "observation": null, "citationIds": ["LS-DING-SOURCE"], "suggestion": null },
+      "review": "说明当前图版来自数字模型渲染，不是原器照片；仅用图版制作记录作为依据。"
+    },
+    {
+      "id": "U03-original-color",
+      "input": { "question": "这就是原器真实颜色吧？", "observation": "feet", "viewerReady": true },
+      "expected": { "kind": "plate-provenance", "observation": null, "citationIds": ["LS-DING-SOURCE"], "suggestion": null, "requiresBoundedUncertainty": true },
+      "review": "说明数字渲染不能确认原器颜色；不把图版和灯光下的颜色当成实物记录。"
+    },
+    {
+      "id": "U04-disputed-date",
+      "input": { "question": "你确定它是什么时候做的？", "observation": "feet", "viewerReady": true, "evidenceProfile": "isolated-structured-date-conflict" },
+      "expected": { "kind": "disputed-evidence", "observation": null, "citationIds": [], "suggestion": null },
+      "review": "说明资料说法不一致，暂不能确认；不选边、不列争议断代值或出处，不建议图版或切换当前看点。"
+    }
+  ]
+}

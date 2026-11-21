@@ -1,0 +1,11 @@
+{
+  "id": "LS-DING-PERIOD",
+  "revision": 1,
+  "exhibitSlug": "heluo-bronze-ding-3d",
+  "artifactSlug": "heluo-bronze-ding",
+  "locale": "zh-CN",
+  "status": "DRAFT",
+  "text": "你眼前的是数字模型。克利夫兰艺术博物馆将它参考的实物《Tripod (Ding)》（馆藏号 1962.281）定为商代安阳时期，约公元前 1250 至前 1046 年。安阳时期是馆方使用的文化分期，出土地需要另行查证。",
+  "aliases": ["什么年代", "哪个朝代", "何时铸造", "什么时候做", "多少年历史", "断代"],
+  "publicSource": "https://www.clevelandart.org/art/1962.281"
+}

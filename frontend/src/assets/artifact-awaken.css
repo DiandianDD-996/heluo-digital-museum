@@ -1,0 +1,72 @@
+/**
+ * 器物苏醒 — Artifact Awakening hover effect
+ * Applied via the `v-artifact-awaken="{ material }"` directive to any card
+ * whose media container should glow, sweep, lift and emit particles on
+ * hover. The glow color comes from the `--awaken-glow` custom property the
+ * directive sets per material (bronze / jade / ink).
+ */
+
+.artifact-awaken-surface {
+  position: relative;
+  isolation: isolate;
+  --awaken-glow: var(--color-bronze, oklch(64% .1 73));
+}
+
+.artifact-awaken-surface.is-awakened img { will-change: transform; }
+
+html #app .site-header .audio-toggle { min-width: 44px; min-height: 44px; flex-shrink: 0; }
+
+.artifact-awaken-particles {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.artifact-awaken-surface.is-awakened {
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--awaken-glow) 55%, transparent),
+              0 0 18px -4px color-mix(in oklch, var(--awaken-glow) 28%, transparent);
+  transition: box-shadow 320ms var(--ease-out, ease-out);
+}
+
+.artifact-awaken-surface:not(.is-awakened) {
+  transition: box-shadow 240ms var(--ease-out, ease-out);
+}
+
+/* A single specular sweep — light catching a vitrine surface — replayed
+ * from scratch on every hover-enter via a class-toggle + reflow trick in
+ * the directive. */
+.artifact-awaken-surface::after {
+  content: '';
+  position: absolute;
+  inset: -20% -60%;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(
+    75deg,
+    transparent 42%,
+    color-mix(in oklch, var(--awaken-glow) 65%, white 35%) 50%,
+    transparent 58%
+  );
+  opacity: 0;
+  transform: translateX(-60%);
+  mix-blend-mode: plus-lighter;
+}
+
+.artifact-awaken-surface.is-sweeping::after {
+  animation: artifact-awaken-sweep 900ms cubic-bezier(.22, .61, .36, 1) forwards;
+}
+
+@keyframes artifact-awaken-sweep {
+  0% { opacity: 0; transform: translateX(-60%); }
+  18% { opacity: .28; }
+  100% { opacity: 0; transform: translateX(60%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .artifact-awaken-surface.is-awakened { box-shadow: none; }
+  .artifact-awaken-surface img { transition: transform 150ms ease; }
+  .artifact-awaken-surface.is-sweeping::after { animation: none; opacity: 0; }
+}

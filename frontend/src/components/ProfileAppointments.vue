@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, RefreshLeft } from '@element-plus/icons-vue'
 import { apiGet, apiRequest, type ContentPage } from '../lib/api'
 import InlineStatus from './InlineStatus.vue'
 import StatusBadge from './StatusBadge.vue'
+import { audioSystem } from '../lib/audioSystem'
 import { useLocale } from '../stores/locale'
 
 interface Appointment {
@@ -64,6 +65,14 @@ async function cancel(item: Appointment) {
   try {
     await apiRequest(`/appointments/${item.id}/cancel`, 'POST', { reason: '用户在个人中心取消' }, props.token)
     confirmId.value = null
+    // The only outcome on this page the delegated layer cannot hear: success
+    // sets no message, so the row simply leaves the list with no status node
+    // for the MutationObserver to ring. 'dismiss' is the register the system
+    // already uses for something being taken away, and the booking is the
+    // one durable thing a visitor creates here, so losing it earns a cue.
+    // Above the fade of the reload that follows, so it reads as the reason
+    // for the change rather than as a side effect of the list refreshing.
+    void audioSystem.playTransition('dismiss', { volume: 0.24 })
     await load()
   } catch (reason) {
     error.value = reason instanceof Error ? reason.message : '预约取消失败。'

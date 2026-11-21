@@ -1,0 +1,35 @@
+.luosheng-palette {
+  --guide-paper: #faf8f2;
+  --guide-screen: #eef2eb;
+  --guide-mount: #f2efe6;
+  --guide-field: #fcfaf5;
+  --guide-reply: #fbfaf5;
+  --guide-edge: #b4bcb1;
+  --guide-ink: #172c25;
+  --guide-muted: #4f625a;
+  --guide-signal: #246452;
+  --guide-metal: #795832;
+  --guide-action: #205344;
+  --guide-action-ink: #fffaf0;
+  --guide-head: "Noto Serif SC", "Songti SC", "SimSun", serif;
+  --guide-body-font: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", var(--font-body);
+  --guide-etch: color-mix(in oklch, var(--guide-metal) 24%, transparent);
+}
+
+html[data-theme="dark"] .luosheng-palette {
+  --guide-paper: #242321;
+  --guide-screen: #191e1d;
+  --guide-mount: #1e1e1c;
+  --guide-field: #2a2c29;
+  --guide-reply: #252d2a;
+  --guide-edge: #494a43;
+  --guide-ink: #ede8df;
+  --guide-muted: #b7b7ac;
+  --guide-signal: #a9c2b5;
+  --guide-metal: #c9ad87;
+  --guide-action: #c9ad87;
+  --guide-action-ink: #251e17;
+  --guide-field-edge: #77796d;
+  --guide-screen-light: 4%;
+  --guide-screen-rule: var(--guide-metal);
+}

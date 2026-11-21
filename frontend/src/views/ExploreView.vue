@@ -2,14 +2,16 @@
 import '../assets/control-surface-polish.css'
 import '../assets/public-responsive-polish.css'
 import '../assets/explore-gallery.css'
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ArrowLeft, ArrowRight, Picture, Right, TopRight } from '@element-plus/icons-vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { gsap } from 'gsap'
 import { apiGet, type ContentPage } from '../lib/api'
 import { mediaSrcset, mediaSizes } from '../lib/responsiveMedia'
 import { localizedContent } from '../lib/contentLocale'
 import type { ArticleCard, ArtifactCard, Category, SearchResult } from '../lib/content'
 import { useLocale } from '../stores/locale'
+import { createGsapContext, revealBatch, revealFigures, revealSequence, shouldRunGsapReveal } from '../lib/gsap'
 import EditorialCard from '../components/EditorialCard.vue'
 import InlineStatus from '../components/InlineStatus.vue'
 import MuseumSearchField from '../components/MuseumSearchField.vue'
@@ -88,6 +90,7 @@ const objectTitle = (artifact: ArtifactCard) => artifactCopy(artifact).title.rep
 const isConcept = (artifact: ArtifactCard) => conceptSuffix.test(artifactCopy(artifact).title)
 const categoryName = (category: Pick<Category, 'code' | 'name'>) => locale.value === 'en-US' ? (categoryEnglish[category.code] ?? category.name) : category.name
 const artifactCopy = (artifact: ArtifactCard) => ({ ...localizedContent(artifact, locale.value), ...(locale.value === 'en-US' && artifactEnglish[artifact.slug] ? { period: artifactEnglish[artifact.slug].period, material: artifactEnglish[artifact.slug].material, categoryName: artifactEnglish[artifact.slug].category } : {}) })
+const artifactMaterial = (artifact: ArtifactCard): 'bronze' | 'jade' | 'ink' => (artifact.categoryCode === 'BRONZE' ? 'bronze' : artifact.categoryCode === 'JADE' ? 'jade' : 'ink')
 const articleCopy = (article: ArticleCard) => ({ ...localizedContent(article, locale.value), ...(locale.value === 'en-US' && articleEnglish[article.slug] ? { categoryName: articleEnglish[article.slug].category, authorDisplay: 'Heluo Digital Museum' } : {}) })
 const searchCopy = (item: SearchResult) => {
   const localized = localizedContent(item, locale.value)
@@ -148,6 +151,54 @@ function searchVisual(item: SearchResult) {
 
 let contentRequestId = 0
 let searchRequestId = 0
+const root = ref<HTMLElement | null>(null)
+let gsapContext: ReturnType<typeof createGsapContext>
+
+/**
+ * Explore loads in stages: the header renders immediately, then categories
+ * and the object grid arrive from the API, and search results replace the
+ * whole body. Animating once at mount would miss most of it, so the
+ * entrance is split into the part that exists at mount and the parts that
+ * arrive later.
+ *
+ * The `revealBatch` calls are scoped to the page's own `[data-motion]`
+ * hooks and the whole set is torn down with `gsapContext`, so a visitor
+ * who pages through the collection twelve times does not accumulate
+ * twelve sets of scroll triggers.
+ */
+function applyEntrance(selectors: string[], stagger = 0.055) {
+  if (!shouldRunGsapReveal()) return
+  gsapContext?.revert()
+  gsapContext = createGsapContext(root.value, () => {
+    revealSequence(selectors[0] ?? '', { stagger })
+    for (const selector of selectors.slice(1)) revealBatch(selector)
+  })
+}
+
+onMounted(() => applyEntrance(['[data-motion="explore-intro"] > *', '[data-motion="explore-toolbar"]', '[data-motion="explore-theme"]', '[data-motion="explore-story"]']))
+
+// The object grid and the reading list are re-rendered on every page and
+// category change; without this they would appear already settled while
+// the header above them animates.
+watch([displayArtifacts, articles, searchResults], async () => {
+  if (!shouldRunGsapReveal()) return
+  await nextTick()
+  const targets = root.value?.querySelectorAll<HTMLElement>('[data-motion="explore-object"], [data-motion="explore-result"]')
+  if (!targets?.length) return
+  const { offset, duration } = revealFigures()
+  // `fromTo` with `clearProps` rather than a plain `from`, so a card that
+  // is still animating when the next page lands does not strand itself at
+  // the start of its tween.
+  gsap.fromTo(targets, { autoAlpha: 0, y: offset }, {
+    autoAlpha: 1,
+    y: 0,
+    duration,
+    stagger: 0.045,
+    ease: 'power3.out',
+    overwrite: 'auto',
+    clearProps: 'opacity,visibility,transform',
+  })
+}, { flush: 'post' })
 
 const collectionTotalPages = computed(() => Math.max(artifactTotalPages.value, articleTotalPages.value))
 
@@ -251,12 +302,13 @@ watch(() => route.query, syncQuery, { immediate: true })
 onBeforeUnmount(() => {
   contentRequestId += 1
   searchRequestId += 1
+  gsapContext?.revert()
 })
 </script>
 
 <template>
-  <section id="explore-gallery" class="collection-page collection-gallery">
-    <header class="gallery-intro" aria-labelledby="collection-title">
+  <section id="explore-gallery" ref="root" class="collection-page collection-gallery" data-motion-page="explore">
+    <header class="gallery-intro" data-motion="explore-intro" aria-labelledby="collection-title">
       <div class="gallery-intro__copy">
         <h1 id="collection-title">{{ copy.title }}</h1>
         <p class="gallery-intro__description">{{ copy.intro }}</p>
@@ -302,6 +354,7 @@ onBeforeUnmount(() => {
           v-for="item in searchResults"
           :key="`${item.type}-${item.slug}`"
           class="search-result-card gallery-result-card"
+          data-motion="explore-result"
           :class="{ 'gallery-result-card--artifact': item.type === 'artifact' }"
           :variant="item.type"
           :to="`/${item.type === 'artifact' ? 'artifacts' : 'articles'}/${item.slug}`"
@@ -326,7 +379,7 @@ onBeforeUnmount(() => {
     </section>
 
     <template v-else>
-      <div class="gallery-toolbar">
+      <div class="gallery-toolbar" data-motion="explore-toolbar">
         <nav class="collection-filters gallery-filters" :aria-label="copy.filters">
           <button :class="{ active: selectedCategory === '' }" type="button" :aria-pressed="selectedCategory === ''" @click="selectCategory('')">{{ copy.all }}</button>
           <button v-for="category in categories" :key="category.code" :class="{ active: selectedCategory === category.code }" type="button" :aria-pressed="selectedCategory === category.code" @click="selectCategory(category.code)">{{ categoryName(category) }}</button>
@@ -353,7 +406,9 @@ onBeforeUnmount(() => {
             <RouterLink
               v-for="(artifact, index) in displayArtifacts"
               :key="artifact.slug"
+              v-artifact-awaken="{ material: artifactMaterial(artifact) }"
               class="gallery-object"
+              data-motion="explore-object"
               :class="{ 'gallery-object--featured': index === 0 && !selectedCategory && collectionPage === 1 }"
               :to="`/artifacts/${artifact.slug}`"
               :aria-label="`${copy.view}：${artifactCopy(artifact).title}`"
@@ -396,7 +451,7 @@ onBeforeUnmount(() => {
             <h2 id="gallery-themes-title">{{ copy.themes }}</h2>
             <p>{{ copy.themesIntro }}</p>
           </div>
-          <nav class="gallery-themes__links" :aria-label="copy.filters">
+          <nav class="gallery-themes__links" data-motion="explore-theme" :aria-label="copy.filters">
             <RouterLink v-for="category in categories" :key="category.code" :to="{ path: '/explore', query: { category: category.code }, hash: '#collection-title' }">
               <img v-if="themeMedia[category.code] && !failedImages.has(themeMedia[category.code])" :src="themeMedia[category.code]" :srcset="mediaSrcset(themeMedia[category.code])" sizes="80px" alt="" width="80" height="80" loading="lazy" decoding="async" @error="failedImages.add(themeMedia[category.code])" />
               <span class="gallery-themes__copy"><strong>{{ categoryName(category) }}</strong><small v-if="themeDescriptions[category.code]">{{ themeDescriptions[category.code] }}</small></span>
@@ -411,7 +466,7 @@ onBeforeUnmount(() => {
             <span class="gallery-count">{{ articleCountLabel(articleTotal) }}</span>
           </header>
           <div class="gallery-reading-list">
-            <RouterLink v-for="article in articles" :key="article.slug" class="gallery-story" :to="`/articles/${article.slug}`">
+            <RouterLink v-for="article in articles" :key="article.slug" class="gallery-story" data-motion="explore-story" :to="`/articles/${article.slug}`">
               <div class="gallery-story__media">
                 <img v-if="articleVisual(article) && !failedImages.has(articleVisual(article))" :src="articleVisual(article)" :srcset="mediaSrcset(articleVisual(article))" sizes="(max-width: 520px) 80px, 180px" alt="" loading="lazy" decoding="async" @error="failedImages.add(articleVisual(article))" />
                 <span v-else class="gallery-image-fallback"><Picture aria-hidden="true" /><span class="sr-only">{{ copy.imageUnavailable }}</span></span>
