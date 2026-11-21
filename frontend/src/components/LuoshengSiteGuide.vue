@@ -2,13 +2,14 @@
 import { computed, nextTick, ref, useId, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { ArrowRight, Calendar, Close, Compass, Goods, Collection, Box, Promotion } from '@element-plus/icons-vue'
-import { answerSiteGuide, asksAboutCurrentArticle, explainSitePage, firstVisit, siteStops, type SiteStop } from '../lib/luoshengSiteGuide'
+import { renderSiteIntent, explainSitePage, firstVisit, siteStops, type SiteStop } from '../lib/luoshengSiteGuide'
+import { parseIntent } from '../lib/luoshengIntent'
 import '../assets/luosheng-palette.css'
 import { guideStopLabels as stopLabels, navigateGuidePlate, recordGuideJourney, unifiedGuideEnabled, unifiedGuidePreview, unifiedGuideTurns, useLuoshengVisit } from '../stores/luoshengVisit'
-import { discoveryIntent, findGuideArtifacts, guideArtifactCover, guideArtifactReason, requestsSavedLookpoint } from '../lib/luoshengDiscovery'
+import { findGuideArtifacts, guideArtifactCover, guideArtifactReason } from '../lib/luoshengDiscovery'
 import { useLuoshengTurns } from '../lib/luoshengTurns'
 import { GUIDE_ARTIFACT, type GuideStop } from '../lib/luoshengPreview'
-import { deferredSlotIntent, readGuideSlots, slotIntent } from '../lib/luoshengSlots'
+import { readGuideSlots } from '../lib/luoshengSlots'
 import { apiGet } from '../lib/api'
 
 const route = useRoute()
@@ -41,22 +42,20 @@ const scope = computed(() => visit && expanded.value ? {
 } : null)
 let contextId = ''
 const turns = useLuoshengTurns<Reply>(scope, async ({ question, lookpoint, signal, previousAnswer }) => {
-  if (visit?.resumePoint && requestsSavedLookpoint(question, visit.resumePoint.stop)) {
-    return { text: `回到青铜鼎 · ${stopLabels[visit.resumePoint.stop]}，接着看刚才的图版。`, resume: true }
-  }
-  if (visit?.pendingSlots && /^(?:别|不用|不查|不想)(?:再)?(?:预约|查时段|看时段|查名额)/.test(question)) {
+  const intent = parseIntent(question, {
+    route: routeName.value, onArtifact: !!object.value, lookpoint: visit?.lookpoint,
+    pendingSlot: !!visit?.pendingSlots, savedLookpoint: visit?.resumePoint?.stop,
+    previousPeople: previousAnswer?.clarifySlotPeople,
+  })
+  if (intent.kind === 'cancel-slot' && visit) {
     visit.pendingSlots = null
     return { text: '已清除待查时段，可以继续看展品。' }
   }
-  const deferred = deferredSlotIntent(question)
-  const requestedSlot = deferred ? null : slotIntent(question, undefined, previousAnswer?.clarifySlotPeople)
-  if (requestedSlot) return 'date' in requestedSlot
-    ? readGuideSlots(requestedSlot.date, requestedSlot.people, signal)
-    : { text: clarifySlotDate, clarifySlotPeople: requestedSlot.people, clarification: true }
-  const intent = discoveryIntent(deferred?.first ?? question, !!object.value)
-  if (intent.kind === 'clarify-discovery') return { text: '可以换一件。你想看哪类藏品？', stops: ['explore'], clarification: true }
-  if (intent.kind === 'appointment') return answerSiteGuide('怎么预约参观', routeName.value)
-  if (intent.kind === 'object') {
+  if (intent.kind === 'slot-query') return readGuideSlots(intent.date, intent.people, signal)
+  if (intent.kind === 'slot-clarify') return { text: clarifySlotDate, clarifySlotPeople: intent.people, clarification: true }
+  if (intent.kind === 'resume-lookpoint') return { text: `回到青铜鼎 · ${stopLabels[intent.stop]}，接着看刚才的图版。`, resume: true }
+  if (intent.kind === 'discovery-clarify') return { text: '可以换一件。你想看哪类藏品？', stops: ['explore'], clarification: true }
+  if (intent.kind === 'object-evidence') {
     if (import.meta.env.DEV && unifiedGuidePreview && object.value?.exhibit) {
       const requestContext = contextId ||= crypto.randomUUID()
       const { askLuoshengHttpFixture } = await import('../lib/luoshengHttpFixture')
@@ -75,7 +74,8 @@ const turns = useLuoshengTurns<Reply>(scope, async ({ question, lookpoint, signa
     }
     return { text: `${object.value?.title}。\n${object.value?.summary}\n可继续阅读此页的公开藏品资料。` }
   }
-  if (intent.kind === 'search') {
+  if (intent.kind === 'discovery-search') {
+    const deferred = intent.deferredSlot
     const result = await findGuideArtifacts(intent.keyword, signal, intent.exclusions).catch(() => null)
     signal.throwIfAborted()
     if (!result) return { text: '馆藏搜索暂时不可用。可以重试这次搜索，或换一个问题。', retrySearch: true }
@@ -89,26 +89,26 @@ const turns = useLuoshengTurns<Reply>(scope, async ({ question, lookpoint, signa
       signal.throwIfAborted()
       directPlate = !!preset?.available && preset.entries.some(entry => entry.cardId === 'LS-DING-EARS')
     }
-    if (visit && deferred) visit.pendingSlots = 'date' in deferred.slot ? deferred.slot : null
+    if (visit && deferred) visit.pendingSlots = 'date' in deferred ? deferred : null
     const quickLook = intent.short && directPlate
     const recommendation = quickLook
       ? '五分钟可以从青铜鼎开始。先从上方找鼎口相对的两只耳。'
       : `${item.title}。\n${guideArtifactReason(item, intent.keyword, result.keyword)}${item.summary ? '\n' + item.summary : ''}`
     return {
-      text: deferred && 'clarifyDate' in deferred.slot ? `${recommendation}\n${clarifySlotDate}` : recommendation,
-      clarifySlotPeople: deferred && 'clarifyDate' in deferred.slot ? deferred.slot.people : undefined,
-      clarification: !!deferred && 'clarifyDate' in deferred.slot,
+      text: deferred && 'clarifyDate' in deferred ? `${recommendation}\n${clarifySlotDate}` : recommendation,
+      clarifySlotPeople: deferred && 'clarifyDate' in deferred ? deferred.people : undefined,
+      clarification: !!deferred && 'clarifyDate' in deferred,
       artifact: item.slug, title: item.title, directPlate,
       cover: quickLook ? undefined : guideArtifactCover(item.coverImageUrl),
       keyword: result.items.length > 1 && !intent.exclusions.length ? result.keyword : undefined,
     }
   }
-  if (routeName.value === 'article-detail' && asksAboutCurrentArticle(question)) {
+  if (intent.kind === 'site-page' && intent.article) {
     return article.value
       ? { text: `《${article.value.title}》\n${article.value.summary}`, stops: ['explore'] }
       : { text: '还没有读到这篇专题的公开资料。可以等页面加载，或回馆藏浏览其他专题。', stops: ['explore'] }
   }
-  return answerSiteGuide(question, routeName.value)
+  return renderSiteIntent(intent)
 }, (answer, previousAnswer) => {
   if (answer.clarification) recordGuideJourney(previousAnswer?.clarification ? 'clarification-repeated' : 'clarification-single')
 })
@@ -180,7 +180,7 @@ const tourIndex = ref(-1)
 const nextStop = computed(() => firstVisit[tourIndex.value + 1])
 const routeName = computed(() => String(route.name ?? ''))
 const answer = computed(() => submitted.value
-  ? answerSiteGuide(submitted.value, routeName.value)
+  ? renderSiteIntent(parseIntent(submitted.value, { route: routeName.value, onArtifact: false }))
   : explainSitePage(routeName.value))
 const prompts = ['这个网站能做什么？', '从哪里开始逛？', '怎么预约参观？']
 const stopIcons = { explore: Collection, exhibits: Box, appointment: Calendar, shop: Goods, ding: Box }

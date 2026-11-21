@@ -143,7 +143,7 @@ final class GuideRetrievalSession {
     }
 
     boolean allowsTopicFromSingleCitation() { return retrieval.allowsTopicFromSingleCitation(); }
-    boolean supportsTopic(Reference reference) { return retrieval.supportsTopic(reference); }
+    synchronized boolean supportsTopic(Reference reference) { return retrieval.supportsTopic(exhibit, locale, reference); }
 
     synchronized boolean rememberAnsweredTopic(Selection selected, Reference reference, List<Reference> sources) {
         if (!isCurrent(selected)) return false;

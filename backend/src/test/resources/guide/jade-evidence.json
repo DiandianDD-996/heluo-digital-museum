@@ -1,0 +1,4 @@
+[
+  {"id":"FIXTURE-JADE-RIM","revision":1,"exhibitSlug":"river-map-jade-bi-3d","artifactSlug":"river-map-jade-bi","locale":"zh-CN","status":"PUBLISHED","publishedAt":"2020-01-01T00:00:00Z","text":"合成测试图版上可见内缘纹样。","aliases":["内缘纹样"],"claim":{"key":"fixture-rim","value":"visible"}},
+  {"id":"FIXTURE-JADE-SOURCE","revision":1,"exhibitSlug":"river-map-jade-bi-3d","artifactSlug":"river-map-jade-bi","locale":"zh-CN","status":"PUBLISHED","publishedAt":"2020-01-01T00:00:00Z","text":"合成测试记录只描述概念展品。","aliases":["概念展品"],"publicSource":"https://museum.example.test/jade","claim":{"key":"fixture-kind","value":"concept"}}
+]

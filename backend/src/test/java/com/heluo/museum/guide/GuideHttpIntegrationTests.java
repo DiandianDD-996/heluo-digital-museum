@@ -315,6 +315,8 @@ class GuideHttpIntegrationTests {
     void modelAbstentionAndMalformedDraftDoNotBecomeFollowUpTopics() {
         for (var sample : List.of(
                 Map.entry("{\"text\":null,\"references\":[]}", "INSUFFICIENT_EVIDENCE"),
+                Map.entry("{\"sentences\":[{\"text\":\"This object came from Luoyang.\",\"slot\":1,"
+                        + "\"quote\":\"Synthetic ear observation\"}],\"references\":[1]}", "GENERATION_UNAVAILABLE"),
                 Map.entry("{\"text\":\"Wrong evidence\",\"references\":[2]}", "GENERATION_UNAVAILABLE"))) {
             String cookie = enter(null, null);
             int before = fixture.generationCalls.get();
@@ -847,12 +849,18 @@ class GuideHttpIntegrationTests {
             if (overridden != null) return overridden;
             if ("鼎耳和三足分别怎么观察？".equals(question) && payload.path("evidence").size() == 2) {
                 var evidence = payload.path("evidence");
-                return json.writeValueAsString(Map.of("text",
-                        evidence.get(0).path("text").asText() + " / " + evidence.get(1).path("text").asText(),
+                return json.writeValueAsString(Map.of("sentences",
+                        List.of(sentence(1, evidence.get(0).path("text").asText()),
+                                sentence(2, evidence.get(1).path("text").asText())),
                         "references", List.of(1, 2)));
             }
             var first = payload.path("evidence").get(0);
-            return json.writeValueAsString(Map.of("text", first.path("text").asText(), "references", List.of(1)));
+            return json.writeValueAsString(Map.of("sentences", List.of(sentence(1, first.path("text").asText())),
+                    "references", List.of(1)));
+        }
+
+        private static Map<String, Object> sentence(int slot, String text) {
+            return Map.of("text", text, "slot", slot, "quote", text);
         }
     }
 

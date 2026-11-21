@@ -1,8 +1,61 @@
 import { effectScope, ref } from 'vue'
+import { mount, flushPromises } from '@vue/test-utils'
+import { createPinia } from 'pinia'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import { describe, expect, it, vi } from 'vitest'
 import { useLuoshengTurns, type GuideTurnScope } from './luoshengTurns'
 
 const ear: GuideTurnScope = { exhibit: 'ding', locale: 'zh-CN', lookpoint: 'ear' }
+
+it('在已加载展品的共用输入框中，只让取证问题发同源 /turns', async () => {
+  vi.stubEnv('VITE_GUIDE_SITE_ENABLED', 'true')
+  vi.stubEnv('VITE_GUIDE_TURNS_ENABLED', 'true')
+  const fetched: string[] = []
+  vi.stubGlobal('fetch', vi.fn(async (input: string | URL) => {
+    const url = String(input)
+    fetched.push(url)
+    const data = url.includes('/search?') ? { items: [] }
+      : url.includes('/appointment-slots?') ? [] : { kind: 'CLARIFY', citations: [] }
+    return new Response(JSON.stringify({ code: 'OK', data }), { headers: { 'Content-Type': 'application/json' } })
+  }))
+  const { useLuoshengVisit } = await import('../stores/luoshengVisit')
+  const { default: Panel } = await import('../components/LuoshengSiteGuide.vue')
+  const path = '/artifacts/test-exhibit'
+  const pinia = createPinia()
+  const router = createRouter({ history: createMemoryHistory(), routes: [
+    { path, name: 'artifact-detail', component: { template: '<main />' } },
+    ...['explore', 'exhibits', 'appointment', 'shop'].map(name => ({
+      path: '/' + name, name, component: { template: '<main />' },
+    })),
+  ] })
+  await router.push(path)
+  const visit = useLuoshengVisit(pinia)
+  visit.object = { path, slug: 'test-exhibit', exhibit: 'test-exhibit-3d', title: '测试展品', summary: '测试摘要' }
+  const panel = mount(Panel, { global: { plugins: [pinia, router] } })
+  const submit = async (text: string) => {
+    await panel.get('.site-guide-form input').setValue(text)
+    await panel.get('.site-guide-form').trigger('submit')
+    await flushPromises()
+  }
+  try {
+    await panel.get('.site-guide-trigger').trigger('click')
+    for (const question of ['怎么去文创商城？', '明天还有名额吗？', '帮我找玉器', 'asdf']) await submit(question)
+    expect(fetched.some(url => url.includes('/appointment-slots?'))).toBe(true)
+    expect(fetched.some(url => url.includes('/search?'))).toBe(true)
+    expect(fetched.filter(url => url.endsWith('/guide/turns'))).toEqual([])
+    const input = panel.get('.site-guide-form input')
+    await input.trigger('compositionstart')
+    await submit('它是什么年代的？')
+    expect(fetched.filter(url => url.endsWith('/guide/turns'))).toEqual([])
+    await input.trigger('compositionend')
+    await submit('它是什么年代的？')
+    await vi.waitFor(() => expect(fetched.filter(url => url.endsWith('/guide/turns'))).toEqual(['/api/v1/guide/turns']))
+  } finally {
+    panel.unmount()
+    vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
+  }
+})
 
 function setup() {
   const lifecycle = effectScope()

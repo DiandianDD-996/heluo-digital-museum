@@ -2,6 +2,7 @@ package com.heluo.museum.guide;
 
 import com.heluo.museum.guide.GuideEvidenceReader.Evidence;
 import com.heluo.museum.guide.GuideEvidenceVisibility.Reference;
+import com.heluo.museum.guide.GuideProfile.FactSource;
 import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,6 +40,7 @@ final class GuideFollowUpRetrieval {
             "(?:(?:我说的是|我是指|我想问的是)\\s*)?(?:鼎足|三足|脚|腿)");
     private static final Pattern EAR_CORRECTION = Pattern.compile(
             "(?:(?:我说的是|我是指|我想问的是)\\s*)?(?:鼎耳|耳朵|耳)");
+    private static final Pattern CORRECTION_PREFIX = Pattern.compile("^(?:我说的是|我是指|我想问的是)\\s*");
     private static final Pattern FOOT_COUNT = Pattern.compile("(?:两|二|三|[23])(?:条腿|只脚|只足)");
 
     enum Kind { EVIDENCE, CLARIFY, INSUFFICIENT_EVIDENCE, DISPUTED_EVIDENCE, FIND_SPOT_UNKNOWN,
@@ -59,10 +61,10 @@ final class GuideFollowUpRetrieval {
     private final boolean naturalQuestions;
     private final Reference periodSource;
     private final Reference sizeSource;
-    private final boolean reviewedPlateAnswers;
+    private final GuideProfile profiles;
 
     GuideFollowUpRetrieval(GuideEvidenceReader reader) {
-        this(reader, null);
+        this(reader, null, false);
     }
 
     GuideFollowUpRetrieval(GuideEvidenceReader reader, Reference provenanceSource) {
@@ -75,26 +77,29 @@ final class GuideFollowUpRetrieval {
 
     GuideFollowUpRetrieval(GuideEvidenceReader reader, Reference provenanceSource, boolean naturalQuestions,
             Reference periodSource, Reference sizeSource) {
-        this(reader, provenanceSource, naturalQuestions, periodSource, sizeSource, false);
+        this(reader, provenanceSource, naturalQuestions, periodSource, sizeSource, null);
     }
 
-    GuideFollowUpRetrieval(GuideEvidenceReader reader, Reference provenanceSource, boolean naturalQuestions,
-            Reference periodSource, Reference sizeSource, boolean reviewedPlateAnswers) {
+    GuideFollowUpRetrieval(GuideEvidenceReader reader, GuideProfile profiles) {
+        this(reader, null, true, null, null, profiles);
+    }
+
+    private GuideFollowUpRetrieval(GuideEvidenceReader reader, Reference provenanceSource, boolean naturalQuestions,
+            Reference periodSource, Reference sizeSource, GuideProfile profiles) {
         this.reader = reader;
         this.provenanceSource = provenanceSource;
         this.naturalQuestions = naturalQuestions;
         this.periodSource = periodSource;
         this.sizeSource = sizeSource;
-        this.reviewedPlateAnswers = reviewedPlateAnswers;
+        this.profiles = profiles;
     }
 
     boolean allowsTopicFromSingleCitation() { return naturalQuestions; }
 
-    boolean supportsTopic(Reference reference) {
-        return !reviewedPlateAnswers || switch (reference.cardId()) {
-            case "LS-DING-EARS", "LS-DING-FEET", "LS-DING-MOTIF" -> true;
-            default -> false;
-        };
+    boolean supportsTopic(String exhibit, String locale, Reference reference) {
+        if (profiles == null) return true;
+        var profile = profiles.find(exhibit, locale);
+        return profile != null && profile.plate(reference) != null && profile.topicCardIds().contains(reference.cardId());
     }
 
     Result retrieve(String exhibitSlug, String locale, String question, ConfirmedLookpoint recent) {
@@ -106,20 +111,25 @@ final class GuideFollowUpRetrieval {
         if (question == null || question.isBlank()) return new Result(Kind.INSUFFICIENT_EVIDENCE, List.of());
         String normalized = Normalizer.normalize(question, Normalizer.Form.NFKC)
                 .strip().replaceFirst("[?!.。！？]+$", "").strip();
-        if (sizeSource != null && "zh-CN".equals(locale)) {
-            var facts = referenceFacts(exhibitSlug, locale, normalized);
+        var profile = profiles == null ? null : profiles.find(exhibitSlug, locale);
+        if (profiles != null && profile == null) return new Result(Kind.INSUFFICIENT_EVIDENCE, List.of());
+        var size = profile == null ? sizeSource : profile.factSources().get(FactSource.SIZE);
+        var periodReference = profile == null ? periodSource : profile.factSources().get(FactSource.PERIOD);
+        var source = profile == null ? provenanceSource : profile.factSources().get(FactSource.PROVENANCE);
+        if ((size != null || profile != null) && "zh-CN".equals(locale)) {
+            var facts = referenceFacts(exhibitSlug, locale, normalized, size, periodReference, source);
             if (facts != null) return facts;
         }
         if ("zh-CN".equals(locale) && FIND_SPOT.matcher(normalized).find()) {
-            return provenance(Kind.FIND_SPOT_UNKNOWN, exhibitSlug, locale);
+            return provenance(Kind.FIND_SPOT_UNKNOWN, exhibitSlug, locale, source);
         }
-        if (periodSource != null && "zh-CN".equals(locale) && PERIOD.matcher(normalized).find()) {
-            var period = resolve(exhibitSlug, locale, List.of(periodSource), Kind.PERIOD);
+        if ((periodReference != null || profile != null) && "zh-CN".equals(locale) && PERIOD.matcher(normalized).find()) {
+            var period = resolveSource(exhibitSlug, locale, periodReference, Kind.PERIOD);
             if (period.evidence().stream().anyMatch(card -> card.publicSource() != null)) return period;
-            return provenance(Kind.PERIOD_REFERENCE, exhibitSlug, locale);
+            return provenance(Kind.PERIOD_REFERENCE, exhibitSlug, locale, source);
         }
         if ("zh-CN".equals(locale) && PLATE_PROVENANCE.matcher(normalized).matches()) {
-            return provenance(Kind.PLATE_PROVENANCE, exhibitSlug, locale);
+            return provenance(Kind.PLATE_PROVENANCE, exhibitSlug, locale, source);
         }
         // A generic card alias must not choose the referent of an otherwise elliptical turn.
         boolean sourceQuestion = "zh-CN".equals(locale) && SOURCE_QUESTION.matcher(normalized).matches();
@@ -133,23 +143,27 @@ final class GuideFollowUpRetrieval {
                     || !exhibitSlug.equals(recent.exhibitSlug()) || !locale.equals(recent.locale())) {
                 return new Result(Kind.CLARIFY, List.of());
             }
-            if (reviewedPlateAnswers && otherPart) {
-                return switch (recent.reference().cardId()) {
-                    case "LS-DING-EARS", "LS-DING-FEET" -> resolve(exhibitSlug, locale,
-                            List.of(recent.reference()), Kind.PLATE_OBSERVATION);
-                    default -> new Result(Kind.CLARIFY, List.of());
-                };
+            if (profile != null && otherPart) {
+                var plate = profile.plate(recent.reference());
+                return plate != null && plate.elliptical()
+                        ? resolve(exhibitSlug, locale, List.of(plate.reference()), Kind.PLATE_OBSERVATION)
+                        : new Result(Kind.CLARIFY, List.of());
             }
             return resolve(exhibitSlug, locale, List.of(recent.reference()),
                     sourceQuestion ? Kind.LOOKPOINT_SOURCE : Kind.EVIDENCE);
         }
         String searchQuestion = question;
-        if (naturalQuestions && "zh-CN".equals(locale)) {
+        if (profile != null) {
+            var correction = CORRECTION_PREFIX.matcher(normalized);
+            String term = correction.replaceFirst("");
+            var plate = profile.correction(term);
+            if (plate != null) return resolve(exhibitSlug, locale, List.of(plate.reference()), Kind.PLATE_OBSERVATION);
+            if (!term.equals(normalized)) return new Result(Kind.INSUFFICIENT_EVIDENCE, List.of());
+            if (profile.correction("三足") != null && FOOT_COUNT.matcher(normalized).find()) searchQuestion += " 三足";
+        } else if (naturalQuestions && "zh-CN".equals(locale)) {
             if (FOOT_CORRECTION.matcher(normalized).matches()) {
-                if (reviewedPlateAnswers) return reviewedPlate(exhibitSlug, locale, "LS-DING-FEET");
                 searchQuestion = "三足";
             } else if (EAR_CORRECTION.matcher(normalized).matches()) {
-                if (reviewedPlateAnswers) return reviewedPlate(exhibitSlug, locale, "LS-DING-EARS");
                 searchQuestion = "鼎耳";
             } else if (FOOT_COUNT.matcher(normalized).find()) searchQuestion += " 三足";
         }
@@ -169,14 +183,12 @@ final class GuideFollowUpRetrieval {
         return new Result(Kind.INSUFFICIENT_EVIDENCE, List.of());
     }
 
-    private Result reviewedPlate(String exhibitSlug, String locale, String cardId) {
-        var cards = reader.listPublished(exhibitSlug, locale).stream()
-                .filter(item -> cardId.equals(item.card().id())).toList();
-        return cards.size() == 1 ? new Result(Kind.PLATE_OBSERVATION, cards)
-                : new Result(Kind.INSUFFICIENT_EVIDENCE, List.of());
+    private Result resolveSource(String exhibitSlug, String locale, Reference reference, Kind kind) {
+        return reference == null ? new Result(kind, List.of()) : resolve(exhibitSlug, locale, List.of(reference), kind);
     }
 
-    private Result referenceFacts(String exhibitSlug, String locale, String question) {
+    private Result referenceFacts(String exhibitSlug, String locale, String question, Reference sizeReference,
+            Reference periodReference, Reference provenanceReference) {
         boolean findSpot = FIND_SPOT.matcher(question).find();
         // Ask about the whole object explicitly. A detail such as a foot or ear has no measured size here.
         var clauses = FACT_SEPARATOR.splitAsStream(question).map(String::strip).toList();
@@ -188,15 +200,15 @@ final class GuideFollowUpRetrieval {
 
         var facts = new ArrayList<FactSelection>(3);
         var source = findSpot
-                ? provenance(Kind.REFERENCE_FACTS, exhibitSlug, locale).evidence() : List.<Evidence>of();
+                ? provenance(Kind.REFERENCE_FACTS, exhibitSlug, locale, provenanceReference).evidence() : List.<Evidence>of();
         if (size) {
             facts.add(new FactSelection(Fact.SIZE,
-                    resolve(exhibitSlug, locale, List.of(sizeSource), Kind.REFERENCE_FACTS).evidence()));
+                    resolveSource(exhibitSlug, locale, sizeReference, Kind.REFERENCE_FACTS).evidence()));
         }
         if (detailSize) facts.add(new FactSelection(Fact.DETAIL_SIZE, List.of()));
         if (modelSize) facts.add(new FactSelection(Fact.MODEL_SIZE, List.of()));
-        if (period && periodSource != null) {
-            var cards = resolve(exhibitSlug, locale, List.of(periodSource), Kind.PERIOD).evidence();
+        if (period && periodReference != null) {
+            var cards = resolveSource(exhibitSlug, locale, periodReference, Kind.PERIOD).evidence();
             facts.add(new FactSelection(Fact.PERIOD, cards));
         }
         if (findSpot) facts.add(new FactSelection(Fact.FIND_SPOT, source));
@@ -209,9 +221,9 @@ final class GuideFollowUpRetrieval {
                 .orElseGet(() -> new Result(Kind.INSUFFICIENT_EVIDENCE, List.of()));
     }
 
-    private Result provenance(Kind kind, String exhibitSlug, String locale) {
-        var cards = provenanceSource == null ? List.<Evidence>of()
-                : reader.resolve(exhibitSlug, locale, List.of(provenanceSource)).orElseGet(List::of);
+    private Result provenance(Kind kind, String exhibitSlug, String locale, Reference reference) {
+        var cards = reference == null ? List.<Evidence>of()
+                : reader.resolve(exhibitSlug, locale, List.of(reference)).orElseGet(List::of);
         return new Result(kind, cards);
     }
 }

@@ -2,7 +2,6 @@ package com.heluo.museum.guide;
 
 import com.heluo.museum.common.api.ApiResponse;
 import com.heluo.museum.common.error.ResourceNotFoundException;
-import com.heluo.museum.guide.GuideEvidenceVisibility.Reference;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
@@ -36,8 +35,6 @@ class GuideTurnController {
     private static final Logger LOG = LoggerFactory.getLogger(GuideTurnController.class);
     private static final String VISITS = GuideTurnController.class.getName() + ".visits";
     private static final Duration LIFETIME = Duration.ofMinutes(15);
-    private static final Map<String, String> PLATES = Map.of(
-            "ear", "LS-DING-EARS", "feet", "LS-DING-FEET", "motif", "LS-DING-MOTIF");
     private static final Map<String, String> JOURNEY_EVENTS = Map.of(
             "plate-attempted", "plate.attempted", "plate-arrived", "plate.arrived",
             "return-attempted", "return.attempted", "return-arrived", "return.arrived",
@@ -46,6 +43,7 @@ class GuideTurnController {
     private final Clock clock = Clock.system(ZoneId.of("Asia/Shanghai"));
     private final GuideEvidenceVisibility visibility;
     private final GuideEvidenceReader reader;
+    private final GuideProfile profiles;
     private final GuideFollowUpRetrieval retrieval;
     private final GuideQuestionTurn flow;
     private final Path pauseFile;
@@ -55,6 +53,7 @@ class GuideTurnController {
             @Value("${museum.guide.pack-path}") String pack,
             @Value("${museum.guide.minimum-version-path}") String minimum,
             @Value("${museum.guide.approved-digest-path}") String digest,
+            @Value("${museum.guide.profile-path:}") String profilePath,
             @Value("${museum.guide.model-endpoint}") URI endpoint,
             @Value("${museum.guide.model-name}") String model,
             @Value("${museum.guide.model-key}") String key,
@@ -68,9 +67,11 @@ class GuideTurnController {
         this.metrics = metrics;
         reader = new GuideEvidenceReader(new GuideEvidenceFileSource(
                 Path.of(pack), Path.of(minimum), Path.of(digest)), visibility);
-        retrieval = new GuideFollowUpRetrieval(reader, new Reference("LS-DING-SOURCE", 2), true,
-                new Reference("LS-DING-PERIOD", 1), new Reference("LS-DING-SIZE", 1), true);
-        var generator = new GuideStructuredGenerator(new GuideChatCompletionModel(endpoint, model, key));
+        profiles = GuideProfile.load(profilePath);
+        retrieval = new GuideFollowUpRetrieval(reader, profiles);
+        var generationRejections = metrics.counter("museum.guide.generation.rejected");
+        var generator = new GuideStructuredGenerator(new GuideChatCompletionModel(endpoint, model, key),
+                generationRejections::increment);
         pauseFile = pausePath.isBlank() ? null : Path.of(pausePath);
         var generationStarts = metrics.counter("museum.guide.generation.started");
         flow = new GuideQuestionTurn(reader, input -> {
@@ -89,8 +90,13 @@ class GuideTurnController {
         }
         validate(input);
         if (questioningPaused()) return paused(startedAt);
-        if (!visibility.publicArtifactSlug(input.exhibit()).filter(input.artifact()::equals).isPresent()) {
+        var profile = profiles.find(input.exhibit(), input.locale());
+        if (profile == null || !profile.artifactSlug().equals(input.artifact())
+                || visibility.publicArtifactSlug(input.exhibit()).filter(input.artifact()::equals).isEmpty()) {
             throw new ResourceNotFoundException("Guide exhibit unavailable");
+        }
+        if (input.lookpoint() != null && profile.plate(input.lookpoint()) == null) {
+            throw new IllegalArgumentException("Invalid guide lookpoint for exhibit");
         }
         var cards = reader.listPublished(input.exhibit(), input.locale());
         if (cards.isEmpty()) return reply(startedAt,
@@ -110,7 +116,7 @@ class GuideTurnController {
                 visit = new Visit(new GuideRetrievalSession(retrieval, clock, LIFETIME));
                 visits.put(input.visitId(), visit);
             }
-            bind(visit, input, cards);
+            bind(visit, input, profile);
             state = visit.state;
         }
         var result = flow.ask(state, input.question(), input.requestId(), input.contextVersion())
@@ -120,10 +126,9 @@ class GuideTurnController {
             return paused(startedAt);
         }
         var answer = result.answer();
-        var point = result.topic() == null ? null : PLATES.entrySet().stream()
-                .filter(entry -> entry.getValue().equals(result.topic().cardId())).map(Map.Entry::getKey).findFirst().orElse(null);
+        var plate = result.topic() == null ? null : profile.plate(result.topic());
         return reply(startedAt, new TurnReply(result.kind().name(), answer == null ? null : answer.text(),
-                answer == null ? List.of() : answer.citations(), point,
+                answer == null ? List.of() : answer.citations(), plate == null ? null : plate.stop(),
                 result.kind() == GuideQuestionTurn.ReplyKind.EVIDENCE));
     }
 
@@ -150,7 +155,7 @@ class GuideTurnController {
         return reply(startedAt, new TurnReply("QUESTIONING_DISABLED", null, List.of(), null, false));
     }
 
-    private void bind(Visit visit, Turn input, List<GuideEvidenceReader.Evidence> cards) {
+    private void bind(Visit visit, Turn input, GuideProfile.Exhibit profile) {
         boolean sameContext = Objects.equals(visit.exhibit, input.exhibit())
                 && Objects.equals(visit.artifact, input.artifact())
                 && Objects.equals(visit.lookpoint, input.lookpoint());
@@ -161,10 +166,10 @@ class GuideTurnController {
         synchronized (visit.state) {
             visit.state.enter(input.exhibit(), input.locale());
             if (input.lookpoint() != null) {
-                var id = PLATES.get(input.lookpoint());
-                cards.stream().map(GuideEvidenceReader.Evidence::card).filter(card -> id.equals(card.id())).findFirst()
-                        .ifPresent(card -> visit.state.confirm(new GuideFollowUpRetrieval.ConfirmedLookpoint(
-                                input.exhibit(), input.locale(), new Reference(card.id(), card.revision()))));
+                var reference = profile.plate(input.lookpoint()).reference();
+                reader.resolve(input.exhibit(), input.locale(), List.of(reference))
+                        .ifPresent(cards -> visit.state.confirm(new GuideFollowUpRetrieval.ConfirmedLookpoint(
+                                input.exhibit(), input.locale(), reference)));
             }
             visit.state.version(input.contextVersion());
         }
@@ -177,14 +182,10 @@ class GuideTurnController {
     private static void validate(Turn input) {
         if (input.question() == null || input.question().isBlank() || input.question().length() > 300
                 || input.requestId() == null || input.visitId() == null || input.contextVersion() < 0
-                || !"zh-CN".equals(input.locale()) || !slug(input.artifact()) || !slug(input.exhibit())
-                || (input.lookpoint() != null && !PLATES.containsKey(input.lookpoint()))) {
+                || !"zh-CN".equals(input.locale()) || !GuideProfile.slug(input.artifact()) || !GuideProfile.slug(input.exhibit())
+                || (input.lookpoint() != null && !GuideProfile.knownStop(input.lookpoint()))) {
             throw new IllegalArgumentException("Invalid guide turn");
         }
-    }
-
-    private static boolean slug(String value) {
-        return value != null && value.length() <= 100 && value.matches("[a-z0-9]+(?:-[a-z0-9]+)*");
     }
 
     private ResponseEntity<ApiResponse<TurnReply>> reply(long startedAt, TurnReply reply) {

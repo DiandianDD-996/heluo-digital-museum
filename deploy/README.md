@@ -86,6 +86,8 @@ Windows 原生 MySQL 8 隔离验收使用 `node scripts/quality-mysql-environmen
 
 如批准的候选环境使用 Docker Compose，可显式追加 `-f deploy/compose.luosheng-candidate.yaml`。该叠加文件给前端构建传入两个公开开关，并只在后端运行时注入模型配置。`MUSEUM_GUIDE_RELEASE_DIR` 须为已存在的绝对目录，内含经过六卡预检的 `evidence.json`、`minimum-version.txt`、`approved-sha256.txt`；容器用户仅需读取权限。挂载为只读，不会在宿主机自动创建缺失目录。暂停时由运营在该目录创建 `pause` 标记，恢复时移除；不要用临时预览包充当签核包。模型密钥由受保护的服务运行环境注入，不写入镜像、代码或报表。
 
+问答仍默认关闭，不读取展品路由档案。批准候选开启问答时，还须给后端注入 `MUSEUM_GUIDE_PROFILE_PATH`（`museum.guide.profile-path`），指向进程可读的 UTF-8 版本 1 JSON 文件。可参照仓库的 `backend/src/main/resources/guide/ding-profile.json`；档案只含公开标识、卡片修订映射和纠正词，不提供回答事实。Compose 候选应将档案随签核资料只读挂载，再通过候选环境的私有叠加配置注入容器内路径（如 `/run/luosheng/profile.json`）；仅设置宿主机环境变量不等于传入容器。文件缺失或非法则开启态拒绝启动；修改映射须重启，卡片仍在每轮按当前审批状态和修订重新核对。本轮不修改部署清单或开启候选。
+
 从仓库根用 `docker compose --env-file deploy/.env -f deploy/compose.yaml -f deploy/compose.luosheng-candidate.yaml config --quiet` 检查候选配置。不要输出完整插值后的配置，因为可能包含密钥。此命令不启动容器，也不核验证据内容。获准启动后仍须按[放行记录](../docs/plans/2026-11-19-luosheng-acceptance.md#unified-release-record)复核实例与来源。只用 `deploy/compose.yaml` 发版时须从默认配置重新构建前端并重建后端，不能复用开启态前端镜像冒充关闭态。
 
 复核关闭态部署时，在具有前端测试依赖与 Chrome 的机器上运行 `node frontend/scripts/luosheng-production-check.mjs`。将 `LUOSHENG_PRODUCTION_ORIGIN` 设为待验入口，将 `LUOSHENG_PRODUCTION_DIST` 设为同次部署中 Nginx 静态目录的本地副本。脚本比对实际提供的脚本和样式等文件，并检查首页、搜索、藏品、3D 海报及预约页。此检查需要至少一条可读取的公开时段，隔离环境可使用种子时段。

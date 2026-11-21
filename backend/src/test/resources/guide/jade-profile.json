@@ -1,0 +1,10 @@
+{
+  "exhibitSlug": "river-map-jade-bi-3d",
+  "artifactSlug": "river-map-jade-bi",
+  "locale": "zh-CN",
+  "plates": [
+    {"stop":"motif","cardId":"FIXTURE-JADE-RIM","revision":1,"view":"relief","corrections":["内缘纹样"],"elliptical":true}
+  ],
+  "factSources": {"PROVENANCE":{"cardId":"FIXTURE-JADE-SOURCE","revision":1}},
+  "topicCardIds": ["FIXTURE-JADE-RIM"]
+}

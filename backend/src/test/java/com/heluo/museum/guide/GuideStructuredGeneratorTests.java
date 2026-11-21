@@ -35,9 +35,14 @@ class GuideStructuredGeneratorTests {
                 assertEquals(i + 1, excerpt.get("slot").intValue());
                 assertEquals(INPUT.evidence().get(i).text(), excerpt.get("text").textValue());
             }
-            return "{\"text\":\" 换到背面数。 \" ,\"references\":[2,1]}";
+            return """
+                    {"sentences":[{"text":" 背视图可见三只鼎足。 ","slot":2,"quote":"视图可见三只鼎足"},
+                                  {"text":"口沿对侧各有一耳。","slot":1,"quote":"口沿对侧各有一耳"}],
+                     "references":[2,1]}
+                    """;
         });
-        assertEquals(new Draft("换到背面数。", List.of(FEET.reference(), EAR.reference())), generator.generate(INPUT).orElseThrow());
+        assertEquals(new Draft("背视图可见三只鼎足。\n口沿对侧各有一耳。", List.of(FEET.reference(), EAR.reference())),
+                generator.generate(INPUT).orElseThrow());
     }
 
     @ParameterizedTest

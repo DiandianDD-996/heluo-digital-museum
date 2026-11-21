@@ -25,9 +25,13 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpSession;
@@ -70,6 +74,55 @@ class GuideExhibitIntegrationTests {
         properties.add("museum.guide.minimum-version-path", () -> files.resolve("minimum-version").toString());
         properties.add("museum.guide.approved-digest-path", () -> files.resolve("approved.sha256").toString());
         properties.add("museum.guide.pause-path", () -> files.resolve("paused").toString());
+        properties.add("museum.guide.profile-path", GuideExhibitIntegrationTests::combinedProfilePath);
+    }
+
+    private static String combinedProfilePath() {
+        var json = new ObjectMapper();
+        try (var ding = GuideExhibitIntegrationTests.class.getResourceAsStream("/guide/ding-profile.json");
+                var jade = GuideExhibitIntegrationTests.class.getResourceAsStream("/guide/jade-profile.json")) {
+            var root = json.readTree(ding);
+            ((com.fasterxml.jackson.databind.node.ArrayNode) root.get("exhibits")).add(json.readTree(jade));
+            return Files.writeString(files.resolve("profiles.json"), json.writeValueAsString(root)).toString();
+        } catch (java.io.IOException exception) {
+            throw new java.io.UncheckedIOException(exception);
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"missing-file", "missing-field", "duplicate-stop", "invalid-revision"})
+    void invalidProfilePreventsTurnControllerStartup(String defect) throws Exception {
+        var path = files.resolve(defect + ".json");
+        if (!defect.equals("missing-file")) {
+            var root = (com.fasterxml.jackson.databind.node.ObjectNode)
+                    mapper.readTree(Files.readString(Path.of(combinedProfilePath())));
+            var exhibit = (com.fasterxml.jackson.databind.node.ObjectNode) root.get("exhibits").get(0);
+            var plates = (com.fasterxml.jackson.databind.node.ArrayNode) exhibit.get("plates");
+            switch (defect) {
+                case "missing-field" -> exhibit.remove("artifactSlug");
+                case "duplicate-stop" -> plates.add(plates.get(0).deepCopy());
+                case "invalid-revision" -> ((com.fasterxml.jackson.databind.node.ObjectNode) plates.get(0)).put("revision", 0);
+                default -> throw new AssertionError(defect);
+            }
+            Files.writeString(path, mapper.writeValueAsString(root));
+        }
+        new ApplicationContextRunner()
+                .withUserConfiguration(GuideTurnController.class)
+                .withBean(JdbcTemplate.class, () -> jdbc)
+                .withBean(MeterRegistry.class, () -> new io.micrometer.core.instrument.simple.SimpleMeterRegistry())
+                .withPropertyValues("museum.guide.turns-enabled=true", "museum.guide.profile-path=" + path,
+                        "museum.guide.pack-path=pack.json", "museum.guide.minimum-version-path=minimum",
+                        "museum.guide.approved-digest-path=digest", "museum.guide.pause-path=",
+                        "museum.guide.model-endpoint=https://127.0.0.1:1", "museum.guide.model-name=fixture",
+                        "museum.guide.model-key=fixture", "museum.guide.daily-turn-limit=1")
+                .run(context -> org.assertj.core.api.Assertions.assertThat(context.getStartupFailure())
+                        .hasRootCauseMessage(switch (defect) {
+                            case "missing-file" -> path.toString();
+                            case "missing-field" -> "Invalid museum.guide.profile-path: expected exhibit slug, artifact slug and zh-CN locale";
+                            case "duplicate-stop" -> "Invalid museum.guide.profile-path: unknown or duplicate stop";
+                            case "invalid-revision" -> "Invalid museum.guide.profile-path: cardId must be nonblank and revision must be positive";
+                            default -> throw new AssertionError(defect);
+                        }));
     }
 
     @Test
@@ -290,6 +343,78 @@ class GuideExhibitIntegrationTests {
                 .contentType("application/json").content(body)).andExpect(status().isOk());
     }
 
+    @ParameterizedTest
+    @CsvSource({
+        "heluo-bronze-ding, ear, 鼎耳, LS-DING-EARS",
+        "river-map-jade-bi, motif, 内缘纹样, FIXTURE-JADE-RIM"
+    })
+    void sameReviewPathForTwoDifferentExhibits(String artifact, String stop, String correction, String card)
+            throws Exception {
+        seedJadeExhibit(artifact + "-unprofiled");
+        seedJadeExhibit("river-map-jade-bi-3d");
+        var pack = files.resolve("evidence.json");
+        var payload = mapper.readTree(candidatePack());
+        try (var input = getClass().getResourceAsStream("/guide/jade-evidence.json")) {
+            ((com.fasterxml.jackson.databind.node.ArrayNode) payload.get("cards"))
+                    .addAll((com.fasterxml.jackson.databind.node.ArrayNode) mapper.readTree(input));
+        }
+        Files.writeString(pack, mapper.writeValueAsString(payload));
+        Files.writeString(files.resolve("minimum-version"), "2");
+        approveTestPack(pack);
+        var session = new MockHttpSession();
+        var visit = UUID.randomUUID();
+        exhibitTurn(session, visit, "river-map-jade-bi", artifact + "-unprofiled", stop, "另一只呢")
+                .andExpect(status().isNotFound());
+        exhibitTurn(session, visit, artifact, artifact + "-3d", stop, "另一只呢")
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.kind").value("PLATE_OBSERVATION"))
+                .andExpect(jsonPath("$.data.plate").value(stop))
+                .andExpect(jsonPath("$.data.citations[0].reference.cardId").value(card));
+        exhibitTurn(session, visit, artifact, artifact + "-3d", stop, "我说的是" + correction)
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.kind").value("PLATE_OBSERVATION"))
+                .andExpect(jsonPath("$.data.plate").value(stop))
+                .andExpect(jsonPath("$.data.generated").value(false));
+        exhibitTurn(session, visit, artifact, artifact + "-3d", stop, "你怎么知道的？")
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.kind").value("LOOKPOINT_SOURCE"))
+                .andExpect(jsonPath("$.data.citations[0].reference.cardId").value(card));
+        // Keep every other signed fixture card, but move this one to a different revision.
+        for (var item : payload.get("cards")) {
+            if (card.equals(item.path("id").asText())) {
+                ((com.fasterxml.jackson.databind.node.ObjectNode) item).put("revision", 20);
+            }
+        }
+        Files.writeString(pack, mapper.writeValueAsString(payload));
+        approveTestPack(pack);
+        exhibitTurn(session, visit, artifact, artifact + "-3d", stop, "我说的是" + correction)
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.kind").value("INSUFFICIENT_EVIDENCE"))
+                .andExpect(jsonPath("$.data.citations").isEmpty());
+        Files.writeString(pack, mapper.writeValueAsString(payload).replace("\"" + card + "\"", "\"UNROUTED-FIXTURE\""));
+        approveTestPack(pack);
+        exhibitTurn(session, visit, artifact, artifact + "-3d", stop, "我说的是" + correction)
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.kind").value("INSUFFICIENT_EVIDENCE"))
+                .andExpect(jsonPath("$.data.citations").isEmpty());
+    }
+
+    private void seedJadeExhibit(String exhibit) {
+        assertEquals(1, jdbc.update("""
+                insert into exhibits_3d (artifact_id,title,slug,model_url,model_source_ref,model_size_bytes,
+                    status,published_at,created_by,updated_by)
+                select a.id,'Synthetic jade exhibit',?,'/fixture.glb',?,1,'PUBLISHED',CURRENT_TIMESTAMP,
+                    e.created_by,e.updated_by
+                from artifacts a cross join exhibits_3d e
+                where a.slug='river-map-jade-bi' and e.slug='heluo-bronze-ding-3d'
+                """, exhibit, exhibit));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions exhibitTurn(MockHttpSession session, UUID visit,
+            String artifact, String exhibit, String stop, String question) throws Exception {
+        var body = mapper.writeValueAsString(Map.of(
+                "question", question, "requestId", UUID.randomUUID(), "visitId", visit,
+                "contextVersion", 1, "locale", "zh-CN", "artifact", artifact,
+                "exhibit", exhibit, "lookpoint", stop));
+        return mvc.perform(post("/api/v1/guide/turns").session(session).header("Sec-Fetch-Site", "same-origin")
+                .contentType("application/json").content(body));
+    }
+
     @Test
     @EnabledIfEnvironmentVariable(named = "LUOSHENG_RUN_BROWSER", matches = "1")
     void visitorReadsApprovedPresetFromCatalog() throws Exception {
@@ -369,6 +494,7 @@ class GuideExhibitIntegrationTests {
 
     private static String candidatePack() {
         String observations = reviewedPack().replace("\"VISIBLE\"", "\"LS-DING-EARS\"")
+                .replace("\"revision\":3", "\"revision\":1")
                 .replace("\"PRIVATE\"", "\"LS-DING-FEET\"")
                 .replace("\"status\":\"DRAFT\"", "\"status\":\"PUBLISHED\",\"publishedAt\":\"2020-01-01T00:00:00Z\"")
                 .replace("Draft note", "Approved foot observation");
