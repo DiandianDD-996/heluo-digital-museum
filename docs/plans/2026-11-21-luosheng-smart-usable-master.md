@@ -542,7 +542,7 @@ INT-2（受控分类器）和任何新增公共端点，在实现前必须先向
 | B | INT-1 | 通过 | `codex/feat-guide-baseline` + 未提交变更 | 词表通过 657 项前端测试、类型检查与 `--check` 一致性校验；删除卡片别名时校验以退出码 1 失败 | [执行记录](luosheng-eval/optimization-run-log.md#2026-11-21--int-1-语言资产数据化) | 仅前端；新增别名无需改码，新增看点仍受 `GuideStop` 约束 |
 | B | INT-5 | 通过 | `codex/feat-guide-baseline` + 未提交变更 | 前端 82 文件 669 项、类型检查、构建与预算全过；缺证分类待服务端字段 | [执行记录](luosheng-eval/optimization-run-log.md#2026-11-21--int-5-交互易用性) | 未做 390/1440 实页观感 |
 | B | INT-2 | 未开始 | | | | |
-| B | INT-3 | 未开始 | | | | |
+| B | INT-3 | 已实现，待放行验收 | `e0b1177` + 未提交变更 | v6 固定语料 7/10 接受、无依据 0/3 通过；声音包 SHA-256 故障注入和全部工程命令见执行日志 | [执行记录](luosheng-eval/optimization-run-log.md#2026-11-21--int-3-声音包与生成-v6) | 不启用向导；候选实页和真实模型未验 |
 | B | INT-4 | 未开始 | | | | |
 | B | INT-5 | 未开始 | | | | |
 | C | INT-6 | 未开始 | | | | |

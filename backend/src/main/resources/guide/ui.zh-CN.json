@@ -1,0 +1,157 @@
+{
+  "version": 1,
+  "locale": "zh-CN",
+  "brand": {
+    "name": "洛笙",
+    "role": "导览向导"
+  },
+  "entry": {
+    "open": "问洛笙",
+    "close": "收起",
+    "expand": "展开",
+    "collapse": "收起",
+    "end": "结束这次导览",
+    "selfTour": "我先自己逛"
+  },
+  "input": {
+    "placeholder": "问一件展品，或说你想看什么",
+    "send": "发送",
+    "sending": "发送中",
+    "retry": "重试",
+    "cancel": "取消"
+  },
+  "empty": {
+    "title": "想从哪儿看起？",
+    "body": "可以问眼前这件展品，也可以说你想找什么。",
+    "suggestionsLabel": "可以这样问"
+  },
+  "progress": {
+    "checking": "正在核对资料…",
+    "slow": "还在核对，请稍等。"
+  },
+  "clarify": {
+    "lookpoint": "你现在问的是鼎耳、三足，还是纹样？",
+    "discovery": "可以换一件。你想看哪类藏品？",
+    "date": "想查哪一天的公开时段？例如「明天」或「11 月 23 日」。",
+    "people": "一共几位？每次预约支持 1–30 人。"
+  },
+  "insufficient": {
+    "title": "这一点现有资料还不能确认",
+    "body": "缺的是：{missing}。",
+    "next": "你可以继续问：",
+    "fallback": "也可以先看当前页面的公开资料。"
+  },
+  "actions": {
+    "lookPlate": "看{point}",
+    "returnPlate": "回到{point}",
+    "more": "更多",
+    "less": "收起",
+    "readSource": "查看依据",
+    "openSource": "打开公开资料",
+    "goAppointment": "去预约页",
+    "askAgain": "换个问法",
+    "helpful": "有帮助",
+    "unhelpful": "没帮助",
+    "feedbackThanks": "记下了，谢谢。"
+  },
+  "plateViewLabels": {
+    "ear": "看俯视图",
+    "feet": "看背视图",
+    "motif": "看纹样局部"
+  },
+  "errors": {
+    "network": "网络没有连上。可以重试，或先看当前页面的公开资料。",
+    "search": "馆藏搜索暂时不可用。可以重试这次搜索，或换一个问题。",
+    "generation": "这次回答没有生成出来。可以先看已审展签，或换个问法。",
+    "timeout": "这次核对超时了。已审展签还能看，可以稍后再问。",
+    "busy": "现在问的人有点多。可以先看已审展签，稍后再试。",
+    "limit": "今天的问答额度用完了。已审展签和公开资料仍然可以看。",
+    "paused": "问答暂时关闭。已审展签和公开资料仍然可以看。",
+    "unknown": "这次没有理解你的问题。可以换个说法，或点下面的建议问题。"
+  },
+  "a11y": {
+    "answerRegion": "洛笙的回答",
+    "suggestions": "建议问题",
+    "clarification": "请选择你想问的部位",
+    "close": "关闭洛笙面板",
+    "input": "向洛笙提问"
+  },
+  "site": {
+    "slotDate": "想查哪一天的公开时段？请给一个日期，例如「明天」或「11 月 23 日」。",
+    "slotCancelled": "已清除待查时段，可以继续看展品。",
+    "resumeReply": "回到青铜鼎 · {point}，接着看刚才的图版。",
+    "readPublicArtifact": "可继续阅读此页的公开藏品资料。",
+    "searchEmpty": "没有找到「{keyword}」的公开藏品。试试换个词，或打开馆藏看看。",
+    "articleUnavailable": "还没有读到这篇专题的公开资料。可以等页面加载，或回馆藏浏览其他专题。",
+    "unavailable": "暂时无法读取资料。你仍可阅读公开藏品页或查看当前图版。",
+    "contentUnavailable": "暂时无法打开原展品。可以去馆藏看看其他公开展品。",
+    "plateUnavailable": "原看点暂时不可用。你可以继续阅读公开藏品资料，或去馆藏找其他展品。",
+    "objectIntro": "想看清哪一处？可以直接说说你看到的细节。",
+    "slotIntro": "想查哪天的公开时段？可以一起告诉我参观人数。",
+    "articleIntro": "想了解这篇专题，或找一件相关展品？",
+    "shopIntro": "想逛文创？可以问我怎么浏览商品，也可以继续找展品。",
+    "intro": "想找什么展品？如果只有五分钟，也可以让我推荐一件。",
+    "pendingQuestion": "{date}还有{people}人的公开时段吗？",
+    "prompts": [
+      "这个网站能做什么？",
+      "从哪里开始逛？",
+      "怎么预约参观？"
+    ],
+    "region": "洛笙全站导览",
+    "resumeTour": "继续导览",
+    "openTour": "洛笙导览",
+    "title": "洛笙 · 全站导览",
+    "museum": "河洛数字博物馆",
+    "close": "关闭洛笙导览",
+    "choosePoint": "你现在问的是哪一处？",
+    "insufficient": "这一点现有资料还不能确认。可以先看当前展签，或换个问法。",
+    "disputed": "现有资料的说法不一致，暂时不能确认。",
+    "rateLimited": "问得有点快。可以先看看展签，稍后再问。",
+    "revision": "{cardId} · 修订 {revision}",
+    "retrySearch": "重试搜索",
+    "explore": "探索公开馆藏",
+    "generated": "AI 实时回答",
+    "findEar": "带我找鼎耳",
+    "moreResults": "看更多结果",
+    "readEvidence": "查看本轮依据",
+    "syntheticSource": "合成测试出处",
+    "plate": "{point}图版",
+    "readPlate": "读当前讲解",
+    "readSlots": "看这天的时段",
+    "resumePlate": "回到青铜鼎 · {point}",
+    "pendingSlots": "查 {date} 的时段",
+    "destinations": "洛笙推荐的目的地",
+    "tour": "首次逛馆路线",
+    "tourStart": "首次逛馆 · 3 站",
+    "tourProgress": "已到达第 {index} / {total} 站 · {label}",
+    "firstStop": "第一站",
+    "nextStop": "下一站",
+    "tourDone": "三站逛完啦。接下来可以打开青铜鼎展签，和我一起找鼎耳、三足和纹样。",
+    "endTour": "结束路线",
+    "startTour": "带我逛馆",
+    "nextGlance": "再看{point}",
+    "ask": "问洛笙",
+    "askTour": "问洛笙怎么逛馆",
+    "objectPlaceholder": "例如，另一只在哪里？",
+    "slotPlaceholder": "例如，明天还有三个人的名额吗？",
+    "tourPlaceholder": "例如，在哪能看 3D？",
+    "privacy": "AI 向导 · 请勿输入个人信息",
+    "modelPreview": "模型预览 · 请勿输入个人信息",
+    "reviewedPreview": "内部预览 · 固定资料问答",
+    "syntheticPreview": "内部预览 · 使用合成资料",
+    "pointNames": {
+      "ear": "鼎耳",
+      "feet": "三足",
+      "motif": "纹样"
+    },
+    "citationLinks": {
+      "none": "刚才的回答有资料依据，但没有可打开的公开链接。",
+      "partial": "下方是可以点开核对的资料。刚才的部分依据没有可打开的公开链接。"
+    }
+  },
+  "notes": [
+    "plateViewLabels 必须覆盖词表中所有 stop；新增 stop 时同步增加。",
+    "本文件只放界面文案，不放事实正文。",
+    "执行代理不得在 Vue 组件中硬编码这些字符串。"
+  ]
+}

@@ -244,11 +244,11 @@ class GuideEvidenceVisibilityTests {
         assertTrue(delivery.deliver(session, turn,
                 new GuideAnswerDelivery.Draft("确定在洛阳出土", List.of(reference))).isEmpty());
         var answered = delivery.deliverFindSpot(session, turn).orElseThrow();
-        assertEquals("现有资料不足以判断出土地。所附链接是参考记录，不是出土证明。", answered.text());
+        assertEquals("缺的是：出土地记录。\n下方有可点开的公开资料，可以核对来源。", answered.text());
         assertEquals(reference, answered.citations().get(0).reference());
         current.set(List.of(evidence("SOURCE", 1, GuideEvidenceVisibility.Status.WITHDRAWN, "参考记录")));
         var withdrawn = delivery.deliverFindSpot(session, turn).orElseThrow();
-        assertEquals("现有资料不足以判断出土地。", withdrawn.text());
+        assertEquals("缺的是：出土地记录。", withdrawn.text());
         assertTrue(withdrawn.citations().isEmpty());
         session.leave();
         assertTrue(delivery.deliverFindSpot(session, turn).isEmpty());

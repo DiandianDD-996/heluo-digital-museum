@@ -49,7 +49,7 @@ class GuideTurnController {
     private final Path pauseFile;
     private final MeterRegistry metrics;
 
-    GuideTurnController(JdbcTemplate jdbc, MeterRegistry metrics,
+    GuideTurnController(JdbcTemplate jdbc, MeterRegistry metrics, GuideVoice voice,
             @Value("${museum.guide.pack-path}") String pack,
             @Value("${museum.guide.minimum-version-path}") String minimum,
             @Value("${museum.guide.approved-digest-path}") String digest,
@@ -71,7 +71,7 @@ class GuideTurnController {
         retrieval = new GuideFollowUpRetrieval(reader, profiles);
         var generationRejections = metrics.counter("museum.guide.generation.rejected");
         var generator = new GuideStructuredGenerator(new GuideChatCompletionModel(endpoint, model, key),
-                generationRejections::increment);
+                generationRejections::increment, voice);
         pauseFile = pausePath.isBlank() ? null : Path.of(pausePath);
         var generationStarts = metrics.counter("museum.guide.generation.started");
         flow = new GuideQuestionTurn(reader, input -> {
@@ -79,7 +79,7 @@ class GuideTurnController {
             LOG.info("event=guide_generation_started");
             return generator.generate(input);
         }, 1, Duration.ofSeconds(8),
-                new GuideDailyGenerationLimit(clock, dailyLimit));
+                new GuideDailyGenerationLimit(clock, dailyLimit), voice);
     }
 
     @PostMapping(path = "/api/v1/guide/turns", consumes = "application/json")

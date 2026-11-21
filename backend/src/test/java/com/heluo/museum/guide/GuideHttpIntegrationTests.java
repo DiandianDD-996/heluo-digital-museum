@@ -285,7 +285,7 @@ class GuideHttpIntegrationTests {
                 data(post("/turns", Map.of("question", "材质检测做过吗？"), feet)).path("kind").asText());
         var findSpot = data(post("/turns", Map.of("question", "三足的鼎是在洛阳出土的吗？"), feet));
         assertEquals("FIND_SPOT_UNKNOWN", findSpot.path("kind").asText());
-        assertTrue(findSpot.path("text").asText().startsWith("现有资料不足以判断出土地。"));
+        assertTrue(findSpot.path("text").asText().startsWith("缺的是：出土地记录。"));
         assertEquals("SOURCE", findSpot.path("citations").get(0).path("reference").path("cardId").asText());
         assertEquals(2, fixture.generationCalls.get() - before);
     }
@@ -309,6 +309,30 @@ class GuideHttpIntegrationTests {
             assertEquals(sample.getValue(), answer.path("citations").get(0).path("reference").path("cardId").asText());
         }
         assertEquals(before + 2, fixture.generationCalls.get());
+    }
+
+    @Test
+    void v6RendersOnlyApprovedActionsAndRejectsTheWholeInvalidTurn() {
+        String valid = """
+                {"sentences":[{"role":"answer","slot":1,"text":"Synthetic ear observation"},
+                  {"role":"action","template":"appointment"}],"references":[1]}
+                """;
+        try {
+            fixture.nextModelReply.set(valid);
+            var answer = data(post("/turns", Map.of("question", "鼎耳在哪？"), enter(null, null)));
+            assertEquals("EVIDENCE", answer.path("kind").asText());
+            assertEquals("Synthetic ear observation\n去预约页可以选日期和时段。", answer.path("text").asText());
+            for (String broken : List.of(valid.replace("\"appointment\"", "\"appointment\",\"text\":\"model copy\""),
+                    valid.replace("\"appointment\"", "\"plate\",\"stop\":\"out-of-profile\""))) {
+                fixture.nextModelReply.set(broken);
+                var rejected = data(post("/turns", Map.of("question", "鼎耳在哪？"), enter(null, null)));
+                assertEquals("GENERATION_UNAVAILABLE", rejected.path("kind").asText());
+                assertTrue(rejected.path("text").isNull());
+                assertTrue(rejected.path("citations").isEmpty());
+            }
+        } finally {
+            fixture.nextModelReply.set(null);
+        }
     }
 
     @Test
@@ -490,7 +514,7 @@ class GuideHttpIntegrationTests {
         for (String prompt : List.of("这是实物拍的照片吗？", "这就是原器真实颜色吧？")) {
             var reply = data(post("/turns", Map.of("question", prompt), cookie));
             assertEquals("PLATE_PROVENANCE", reply.path("kind").asText());
-            assertEquals("洛笙的图版来自数字模型渲染，不是原器照片，也不能用来确认原器颜色。",
+            assertEquals("Synthetic reference record",
                     reply.path("text").asText());
             assertEquals(1, reply.path("citations").size());
             assertEquals("SOURCE", reply.path("citations").get(0).path("reference").path("cardId").asText());
@@ -850,17 +874,17 @@ class GuideHttpIntegrationTests {
             if ("鼎耳和三足分别怎么观察？".equals(question) && payload.path("evidence").size() == 2) {
                 var evidence = payload.path("evidence");
                 return json.writeValueAsString(Map.of("sentences",
-                        List.of(sentence(1, evidence.get(0).path("text").asText()),
-                                sentence(2, evidence.get(1).path("text").asText())),
+                        List.of(sentence("answer", 1, evidence.get(0).path("text").asText()),
+                                sentence("boundary", 2, evidence.get(1).path("text").asText())),
                         "references", List.of(1, 2)));
             }
             var first = payload.path("evidence").get(0);
-            return json.writeValueAsString(Map.of("sentences", List.of(sentence(1, first.path("text").asText())),
+            return json.writeValueAsString(Map.of("sentences", List.of(sentence("answer", 1, first.path("text").asText())),
                     "references", List.of(1)));
         }
 
-        private static Map<String, Object> sentence(int slot, String text) {
-            return Map.of("text", text, "slot", slot, "quote", text);
+        private static Map<String, Object> sentence(String role, int slot, String text) {
+            return Map.of("role", role, "text", text, "slot", slot);
         }
     }
 

@@ -108,7 +108,7 @@ class GuideExhibitIntegrationTests {
             Files.writeString(path, mapper.writeValueAsString(root));
         }
         new ApplicationContextRunner()
-                .withUserConfiguration(GuideTurnController.class)
+                .withUserConfiguration(GuideTurnController.class, GuideVoice.class)
                 .withBean(JdbcTemplate.class, () -> jdbc)
                 .withBean(MeterRegistry.class, () -> new io.micrometer.core.instrument.simple.SimpleMeterRegistry())
                 .withPropertyValues("museum.guide.turns-enabled=true", "museum.guide.profile-path=" + path,
@@ -308,7 +308,7 @@ class GuideExhibitIntegrationTests {
                 .andExpect(jsonPath("$.data.kind").value("REFERENCE_FACTS"))
                 .andExpect(jsonPath("$.data.text").value(org.hamcrest.Matchers.allOf(
                         org.hamcrest.Matchers.containsString("Synthetic overall size"),
-                        org.hamcrest.Matchers.containsString("现有资料不足以判断出土地"))))
+                        org.hamcrest.Matchers.containsString("缺的是：出土地记录。"))))
                 .andExpect(jsonPath("$.data.generated").value(false))
                 .andExpect(jsonPath("$.data.plate").isEmpty())
                 .andExpect(jsonPath("$.data.citations.length()").value(2))
@@ -318,18 +318,18 @@ class GuideExhibitIntegrationTests {
                 .andExpect(jsonPath("$.data.citations[0].reference.cardId").value("LS-DING-PERIOD"))
                 .andExpect(jsonPath("$.data.citations[1].reference.cardId").value("LS-DING-SOURCE"));
         ask(session, visit, "鼎耳多大、哪里出土？")
-                .andExpect(jsonPath("$.data.text").value(org.hamcrest.Matchers.containsString("这个部位的尺寸需要专门测量")))
+                .andExpect(jsonPath("$.data.text").value(org.hamcrest.Matchers.containsString("缺的是：这个部位的实测尺寸。")))
                 .andExpect(jsonPath("$.data.citations.length()").value(1))
                 .andExpect(jsonPath("$.data.citations[0].reference.cardId").value("LS-DING-SOURCE"));
         ask(session, visit, "数字模型的整体尺寸是多少？")
-                .andExpect(jsonPath("$.data.text").value(org.hamcrest.Matchers.containsString("不足以确认数字模型的尺寸")))
+                .andExpect(jsonPath("$.data.text").value("缺的是：数字模型的尺寸记录。"))
                 .andExpect(jsonPath("$.data.citations").isEmpty());
 
         Files.writeString(pack, contents.replace("\"LS-DING-SIZE\",\"revision\":1", "\"LS-DING-SIZE\",\"revision\":2"));
         approveTestPack(pack);
         ask(session, visit, "它多大、哪里出土？")
                 .andExpect(jsonPath("$.data.kind").value("REFERENCE_FACTS"))
-                .andExpect(jsonPath("$.data.text").value(org.hamcrest.Matchers.containsString("不足以确认参考实物的整体尺寸")))
+                .andExpect(jsonPath("$.data.text").value(org.hamcrest.Matchers.containsString("缺的是：参考实物的整体尺寸。")))
                 .andExpect(jsonPath("$.data.citations.length()").value(1))
                 .andExpect(jsonPath("$.data.citations[0].reference.cardId").value("LS-DING-SOURCE"));
     }

@@ -29,34 +29,36 @@ class GuideGroundedDraftTests {
     private static final String FEET_VIEW = "背视图的中间和两侧各可辨一足。";
 
     @Test
-    void acceptsScopedQuotesDeduplicatesReferencesAndNormalizesCompatibilityCharacters() throws Exception {
+    void acceptsCompleteSpansAndRendersOriginalCompatibilityCharacters() throws Exception {
         String sourceText = "参考藏品编号为 ABC 123。";
         var answer = generate(draft(List.of(
-                sentence(EAR_VIEW, 1, "鼎口两侧各有一只鼎耳"),
-                sentence(sourceText, 3, "ＡＢＣ\t１２３")), List.of(3, 1, 3)));
+                sentence("answer", EAR_VIEW, 1),
+                sentence("boundary", sourceText, 3)), List.of(3, 1)));
         assertEquals(List.of(SOURCE.reference(), EAR.reference()), answer.references());
-        assertTrue(answer.text().contains(sourceText));
+        assertTrue(answer.text().contains("参考藏品编号为 ＡＢＣ　１２３。"));
     }
 
     @Test
     void rejectsTaintedDraftAtomically() throws Exception {
-        var good = sentence(EAR_VIEW, 1, "鼎口两侧各有一只鼎耳");
-        var rewrites = sentence(FEET_VIEW, 2, "从后方可以看见三足");
-        var wrongCard = sentence(EAR_VIEW, 2, "鼎口两侧各有一只鼎耳");
-        var fabricated = sentence("这件鼎在洛阳出土。", 1, "鼎口两侧各有一只鼎耳");
-        var clippedQualifier = sentence("判断鼎耳用途。", 1, "判断鼎耳用途。");
+        var good = sentence("answer", EAR_VIEW, 1);
+        var rewrites = sentence("boundary", "从后方可以看见三足。", 2);
+        var wrongCard = sentence("answer", EAR_VIEW, 2);
+        var fabricated = sentence("boundary", "这件鼎在洛阳出土。", 1);
+        var clippedQualifier = sentence("answer", "判断鼎耳用途。", 1);
         var invalid = List.of(
                 draft(List.of(good, rewrites), List.of(1, 2)),
                 draft(List.of(wrongCard), List.of(2)),
                 draft(List.of(Map.of("text", EAR_VIEW, "slot", 1)), List.of(1)),
-                draft(List.of(good, sentence(FEET_VIEW, 2, FEET_VIEW), fabricated), List.of(1, 2)),
+                draft(List.of(good, fabricated), List.of(1)),
+                draft(List.of(good), List.of(1, 1)),
+                draft(List.of(good, sentence("answer", FEET_VIEW, 2)), List.of(1, 2)),
                 draft(List.of(clippedQualifier), List.of(1)),
-                draft(List.of(sentence(EAR_VIEW, 1, "鼎口")), List.of(1)),
+                draft(List.of(Map.of("role", "answer", "text", EAR_VIEW, "slot", 1, "quote", "鼎口")), List.of(1)),
                 draft(List.of(good), List.of(1, 2)),
                 draft(List.of(good), List.of(2)),
                 draft(List.of(good), List.of(1, 4)),
                 draft(List.of(good), List.of("1")),
-                draft(List.of(sentence(EAR_VIEW, 0, EAR_VIEW)), List.of(1)),
+                draft(List.of(sentence("answer", EAR_VIEW, 0)), List.of(1)),
                 draft(List.of(), List.of(1)),
                 draft(java.util.Collections.nCopies(7, good), List.of(1)),
                 draft(List.of(good), List.of(1)) + " {}",
@@ -70,21 +72,16 @@ class GuideGroundedDraftTests {
     void enforcesUnicodeCodePointLimitsOnIndividualAndCombinedText() throws Exception {
         String one = "𠮷".repeat(119) + "。";
         String two = "𠮵".repeat(119) + "。";
-        String three = "𠮶".repeat(63) + "。";
         String over = "𠮸".repeat(121);
         var input = new Input("观察？", "zh-CN", List.of(new EvidenceExcerpt(EAR.reference(),
-                String.join("", one, two, three, over))));
-        for (var rows : List.of(List.of(sentence(over, 1, over)),
-                List.of(sentence(one, 1, one), sentence(two, 1, two), sentence(three, 1, three)))) {
-            assertTrue(new GuideStructuredGenerator(prompt -> draft(rows, List.of(1))).generate(input).isEmpty());
-        }
-        // Two newline separators are included in the final displayed 300-code-point budget.
-        String tail = "𠮶".repeat(58);
-        var exact = List.of(sentence(one, 1, one), sentence(two, 1, two), sentence(tail, 1, tail));
+                String.join("", one, two, over))));
+        assertTrue(new GuideStructuredGenerator(prompt -> draft(List.of(sentence("answer", over, 1)), List.of(1)))
+                .generate(input).isEmpty());
+        var exact = List.of(sentence("answer", one, 1), sentence("boundary", two, 1));
         var boundary = new Input(input.question(), input.locale(), List.of(new EvidenceExcerpt(EAR.reference(),
-                String.join("", one, two, tail))));
+                String.join("", one, two))));
         var answer = new GuideStructuredGenerator(prompt -> draft(exact, List.of(1))).generate(boundary).orElseThrow();
-        assertEquals(300, answer.text().codePointCount(0, answer.text().length()));
+        assertEquals(241, answer.text().codePointCount(0, answer.text().length()));
     }
 
     @Test
@@ -110,25 +107,24 @@ class GuideGroundedDraftTests {
     }
 
     @Test
-    void fixedOfflineCorpusComparesV4AndV5AgainstTheSameEvidence() throws Exception {
-        record Sample(String text, int slot, String quote, boolean supported) {}
+    void fixedOfflineCorpusComparesV6AgainstTheSameV5Evidence() throws Exception {
+        record Sample(String text, int slot, boolean supported) {}
         var cases = List.of(
-                new Sample(EAR_VIEW, 1, "鼎口两侧各有一只鼎耳", true),
-                new Sample("仅凭外形不能判断鼎耳用途。", 1, "不能判断鼎耳用途", true),
-                new Sample(FEET_VIEW, 2, "中间和两侧各可辨一足", true),
-                new Sample("不能据此判断原器缺损。", 2, "不能据此判断原器缺损", true),
-                new Sample("参考藏品编号为 ABC 123。", 3, "ＡＢＣ　１２３", true),
-                new Sample("馆藏记录没有填写出土地。", 3, "没有填写出土地", true),
-                new Sample(EAR.text(), 1, "一只鼎耳。仅凭外形", true),
-                new Sample("该鼎肯定在洛阳出土。", 3, "没有填写出土地", false),
-                new Sample(FEET_VIEW, 1, FEET_VIEW, false),
-                new Sample("判断原器缺损。", 2, "判断原器缺损。", false));
+                new Sample(EAR_VIEW, 1, true),
+                new Sample("仅凭外形不能判断鼎耳用途。", 1, true),
+                new Sample(FEET_VIEW, 2, true),
+                new Sample("不能据此判断原器缺损。", 2, true),
+                new Sample("参考藏品编号为 ABC 123。", 3, true),
+                new Sample("馆藏记录没有填写出土地。", 3, true),
+                new Sample(EAR.text(), 1, true),
+                new Sample("该鼎肯定在洛阳出土。", 3, false),
+                new Sample(FEET_VIEW, 1, false),
+                new Sample("判断原器缺损。", 2, false));
         int accepted = 0;
         int falsePositives = 0;
         for (Sample sample : cases) {
-            var adapter = new GuideStructuredGenerator(prompt -> "luosheng-structured-v4".equals(prompt.version())
-                    ? JSON.writeValueAsString(Map.of("text", sample.text(), "references", List.of(sample.slot())))
-                    : draft(List.of(sentence(sample.text(), sample.slot(), sample.quote())), List.of(sample.slot())));
+            var adapter = new GuideStructuredGenerator(prompt ->
+                    draft(List.of(sentence("answer", sample.text(), sample.slot())), List.of(sample.slot())));
             if (adapter.generate(INPUT).isPresent()) {
                 accepted++;
                 if (!sample.supported()) falsePositives++;
@@ -145,8 +141,8 @@ class GuideGroundedDraftTests {
         return new GuideStructuredGenerator(prompt -> reply).generate(INPUT).orElseThrow();
     }
 
-    private static Map<String, Object> sentence(String text, int slot, String quote) {
-        return Map.of("text", text, "slot", slot, "quote", quote);
+    private static Map<String, Object> sentence(String role, String text, int slot) {
+        return Map.of("role", role, "text", text, "slot", slot);
     }
 
     private static String draft(List<? extends Map<String, ?>> sentences, List<?> references)

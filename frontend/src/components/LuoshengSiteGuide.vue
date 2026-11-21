@@ -5,13 +5,19 @@ import { ArrowRight, Calendar, Close, Compass, Goods, Collection, Box, Promotion
 import { renderSiteIntent, explainSitePage, firstVisit, siteStops, type SiteStop } from '../lib/luoshengSiteGuide'
 import { parseIntent } from '../lib/luoshengIntent'
 import '../assets/luosheng-palette.css'
-import { guideStopLabels as stopLabels, navigateGuidePlate, recordGuideJourney, unifiedGuideEnabled, unifiedGuidePreview, unifiedGuideTurns, useLuoshengVisit } from '../stores/luoshengVisit'
+import { navigateGuidePlate, recordGuideJourney, unifiedGuideEnabled, unifiedGuidePreview, unifiedGuideTurns, useLuoshengVisit } from '../stores/luoshengVisit'
 import { findGuideArtifacts, guideArtifactCover, guideArtifactReason } from '../lib/luoshengDiscovery'
 import { useLuoshengTurns } from '../lib/luoshengTurns'
 import { GUIDE_ARTIFACT, type GuideStop } from '../lib/luoshengPreview'
 import { readGuideSlots } from '../lib/luoshengSlots'
 import { clarifyOptionsFor, nextGlanceFor, suggestionsFor } from '../lib/luoshengSuggestions'
 import { apiGet } from '../lib/api'
+import ui from '../assets/guide/ui.zh-CN.json'
+
+// Only trusted slot labels and existing route/content data fill these UI templates.
+function copy(template: string, values: Record<string, string | number>) {
+  return template.replace(/\{(\w+)\}/g, (token, key: string) => String(values[key] ?? token))
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -23,8 +29,9 @@ const liveModel = unifiedGuideTurns || import.meta.env.VITE_GUIDE_UNIFIED_PREVIE
 const reviewedPreview = import.meta.env.DEV && import.meta.env.VITE_GUIDE_REVIEWED_PREVIEW === 'true'
 const input = ref<HTMLInputElement>()
 const failedCover = ref<string>()
-const plateLabels = { ear: '看俯视图', feet: '看背视图', motif: '看纹样局部' }
-const clarifySlotDate = '想查哪一天的公开时段？请给一个日期，例如「明天」或「11 月 23 日」。'
+const plateLabels = ui.plateViewLabels
+const stopLabels = ui.site.pointNames
+const clarifySlotDate = ui.site.slotDate
 type Reply = {
   text: string; stops?: SiteStop[]; artifact?: string; title?: string; keyword?: string
   cover?: string
@@ -51,12 +58,12 @@ const turns = useLuoshengTurns<Reply>(scope, async ({ question, lookpoint, signa
   })
   if (intent.kind === 'cancel-slot' && visit) {
     visit.pendingSlots = null
-    return { text: '已清除待查时段，可以继续看展品。' }
+    return { text: ui.site.slotCancelled }
   }
   if (intent.kind === 'slot-query') return readGuideSlots(intent.date, intent.people, signal)
   if (intent.kind === 'slot-clarify') return { text: clarifySlotDate, clarifySlotPeople: intent.people, clarification: true }
-  if (intent.kind === 'resume-lookpoint') return { text: `回到青铜鼎 · ${stopLabels[intent.stop]}，接着看刚才的图版。`, resume: true }
-  if (intent.kind === 'discovery-clarify') return { text: '可以换一件。你想看哪类藏品？', stops: ['explore'], clarification: true }
+  if (intent.kind === 'resume-lookpoint') return { text: copy(ui.site.resumeReply, { point: stopLabels[intent.stop] }), resume: true }
+  if (intent.kind === 'discovery-clarify') return { text: ui.clarify.discovery, stops: ['explore'], clarification: true }
   if (intent.kind === 'object-evidence') {
     if (import.meta.env.DEV && unifiedGuidePreview && object.value?.exhibit) {
       const requestContext = contextId ||= crypto.randomUUID()
@@ -74,15 +81,15 @@ const turns = useLuoshengTurns<Reply>(scope, async ({ question, lookpoint, signa
       signal.throwIfAborted()
       return askPublicGuide(request, signal)
     }
-    return { text: `${object.value?.title}。\n${object.value?.summary}\n可继续阅读此页的公开藏品资料。` }
+    return { text: `${object.value?.title}。\n${object.value?.summary}\n${ui.site.readPublicArtifact}` }
   }
   if (intent.kind === 'discovery-search') {
     const deferred = intent.deferredSlot
     const result = await findGuideArtifacts(intent.keyword, signal, intent.exclusions).catch(() => null)
     signal.throwIfAborted()
-    if (!result) return { text: '馆藏搜索暂时不可用。可以重试这次搜索，或换一个问题。', retrySearch: true }
+    if (!result) return { text: ui.errors.search, retrySearch: true }
     const item = result.items[0]
-    if (!item) return { text: `没有找到「${intent.keyword}」的公开藏品。试试换个词，或打开馆藏看看。`, stops: ['explore'] }
+    if (!item) return { text: copy(ui.site.searchEmpty, { keyword: intent.keyword }), stops: ['explore'] }
     let directPlate = item.slug === GUIDE_ARTIFACT && unifiedGuidePreview
     if (import.meta.env.VITE_GUIDE_TURNS_ENABLED === 'true' && item.slug === GUIDE_ARTIFACT && !directPlate) {
       const preset = await apiGet<{ available: boolean; entries: { cardId: string }[] }>(
@@ -94,7 +101,7 @@ const turns = useLuoshengTurns<Reply>(scope, async ({ question, lookpoint, signa
     if (visit && deferred) visit.pendingSlots = 'date' in deferred ? deferred : null
     const quickLook = intent.short && directPlate
     const recommendation = quickLook
-      ? '五分钟可以从青铜鼎开始。先从上方找鼎口相对的两只耳。'
+      ? `${item.title}。\n${ui.site.findEar}`
       : `${item.title}。\n${guideArtifactReason(item, intent.keyword, result.keyword)}${item.summary ? '\n' + item.summary : ''}`
     return {
       text: deferred && 'clarifyDate' in deferred ? `${recommendation}\n${clarifySlotDate}` : recommendation,
@@ -108,7 +115,7 @@ const turns = useLuoshengTurns<Reply>(scope, async ({ question, lookpoint, signa
   if (intent.kind === 'site-page' && intent.article) {
     return article.value
       ? { text: `《${article.value.title}》\n${article.value.summary}`, stops: ['explore'] }
-      : { text: '还没有读到这篇专题的公开资料。可以等页面加载，或回馆藏浏览其他专题。', stops: ['explore'] }
+      : { text: ui.site.articleUnavailable, stops: ['explore'] }
   }
   return renderSiteIntent(intent)
 }, (answer, previousAnswer) => {
@@ -133,16 +140,16 @@ const readingTarget = computed(() => {
   return { path, stop, compare }
 })
 const unifiedText = computed(() => {
-  if (turns.state.value.status === 'pending') return '正在查找相关资料…'
-  if (turns.state.value.status === 'unavailable') return '暂时无法读取资料。你仍可阅读公开藏品页或查看当前图版。'
+  if (turns.state.value.status === 'pending') return ''
+  if (turns.state.value.status === 'unavailable') return ui.site.unavailable
   if (unifiedReply.value) return unifiedReply.value.text
-  if (visit?.targetFailure === 'content') return '暂时无法打开原展品。可以去馆藏看看其他公开展品。'
-  if (visit?.targetFailure === 'plate') return '原看点暂时不可用。你可以继续阅读公开藏品资料，或去馆藏找其他展品。'
-  if (object.value) return '想看清哪一处？可以直接说说你看到的细节。'
-  if (routeName.value === 'appointment') return '想查哪天的公开时段？可以一起告诉我参观人数。'
-  if (article.value) return '想了解这篇专题，或找一件相关展品？'
-  if (routeName.value === 'shop') return '想逛文创？可以问我怎么浏览商品，也可以继续找展品。'
-  return '想找什么展品？如果只有五分钟，也可以让我推荐一件。'
+  if (visit?.targetFailure === 'content') return ui.site.contentUnavailable
+  if (visit?.targetFailure === 'plate') return ui.site.plateUnavailable
+  if (object.value) return ui.site.objectIntro
+  if (routeName.value === 'appointment') return ui.site.slotIntro
+  if (article.value) return ui.site.articleIntro
+  if (routeName.value === 'shop') return ui.site.shopIntro
+  return ui.site.intro
 })
 
 async function showPlate(stop: GuideStop, compare: boolean) {
@@ -156,7 +163,7 @@ function readPendingSlots() {
   const pending = visit?.pendingSlots
   if (!visit || !pending) return
   visit.pendingSlots = null
-  void turns.ask(`${pending.date}还有${pending.people}人的公开时段吗？`)
+  void turns.ask(copy(ui.site.pendingQuestion, pending))
 }
 
 async function goToPlate(target: NonNullable<NonNullable<typeof visit>['target']>, action: 'plate' | 'return' = 'plate') {
@@ -184,7 +191,7 @@ const routeName = computed(() => String(route.name ?? ''))
 const answer = computed(() => submitted.value
   ? renderSiteIntent(parseIntent(submitted.value, { route: routeName.value, onArtifact: false }))
   : explainSitePage(routeName.value))
-const prompts = ['这个网站能做什么？', '从哪里开始逛？', '怎么预约参观？']
+const prompts = ui.site.prompts
 const showMoreSuggestions = ref(false)
 const slowResponse = ref(false)
 let slowTimer: ReturnType<typeof setTimeout> | undefined
@@ -325,24 +332,24 @@ watch(() => visit?.targetFailure, failure => {
 </script>
 
 <template>
-  <aside class="luosheng-site luosheng-palette" aria-label="洛笙全站导览" @keydown.esc="closeOnEscape">
+  <aside class="luosheng-site luosheng-palette" :aria-label="ui.site.region" @keydown.esc="closeOnEscape">
     <button
       v-show="!expanded" ref="trigger" class="site-guide-trigger" type="button"
       :aria-expanded="expanded" :aria-controls="panelId" @click="openFromTrigger"
     >
       <span class="site-guide-dial" aria-hidden="true"><Compass /></span>
-      <span class="site-guide-trigger-label">{{ touring ? '继续导览' : '洛笙导览' }}</span>
+      <span class="site-guide-trigger-label">{{ touring ? ui.site.resumeTour : ui.site.openTour }}</span>
     </button>
     <Transition name="site-guide-panel">
     <section v-show="expanded" :id="panelId" class="site-guide-panel" :aria-labelledby="headingId" :inert="!expanded">
       <header class="site-guide-header">
         <span class="site-guide-mark" aria-hidden="true"><Compass /></span>
         <div class="site-guide-title">
-          <h2 :id="headingId" ref="heading" tabindex="-1">洛笙 · 全站导览</h2>
-          <p v-if="visit">{{ object?.title ?? article?.title ?? (routeName === 'shop' ? siteStops.shop.label : '河洛数字博物馆') }}{{ visit.lookpoint ? ' › ' + stopLabels[visit.lookpoint] : '' }}</p>
-          <p v-else>河洛数字博物馆</p>
+          <h2 :id="headingId" ref="heading" tabindex="-1">{{ ui.site.title }}</h2>
+          <p v-if="visit">{{ object?.title ?? article?.title ?? (routeName === 'shop' ? siteStops.shop.label : ui.site.museum) }}{{ visit.lookpoint ? ' › ' + stopLabels[visit.lookpoint] : '' }}</p>
+          <p v-else>{{ ui.site.museum }}</p>
         </div>
-        <button type="button" class="site-guide-close" aria-label="关闭洛笙导览" @click="setExpanded(false)">
+        <button type="button" class="site-guide-close" :aria-label="ui.site.close" @click="setExpanded(false)">
           <Close aria-hidden="true" />
         </button>
       </header>
@@ -351,33 +358,33 @@ watch(() => visit?.targetFailure, failure => {
           <img v-if="unifiedReply?.cover && unifiedReply.cover !== failedCover" :key="unifiedReply.cover"
             :src="unifiedReply.cover" class="site-guide-cover" alt="" width="64" height="64" decoding="async"
             @error="failedCover = unifiedReply.cover" />
-          <p class="site-guide-answer" role="status" aria-live="polite" aria-atomic="true">{{ unifiedText }}</p>
+          <p class="site-guide-answer" role="status" :aria-label="ui.a11y.answerRegion" aria-live="polite" aria-atomic="true">{{ unifiedText }}</p>
         </div>
-        <p v-if="slowResponse" class="site-guide-progress" role="status" aria-live="polite">正在核对资料…</p>
-        <div v-if="clarifyOptions.length > 1" class="site-guide-clarify" role="group" aria-label="请选择你想问的部位">
-          <p>你现在问的是哪一处？</p>
+        <p v-if="slowResponse" class="site-guide-progress" role="status" aria-live="polite">{{ ui.progress.checking }}</p>
+        <div v-if="clarifyOptions.length > 1" class="site-guide-clarify" role="group" :aria-label="ui.a11y.clarification">
+          <p v-if="unifiedText !== ui.site.choosePoint">{{ ui.site.choosePoint }}</p>
           <button v-for="stop in clarifyOptions" :key="stop" type="button" class="site-guide-start"
             @click="ask(stopLabels[stop])">{{ stopLabels[stop] }}</button>
         </div>
         <div v-if="unifiedReply?.insufficient" class="site-guide-insufficient" role="note">
-          <p>这一点现有资料还不能确认。可以先看当前展签，或换个问法。</p>
+          <p>{{ ui.site.insufficient }}</p>
         </div>
-        <button v-if="unifiedReply?.retrySearch" type="button" class="site-guide-start" @click="retrySearch">重试搜索</button>
-        <RouterLink v-if="visit.targetFailure && turns.state.value.status === 'idle'" to="/explore" class="site-guide-start">探索公开馆藏</RouterLink>
-        <span v-if="unifiedReply?.generated" class="site-guide-meta">AI 实时回答</span>
-        <button v-if="unifiedReply?.directPlate" type="button" class="site-guide-start" @click="showPlate('ear', false)">带我找鼎耳</button>
-        <RouterLink v-else-if="unifiedReply?.artifact" class="site-guide-start" :to="`/artifacts/${unifiedReply.artifact}`">看{{ unifiedReply.title }}</RouterLink>
-        <RouterLink v-if="unifiedReply?.keyword" :to="{ path: '/explore', query: { q: unifiedReply.keyword } }">看更多结果</RouterLink>
+        <button v-if="unifiedReply?.retrySearch" type="button" class="site-guide-start" @click="retrySearch">{{ ui.site.retrySearch }}</button>
+        <RouterLink v-if="visit.targetFailure && turns.state.value.status === 'idle'" to="/explore" class="site-guide-start">{{ ui.site.explore }}</RouterLink>
+        <span v-if="unifiedReply?.generated" class="site-guide-meta">{{ ui.site.generated }}</span>
+        <button v-if="unifiedReply?.directPlate" type="button" class="site-guide-start" @click="showPlate('ear', false)">{{ ui.site.findEar }}</button>
+        <RouterLink v-else-if="unifiedReply?.artifact" class="site-guide-start" :to="`/artifacts/${unifiedReply.artifact}`">{{ copy(ui.actions.lookPlate, { point: unifiedReply.title ?? '' }) }}</RouterLink>
+        <RouterLink v-if="unifiedReply?.keyword" :to="{ path: '/explore', query: { q: unifiedReply.keyword } }">{{ ui.site.moreResults }}</RouterLink>
         <button v-if="replyPlate && object?.exhibit" type="button" class="site-guide-start" @click="showPlate(replyPlate, true)">{{ plateLabels[replyPlate] }}</button>
         <details v-if="unifiedReply?.sources?.length || unifiedReply?.observations?.length">
-          <summary>查看本轮依据</summary>
+          <summary>{{ ui.site.readEvidence }}</summary>
           <p v-for="source in unifiedReply.sources" :key="source">
-            <a :href="source" target="_blank" rel="noopener noreferrer">{{ liveModel || reviewedPreview ? 'Cleveland Museum of Art · 1962.281' : '合成测试出处' }}</a>
+            <a :href="source" target="_blank" rel="noopener noreferrer">{{ liveModel || reviewedPreview ? ui.actions.openSource : ui.site.syntheticSource }}</a>
           </p>
-          <button v-for="stop in unifiedReply.observations" :key="stop" type="button" class="site-guide-start" @click="showPlate(stop, true)">{{ stopLabels[stop] }}图版</button>
+          <button v-for="stop in unifiedReply.observations" :key="stop" type="button" class="site-guide-start" @click="showPlate(stop, true)">{{ copy(ui.site.plate, { point: stopLabels[stop] }) }}</button>
         </details>
         <details v-if="unifiedReply?.citations?.length">
-          <summary>查看本轮依据</summary>
+          <summary>{{ ui.site.readEvidence }}</summary>
           <ul>
             <li v-for="citation in unifiedReply.citations" :key="citation.label">
               <a v-if="citation.source" :href="citation.source" target="_blank" rel="noopener noreferrer">{{ citation.label }}</a>
@@ -385,32 +392,32 @@ watch(() => visit?.targetFailure, failure => {
             </li>
           </ul>
         </details>
-        <button v-if="readingTarget" type="button" class="site-guide-start" @click="goToPlate(readingTarget)">读当前讲解</button>
+        <button v-if="readingTarget" type="button" class="site-guide-start" @click="goToPlate(readingTarget)">{{ ui.site.readPlate }}</button>
         <RouterLink v-if="unifiedReply?.date" class="site-guide-start"
           :to="{ path: '/appointment', query: { date: unifiedReply.date } }"
-          @click="openSlotPage">看这天的时段</RouterLink>
+          @click="openSlotPage">{{ ui.site.readSlots }}</RouterLink>
         <button v-if="visit.resumePoint && (routeName === 'appointment' || unifiedReply?.resume)" type="button" class="site-guide-start"
-          @click="goToPlate(visit.resumePoint, 'return')">回到青铜鼎 · {{ stopLabels[visit.resumePoint.stop] }}</button>
+          @click="goToPlate(visit.resumePoint, 'return')">{{ copy(ui.site.resumePlate, { point: stopLabels[visit.resumePoint.stop] }) }}</button>
         <button v-if="visit.pendingSlots && !unifiedReply?.artifact" type="button" class="site-guide-start"
-          @click="readPendingSlots">查 {{ visit.pendingSlots.date }} 的时段</button>
-        <nav v-if="unifiedReply?.stops?.length" aria-label="洛笙推荐的目的地" class="site-guide-stops">
+          @click="readPendingSlots">{{ copy(ui.site.pendingSlots, { date: visit.pendingSlots.date }) }}</button>
+        <nav v-if="unifiedReply?.stops?.length" :aria-label="ui.site.destinations" class="site-guide-stops">
           <RouterLink v-for="stop in unifiedReply.stops" :key="stop" :to="destination(stop)">{{ siteStops[stop].label }} <ArrowRight aria-hidden="true" /></RouterLink>
         </nav>
       </div>
       <div v-else class="site-guide-body">
-        <section v-if="touring" ref="tourPanel" class="site-guide-tour" aria-label="首次逛馆路线" tabindex="-1">
-          <p role="status">{{ tourIndex < 0 ? '首次逛馆 · 3 站' : `已到达第 ${tourIndex + 1} / ${firstVisit.length} 站 · ${siteStops[firstVisit[tourIndex]!].label}` }}</p>
+        <section v-if="touring" ref="tourPanel" class="site-guide-tour" :aria-label="ui.site.tour" tabindex="-1">
+          <p role="status">{{ tourIndex < 0 ? ui.site.tourStart : copy(ui.site.tourProgress, { index: tourIndex + 1, total: firstVisit.length, label: siteStops[firstVisit[tourIndex]!].label }) }}</p>
           <RouterLink v-if="nextStop" :to="destination(nextStop)">
-            {{ tourIndex < 0 ? '第一站' : '下一站' }}：{{ siteStops[nextStop].label }} <ArrowRight aria-hidden="true" />
+            {{ tourIndex < 0 ? ui.site.firstStop : ui.site.nextStop }}：{{ siteStops[nextStop].label }} <ArrowRight aria-hidden="true" />
           </RouterLink>
-          <p v-else>三站逛完啦。接下来可以打开青铜鼎展签，和我一起找鼎耳、三足和纹样。</p>
-          <button type="button" @click="endTour">结束路线</button>
+          <p v-else>{{ ui.site.tourDone }}</p>
+          <button type="button" @click="endTour">{{ ui.site.endTour }}</button>
         </section>
         <button v-else ref="startButton" type="button" class="site-guide-start" @click="startTour">
-          <Compass aria-hidden="true" /> 带我逛馆 <ArrowRight aria-hidden="true" />
+          <Compass aria-hidden="true" /> {{ ui.site.startTour }} <ArrowRight aria-hidden="true" />
         </button>
         <p class="site-guide-answer" role="status">{{ answer.text }}</p>
-        <nav aria-label="洛笙推荐的目的地" class="site-guide-stops">
+        <nav :aria-label="ui.site.destinations" class="site-guide-stops">
           <RouterLink
             v-for="stop in answer.stops" :key="stop" :to="destination(stop)"
             @click="route.path === siteStops[stop].path && setExpanded(false)"
@@ -422,29 +429,29 @@ watch(() => visit?.targetFailure, failure => {
         </nav>
       </div>
       <footer class="site-guide-composer">
-        <div class="site-guide-prompts" role="group" aria-label="建议问题">
+        <div class="site-guide-prompts" role="group" :aria-label="ui.a11y.suggestions">
           <template v-if="visit">
             <button v-for="prompt in visibleSuggestions" :key="prompt" type="button" @click="ask(prompt)">{{ prompt }}</button>
             <button v-if="suggestions.more.length" type="button" :aria-expanded="showMoreSuggestions"
-              @click="showMoreSuggestions = !showMoreSuggestions">{{ showMoreSuggestions ? '收起' : '更多' }}</button>
+              @click="showMoreSuggestions = !showMoreSuggestions">{{ showMoreSuggestions ? ui.actions.less : ui.actions.more }}</button>
             <button v-if="nextGlance && object?.exhibit" type="button" @click="showPlate(nextGlance, false)">
-              再看{{ stopLabels[nextGlance] }}
+              {{ copy(ui.site.nextGlance, { point: stopLabels[nextGlance] }) }}
             </button>
-            <button type="button" @click="endVisit">我先自己逛</button>
+            <button type="button" @click="endVisit">{{ ui.entry.selfTour }}</button>
           </template>
           <template v-else>
             <button v-for="prompt in prompts" :key="prompt" type="button" @click="ask(prompt)">{{ prompt }}</button>
           </template>
         </div>
         <form class="site-guide-form" @submit.prevent="submitQuestion">
-          <input ref="input" v-model="question" :aria-label="visit ? '问洛笙' : '问洛笙怎么逛馆'" :placeholder="object ? '例如，另一只在哪里？' : visit && routeName === 'appointment' ? '例如，明天还有三个人的名额吗？' : '例如，在哪能看 3D？'" :maxlength="visit ? 300 : 160"
+          <input ref="input" v-model="question" :aria-label="visit ? ui.site.ask : ui.site.askTour" :placeholder="object ? ui.site.objectPlaceholder : visit && routeName === 'appointment' ? ui.site.slotPlaceholder : ui.site.tourPlaceholder" :maxlength="visit ? 300 : 160"
             @compositionstart="composingQuestion = true"
             @compositionend="composingQuestion = false"
             @change="composingQuestion = false"
             @keydown.enter="guardCompositionEnter" />
-          <button type="submit" :disabled="composingQuestion || !question.trim()"><Promotion aria-hidden="true" /> 发送</button>
+          <button type="submit" :disabled="composingQuestion || !question.trim()"><Promotion aria-hidden="true" /> {{ ui.input.send }}</button>
         </form>
-        <small v-if="visit" class="site-guide-meta">{{ unifiedGuideTurns ? 'AI 向导 · 请勿输入个人信息' : liveModel ? '模型预览 · 请勿输入个人信息' : reviewedPreview ? '内部预览 · 固定资料问答' : '内部预览 · 使用合成资料' }}</small>
+        <small v-if="visit" class="site-guide-meta">{{ unifiedGuideTurns ? ui.site.privacy : liveModel ? ui.site.modelPreview : reviewedPreview ? ui.site.reviewedPreview : ui.site.syntheticPreview }}</small>
       </footer>
     </section>
     </Transition>

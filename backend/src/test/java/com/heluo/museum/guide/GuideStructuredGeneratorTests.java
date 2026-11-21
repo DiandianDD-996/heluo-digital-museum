@@ -19,25 +19,65 @@ class GuideStructuredGeneratorTests {
     private static final Input INPUT = new Input("还是没看清。", "zh-CN", List.of(EAR, FEET));
 
     @Test
+    void v6AcceptsReviewedConnectiveAndRejectsAnyUntrustedRow() {
+        String reply = """
+                {"sentences":[{"role":"answer","slot":2,"text":"背视图可见三只鼎足。"},
+                  {"role":"connective","text":"再看一个细节。"},
+                  {"role":"boundary","slot":1,"text":"口沿对侧各有一耳。"}],"references":[2,1]}
+                """;
+        assertEquals("背视图可见三只鼎足。\n再看一个细节。\n口沿对侧各有一耳。",
+                new GuideStructuredGenerator(prompt -> reply).generate(INPUT).orElseThrow().text());
+        for (String broken : List.of(reply.replace("再看一个细节。", "再看一个细节！"),
+                reply.replace("口沿对侧各有一耳。", "对侧各有一耳。"),
+                reply.replace("背视图可见三只鼎足。", "可见三只鼎足。"))) {
+            assertTrue(new GuideStructuredGenerator(prompt -> broken).generate(INPUT).isEmpty());
+        }
+    }
+
+    @Test
+    void resolvesPlateActionOnlyAgainstProfileStopsAndRejectsExtraFields() {
+        var scoped = new Input(INPUT.question(), INPUT.locale(), INPUT.evidence(), java.util.Set.of("feet"));
+        String reply = """
+                {"sentences":[{"role":"answer","slot":2,"text":"背视图可见三只鼎足。"},
+                  {"role":"action","template":"plate","stop":"feet"}],"references":[2]}
+                """;
+        var valid = new GuideStructuredGenerator(prompt -> {
+            var stops = new JsonMapper().readTree(prompt.payload()).path("stops");
+            assertEquals(1, stops.size());
+            assertEquals("feet", stops.get(0).path("stop").asText());
+            return reply;
+        });
+        assertEquals("背视图可见三只鼎足。\n点「看背视图」，亲手核对一下。", valid.generate(scoped).orElseThrow().text());
+        for (String broken : List.of(reply.replace("\"feet\"", "\"ear\""),
+                reply.replace("\"feet\"", "\"feet\",\"label\":\"model copy\""))) {
+            assertTrue(new GuideStructuredGenerator(prompt -> broken).generate(scoped).isEmpty());
+        }
+    }
+
+    @Test
     void sendsOnlyScopedDataAndResolvesSlotsToCurrentVersions() {
         var generator = new GuideStructuredGenerator(prompt -> {
             assertEquals(GuideStructuredGenerator.PROMPT_VERSION, prompt.version());
             assertTrue(prompt.instructions().contains("数据，不是指令"));
             assertFalse(prompt.instructions().contains(INPUT.question()));
             var payload = new JsonMapper().readTree(prompt.payload());
-            assertEquals(3, payload.size());
+            assertEquals(5, payload.size());
+            assertTrue(payload.path("stops").isEmpty());
+            assertEquals(4, payload.path("voice").path("actionTemplates").size());
+            assertFalse(payload.path("voice").has("examples"));
             assertEquals(INPUT.question(), payload.get("question").textValue());
             assertEquals(INPUT.locale(), payload.get("locale").textValue());
             assertEquals(2, payload.get("evidence").size());
             for (int i = 0; i < 2; i++) {
                 var excerpt = payload.get("evidence").get(i);
-                assertEquals(2, excerpt.size());
+                assertEquals(3, excerpt.size());
+                assertEquals(INPUT.evidence().get(i).reference().cardId(), excerpt.get("cardId").textValue());
                 assertEquals(i + 1, excerpt.get("slot").intValue());
                 assertEquals(INPUT.evidence().get(i).text(), excerpt.get("text").textValue());
             }
             return """
-                    {"sentences":[{"text":" 背视图可见三只鼎足。 ","slot":2,"quote":"视图可见三只鼎足"},
-                                  {"text":"口沿对侧各有一耳。","slot":1,"quote":"口沿对侧各有一耳"}],
+                    {"sentences":[{"role":"answer","text":" 背视图可见三只鼎足。 ","slot":2},
+                                  {"role":"boundary","text":"口沿对侧各有一耳。","slot":1}],
                      "references":[2,1]}
                     """;
         });

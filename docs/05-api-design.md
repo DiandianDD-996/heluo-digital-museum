@@ -10,7 +10,7 @@
 
 同源问答客户端以 8 秒为请求超时，不自动重试。生成超时、繁忙、不可用、额度用尽、暂停及网络故障不展示旧轮依据。若有已确认看点，「读当前讲解」重新读取该展项的已发布讲解并恢复当前视角。此动作不提交问答。
 
-内部生成协议 `luosheng-structured-v5` 只接受严格 JSON 的 `sentences[{text,slot,quote}]` 和 `references`。引文在 NFKC / 空白归一后须为对应当轮证据的连续原文（至少 6 码点）；展示正文还须包含引文并与完整原文片段一致，避免真实引文搭配未审说法或截去句中限定语。校验条数、逐条和总长度以及去重后引用与实际使用的槽位；任一失败整份拒绝。对外仍为 `GENERATION_UNAVAILABLE`；内部记 `guide_generation_rejected` 与实例计数 `museum.guide.generation.rejected`，不记正文、引文或问题。显式弃答仍走缺证通道。交付复核、16 KiB 输入上限、8 秒生成等待、单并发及当日额度不变。
+内部生成协议 `luosheng-structured-v6` 只接受严格 JSON 的 `sentences` 和 `references`。第一行是唯一的 `answer`，可跟 `action`、`boundary`，最多一个 `connective` 且只能放在两行之间。`answer`／`boundary` 只收 `role`、`slot`、`text`：整段 `text` 就是引文，至少 6 码点，沿用 v5 的 NFKC／空白归一和连续完整句段校验，交付取回卡片原文；不另收 `quote`，也不允许给卡片加事实前缀。`action` 只收模板编号和适用时的档案 `stop`，由服务端渲染；`connective` 逐字匹配声音包。引用编号不接受重复且须等于实际使用的槽位集合，最多三个。渲染后最多四行、单行 120 码点、合计 300 码点；禁用词、Markdown、链接和列表不可进入正文。任一失败整份拒绝，对外仍为 `GENERATION_UNAVAILABLE`；内部记 `guide_generation_rejected` 与实例计数 `museum.guide.generation.rejected`，不记正文、引文或问题。显式弃答仍为 `{"text":null,"references":[]}`，走原缺证通道。交付复核、16 KiB 输入上限、8 秒生成等待、单并发及当日额度不变；公开接口字段不变。
 
 青铜鼎单独断代问法使用 `PERIOD` 固定回复（`generated: false`）。有可见且带公开链接的 `LS-DING-PERIOD@1` 时使用其正文。只有 `LS-DING-SOURCE@2` 时，引导核对馆方记录。两张卡都不可用时返回 `INSUFFICIENT_EVIDENCE`。出土地追问以来源卡独立核对，返回 `FIND_SPOT_UNKNOWN`。两类回复保持游客当前图版。
 

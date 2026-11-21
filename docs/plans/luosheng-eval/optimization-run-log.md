@@ -117,3 +117,40 @@
 验证：`vue-tsc -b` 退出码 0；`vitest run` 82 文件、669 项通过（新增 7 项建议用例、5 项面板用例）；`npm run build` 与首屏、CSS、配乐预算均通过。未改后端、未启用候选、未调用真实模型。
 
 未验证：390px／1440px 真机与浏览器实页观感，本轮只做了单元与组件级断言；真实问答链路仍为默认关闭。
+
+## 2026-11-21 · INT-3 声音包与生成 v6
+
+基线：`codex/feat-guide-baseline`，`e0b1177`，干净工作树；采用确认的前端 669 通过、后端 170 总计／5 跳过。声音源文件和提示词与该提交一致；UI 源包补登记原面板文案，不迁移原先硬编码的图版观察或馆藏编号。运行时 UI 两份副本及声音文件均通过 SHA-256。声音哈希为 `968ef513a924b7bbc1f73a025e76547d02a0d8f9cbc5eb227c2c73de6f8283c2`。
+
+红测：资产／旧常量／提示词四项初始失败；Java 正例旧版落为 `GENERATION_UNAVAILABLE`，缺证仍吐旧文案。实现后，单独把运行声音包的「细节」改成「细点」实跑：`tests 1 / pass 0 / fail 1`，断言为 SHA-256 不一致；恢复字节后通过。中间 Maven 回归曾发现撤回后图版来源为空的越界访问、最小启动容器缺少新 Bean、启动失败断言未取根因；均修正并复跑。
+
+交付：启动严格加载；事实句只照录证据原文；整段引文保留 v5 最小码点和完整句段校验。动作和过渡走严格角色白名单，坏草稿整体仍返回 `GENERATION_UNAVAILABLE`。已知缺证类型由 `insufficient.missing` 短语组成，不在公开 API 中增加分类字段；未知类别仍走通用缺证。UI 迁移含读屏标签、错误回退；建议问题继续取现有词表。测试采用本地模型替身，无外部模型调用。
+
+实跑结果摘要（原始输出行）：
+
+```text
+pnpm --dir frontend typecheck
+$ vue-tsc -b
+
+pnpm --dir frontend test
+ Test Files  82 passed (82)
+      Tests  670 passed (670)
+
+pnpm --dir frontend build
+✓ built in 11.58s
+门禁通过。全量（仅告警）：JS 530075 B，CSS 106690 B。 首屏 JS 77448 B / 预算 81638 B。
+配乐资源门禁通过：3 首已认可R3，4933850 / 6000000 B；文件与音频验收清单一致。
+
+cd backend && mvn -B test
+offline-grounding version=luosheng-structured-v6 accepted=7 rejected=3 falsePositives=0 unsupported=3 total=10
+[WARNING] Tests run: 175, Failures: 0, Errors: 0, Skipped: 5
+[INFO] BUILD SUCCESS
+
+node --test docs/plans/luosheng-eval/*.test.mjs
+ℹ tests 67
+ℹ pass 67
+ℹ fail 0
+ℹ skipped 0
+```
+
+固定语料的接受率 70%，较 v5 变化 0 个百分点；3 个无依据样本全部拒绝。默认生产构建通过，未在 JS 产物检出本次扫描的导览面板文案；保留依赖纯注释、动态/静态同引和大包预警。Maven 实际通过 170，另外 5 项浏览器／手动预览由开关跳过。不启用候选，因此未做 390px／1440px 启用态观感、主题溢出及真机/读屏；真实模型服从率、证据正式签核与发布状态未验证。未改依赖、模型/向导开关、公开接口字段或证据包，未提交／推送。

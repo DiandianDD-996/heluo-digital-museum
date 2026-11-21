@@ -102,6 +102,12 @@ final class GuideFollowUpRetrieval {
         return profile != null && profile.plate(reference) != null && profile.topicCardIds().contains(reference.cardId());
     }
 
+    java.util.Set<String> allowedStops(String exhibit, String locale) {
+        var profile = profiles == null ? null : profiles.find(exhibit, locale);
+        return profile == null ? java.util.Set.of() : profile.plates().stream().map(GuideProfile.Plate::stop)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
     Result retrieve(String exhibitSlug, String locale, String question, ConfirmedLookpoint recent) {
         return retrieve(exhibitSlug, locale, question, recent, null);
     }

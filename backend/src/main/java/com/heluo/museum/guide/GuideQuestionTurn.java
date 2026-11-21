@@ -17,7 +17,11 @@ import java.util.concurrent.TimeoutException;
 /** Internal question flow; the caller supplies an explicitly selected generator. */
 final class GuideQuestionTurn {
     record EvidenceExcerpt(Reference reference, String text) {}
-    record Input(String question, String locale, List<EvidenceExcerpt> evidence) {}
+    record Input(String question, String locale, List<EvidenceExcerpt> evidence, java.util.Set<String> allowedStops) {
+        Input(String question, String locale, List<EvidenceExcerpt> evidence) {
+            this(question, locale, evidence, java.util.Set.of());
+        }
+    }
     enum ReplyKind { EVIDENCE, CLARIFY, INSUFFICIENT_EVIDENCE, DISPUTED_EVIDENCE, FIND_SPOT_UNKNOWN,
         PERIOD, REFERENCE_FACTS, PLATE_PROVENANCE, LOOKPOINT_SOURCE, PLATE_OBSERVATION,
         GENERATION_UNAVAILABLE, GENERATION_TIMEOUT, GENERATION_BUSY, GENERATION_LIMIT_REACHED,
@@ -45,10 +49,15 @@ final class GuideQuestionTurn {
 
     GuideQuestionTurn(GuideEvidenceReader reader, Generator generator, int maxConcurrentGenerations,
             Duration generationTimeout, GuideDailyGenerationLimit dailyLimit) {
+        this(reader, generator, maxConcurrentGenerations, generationTimeout, dailyLimit, GuideVoice.packaged());
+    }
+
+    GuideQuestionTurn(GuideEvidenceReader reader, Generator generator, int maxConcurrentGenerations,
+            Duration generationTimeout, GuideDailyGenerationLimit dailyLimit, GuideVoice voice) {
         if (maxConcurrentGenerations < 1) throw new IllegalArgumentException("Invalid generation limit");
         generationTimeoutNanos = generationTimeout.toNanos();
         if (generationTimeoutNanos <= 0) throw new IllegalArgumentException("Invalid generation timeout");
-        delivery = new GuideAnswerDelivery(reader);
+        delivery = new GuideAnswerDelivery(reader, voice);
         this.generator = generator;
         this.dailyLimit = Objects.requireNonNull(dailyLimit);
         generationSlots = new Semaphore(maxConcurrentGenerations);
@@ -130,7 +139,7 @@ final class GuideQuestionTurn {
         var evidence = selection.result().evidence().stream().map(item -> new EvidenceExcerpt(
                 new Reference(item.card().id(), item.card().revision()), item.text())).toList();
         if (!session.isCurrent(selection)) return Optional.empty();
-        var generated = awaitDraft(session, selection, new Input(question, selection.locale(), evidence), version);
+        var generated = awaitDraft(session, selection, new Input(question, selection.locale(), evidence, session.allowedStops()), version);
         if (generated.failure() != null) {
             return current(session, selection, new Reply(generated.failure(), null));
         }

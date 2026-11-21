@@ -144,6 +144,7 @@ final class GuideRetrievalSession {
 
     boolean allowsTopicFromSingleCitation() { return retrieval.allowsTopicFromSingleCitation(); }
     synchronized boolean supportsTopic(Reference reference) { return retrieval.supportsTopic(exhibit, locale, reference); }
+    synchronized java.util.Set<String> allowedStops() { return retrieval.allowedStops(exhibit, locale); }
 
     synchronized boolean rememberAnsweredTopic(Selection selected, Reference reference, List<Reference> sources) {
         if (!isCurrent(selected)) return false;

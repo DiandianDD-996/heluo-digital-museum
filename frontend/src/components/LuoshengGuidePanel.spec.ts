@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import ui from '../assets/guide/ui.zh-CN.json'
 
 const PATH = '/artifacts/test-exhibit'
 
@@ -52,6 +53,16 @@ describe('洛笙面板的易用性', () => {
     // No confirmed part yet, so exhibit-wide questions lead and no part is presumed.
     expect(labels[0]).toBe('这件鼎参考的是哪件藏品？')
     expect(labels).toHaveLength(3)
+    panel.unmount()
+  })
+
+  it('界面文字与无障碍标签来自 UI 文案包', async () => {
+    const { panel } = await setup()
+    expect(panel.get('.site-guide-close').attributes('aria-label')).toBe(ui.site.close)
+    expect(panel.get('.site-guide-answer').attributes('aria-label')).toBe(ui.a11y.answerRegion)
+    expect(panel.get('.site-guide-prompts').attributes('aria-label')).toBe(ui.a11y.suggestions)
+    expect(panel.get('.site-guide-form input').attributes('aria-label')).toBe(ui.site.ask)
+    expect(panel.get('.site-guide-form button').text()).toBe(ui.input.send)
     panel.unmount()
   })
 
