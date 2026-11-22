@@ -13,11 +13,7 @@ import { readGuideSlots } from '../lib/luoshengSlots'
 import { clarifyOptionsFor, nextGlanceFor, suggestionsFor } from '../lib/luoshengSuggestions'
 import { apiGet } from '../lib/api'
 import ui from '../assets/guide/ui.zh-CN.json'
-
-// Only trusted slot labels and existing route/content data fill these UI templates.
-function copy(template: string, values: Record<string, string | number>) {
-  return template.replace(/\{(\w+)\}/g, (token, key: string) => String(values[key] ?? token))
-}
+import { formatGuideCopy as copy } from '../lib/luoshengCopy'
 
 const route = useRoute()
 const router = useRouter()
@@ -773,7 +769,7 @@ watch(() => visit?.targetFailure, failure => {
   .luosheng-site { inset-block-end: calc(5.25rem + env(safe-area-inset-bottom)); }
 }
 @media (max-height: 500px) {
-  .site-guide-prompts { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; }
-  .site-guide-prompts button { flex: none; }
+  /* Keep the composer reachable at browser zoom without hiding questions off to the side. */
+  .site-guide-prompts { max-block-size: 22dvh; overflow-y: auto; scrollbar-width: thin; }
 }
 </style>

@@ -149,6 +149,66 @@
       "partial": "下方是可以点开核对的资料。刚才的部分依据没有可打开的公开链接。"
     }
   },
+  "preset": {
+    "mark": "洛",
+    "label": "青铜鼎讲解",
+    "invite": "要一起看看这件鼎的细节吗？",
+    "accept": "带我看看",
+    "read": "阅读洛笙讲解",
+    "loading": "正在打开讲解…",
+    "unavailable": "这段讲解暂时不可用，可以继续浏览展品。",
+    "source": "查看参考资料",
+    "choosePoint": "选择看点",
+    "observation": "{point}说明",
+    "plateUnavailable": "图版暂不可用，可继续阅读看点说明。",
+    "followUp": "接着问",
+    "view3d": "去 3D 看{point}",
+    "returnToArtifact": "回到藏品展签",
+    "end": "结束讲解"
+  },
+  "figure": {
+    "earTop": "鼎耳 · 俯视",
+    "motifDetail": "纹样 · 局部",
+    "feetBack": "三足 · 背视",
+    "feetSide": "三足 · 侧视",
+    "imageAlt": "青铜鼎数字模型 {view}",
+    "caption": "{view}。{text}",
+    "unavailable": "图版暂不可用，可继续阅读图注。",
+    "showSide": "看侧视图"
+  },
+  "appointmentHandoff": {
+    "askSlots": "问时段"
+  },
+  "navigation": {
+    "stops": {
+      "explore": { "label": "探索馆藏", "detail": "用关键词找文物与文化专题，点开条目就能读到展品故事。" },
+      "exhibits": { "label": "数字展厅", "detail": "选择一个展项，进入互动 3D 后可以旋转和放大，看看正面以外的细节。" },
+      "appointment": { "label": "预约参观", "detail": "先选日期和可用时段，再按页面提示填写人数和预约信息。进度可到个人中心查看。" },
+      "shop": { "label": "河洛文创", "detail": "逛馆累了，可以看看博物馆的文创商品。进入文创页就能浏览商品和详情。" },
+      "ding": { "label": "河洛青铜鼎", "detail": "这件数字展品可以先看鼎耳、三足和器腹纹样。打开藏品页，就能从图版开始观察。" }
+    },
+    "home": "在河洛数字博物馆，你可以读文物故事、在数字展厅转动模型、预约到馆，也可以逛文创。第一次来，我建议先从馆藏或 3D 展厅逛起。",
+    "explorePage": "这里可以用关键词找文物和文化专题。想先试试？从青铜鼎开始，读完藏品故事再去数字展厅。",
+    "exhibitsPage": "这里是数字展厅。打开一个展项后，你可以旋转、放大模型，换个角度找细节。看完也可以回馆藏查展品故事。",
+    "readingPage": "这里是馆藏阅读页。你可以读展品故事或文化专题，再去数字展厅对照模型。",
+    "ding3d": "想看青铜鼎的 3D？打开青铜鼎藏品页，点「去 3D 看鼎耳」就能接着逛。",
+    "general": "我可以帮你找本站的馆藏、3D 展厅、参观预约和文创入口。你想去哪里？"
+  },
+  "discovery": {
+    "alias": "按馆内检索别名，把「{requested}」换成「{matched}」。",
+    "match": "这件展品的{field}提到了「{matched}」。",
+    "result": "这是馆藏检索「{matched}」返回的公开条目。",
+    "fields": { "title": "公开标题", "summary": "公开摘要", "titleEn": "英文标题", "summaryEn": "英文摘要" }
+  },
+  "slots": {
+    "outOfWindow": "{date} 不在当前 14 天的公开预约范围内，请换个日期。",
+    "invalidParty": "每次预约支持 1–30 人，请确认参观人数。",
+    "checked": "{date}（上海时间 {checked} 查询）",
+    "available": "{label}，{start}–{end} 可选，查询时余 {remaining} 个名额。",
+    "insufficient": "{label}，当前公开时段的空位不足 {people} 人。",
+    "empty": "{label}，当前没有公开可约时段。",
+    "unavailable": "{date} 的公开时段暂时查不到，请稍后再试。"
+  },
   "notes": [
     "plateViewLabels 必须覆盖词表中所有 stop；新增 stop 时同步增加。",
     "本文件只放界面文案，不放事实正文。",

@@ -18,6 +18,14 @@ describe('洛笙公开找物', () => {
       .toBe('按馆内检索别名，把「玉器」换成「玉璧」。这件展品的公开标题提到了「玉璧」。')
   })
 
+  it('将检索关键词原样代入文案，不把其中的符号当成模板', () => {
+    const item: SearchResult = {
+      type: 'artifact', slug: 'test-artifact', title: '展品 {field} $&', summary: '', coverImageUrl: '', categoryName: '',
+    }
+    expect(guideArtifactReason(item, '$`', '{field} $&'))
+      .toBe('按馆内检索别名，把「$`」换成「{field} $&」。这件展品的公开标题提到了「{field} $&」。')
+  })
+
   it('只接受本站公开图片路径', () => {
     expect(guideArtifactCover('/media/exhibits/water-bird-bronze-cover.webp')).toBe('/media/exhibits/water-bird-bronze-cover.webp')
     for (const url of ['', '//other.test/media/bird.webp', 'https://other.test/bird.webp', '/media/../bird.png', '/media/a.svg', '/media/a.png?b=1']) {

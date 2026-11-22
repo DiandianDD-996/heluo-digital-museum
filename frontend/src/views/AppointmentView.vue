@@ -2,7 +2,7 @@
 import '../assets/task-pages.css'
 import '../assets/control-surface-polish.css'
 import '../assets/appointment-workbench.css'
-import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { ArrowRight, Calendar, Check, CircleCheck, Clock, InfoFilled, Location, Minus, Plus, Refresh, Tickets, Timer, User } from '@element-plus/icons-vue'
 import { ApiRequestError, apiGet, apiRequest } from '../lib/api'
@@ -15,8 +15,9 @@ import InlineStatus from '../components/InlineStatus.vue'
 import FluidButton from '../components/FluidButton.vue'
 import AppointmentContactFields from '../components/AppointmentContactFields.vue'
 import PointerDotField from '../components/PointerDotField.vue'
-import { isPublicSlotDate } from '../lib/luoshengSlots'
-import { guideStopLabels, navigateGuidePlate, unifiedGuideEnabled, useLuoshengVisit } from '../stores/luoshengVisit'
+import { isPublicSlotDate } from '../lib/publicSlotDate'
+import { navigateGuidePlate, unifiedGuideEnabled, useLuoshengVisit } from '../stores/luoshengVisit'
+import type guideUi from '../assets/guide/ui.zh-CN.json'
 
 interface Slot { id: number; visitDate: string; startTime: string; endTime: string; remainingPeople: number }
 interface CalendarDay { iso: string; day: string; weekday: string; available: boolean; full: boolean }
@@ -27,6 +28,10 @@ const router = useRouter()
 const route = useRoute()
 const { t, locale } = useLocale()
 const guide = unifiedGuideEnabled ? useLuoshengVisit() : null
+const guideCopy = shallowRef<typeof guideUi>()
+if (unifiedGuideEnabled) {
+  void import('../assets/guide/ui.zh-CN.json').then(({ default: copy }) => { guideCopy.value = copy }).catch(() => {})
+}
 const slots = ref<Slot[]>([])
 const selectedDate = ref('')
 const loading = ref(true)
@@ -473,12 +478,12 @@ onBeforeUnmount(() => {
             </button>
           </div>
           <div v-else-if="slotChoicesReady" class="appointment-time-empty"><Clock aria-hidden="true" /><span>{{ selectedDate ? workbenchCopy.noTimes : workbenchCopy.noDate }}</span></div>
-          <div v-if="guide && locale === 'zh-CN'" class="appointment-guide-actions">
+          <div v-if="guide && guideCopy && locale === 'zh-CN'" class="appointment-guide-actions">
             <FluidButton variant="secondary" size="sm"
-              @click="guide.openFrom($event.currentTarget as HTMLElement)">问时段</FluidButton>
+              @click="guide.openFrom($event.currentTarget as HTMLElement)">{{ guideCopy.appointmentHandoff.askSlots }}</FluidButton>
             <FluidButton v-if="guide.resumePoint" variant="secondary" size="sm" :disabled="!!guide.target"
               @click="navigateGuidePlate(guide, router, guide.resumePoint, 'return')">
-              回到青铜鼎 · {{ guideStopLabels[guide.resumePoint.stop] }}
+              {{ guideCopy.site.resumePlate.replace('{point}', guideCopy.site.pointNames[guide.resumePoint.stop]) }}
             </FluidButton>
           </div>
         </section>

@@ -1,5 +1,7 @@
 import { apiGet, type ContentPage } from './api'
 import type { SearchResult } from './content'
+import ui from '../assets/guide/ui.zh-CN.json'
+import { formatGuideCopy as copy } from './luoshengCopy'
 export { discoveryIntent, requestsSavedLookpoint } from './luoshengIntent'
 
 const dingExcluded = /^(?:(?:这件|那个|那件|河洛|青铜)*鼎(?:了|吧|啦)?|鼎耳)$/
@@ -20,16 +22,12 @@ export async function findGuideArtifacts(keyword: string, signal: AbortSignal, e
 }
 
 export function guideArtifactReason(item: SearchResult, requested: string, matched: string) {
-  const alias = requested !== matched ? `按馆内检索别名，把「${requested}」换成「${matched}」。` : ''
-  const fields = [
-    [item.title, '公开标题'],
-    [item.summary, '公开摘要'],
-    [item.titleEn, '英文标题'],
-    [item.summaryEn, '英文摘要'],
-  ] as const
+  const phrasing = ui.discovery
+  const alias = requested !== matched ? copy(phrasing.alias, { requested, matched }) : ''
+  const fields = ['title', 'summary', 'titleEn', 'summaryEn'] as const
   const term = matched.normalize('NFKC').toLowerCase()
-  const field = fields.find(([value]) => value?.normalize('NFKC').toLowerCase().includes(term))
-  return alias + (field ? `这件展品的${field[1]}提到了「${matched}」。` : `这是馆藏检索「${matched}」返回的公开条目。`)
+  const field = fields.find(key => item[key]?.normalize('NFKC').toLowerCase().includes(term))
+  return alias + (field ? copy(phrasing.match, { field: phrasing.fields[field], matched }) : copy(phrasing.result, { matched }))
 }
 
 export function guideArtifactCover(url: string) {

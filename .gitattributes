@@ -1,3 +1,10 @@
 /docs/plans/luosheng-eval/ding-zh-CN-0.3.0-draft.json -text
 /docs/plans/luosheng-eval/ding-zh-CN-0.3.0-review-candidate.json -text
 /docs/plans/luosheng-eval/ding-zh-CN-0.3.0-release-candidate.json -text
+/docs/plans/luosheng-eval/ding-zh-CN-0.5.0-review-candidate.json -text
+/docs/plans/luosheng-eval/ding-zh-CN-0.5.0-signoff-candidate.json -text
+/docs/plans/luosheng-eval/ding-zh-CN-0.5.0-signoff-candidate.2026-11-22.json -text
+/docs/plans/luosheng-copy/* text eol=lf
+/backend/src/main/resources/guide/voice.zh-CN.json text eol=lf
+/backend/src/main/resources/guide/ui.zh-CN.json text eol=lf
+/frontend/src/assets/guide/ui.zh-CN.json text eol=lf

@@ -20,8 +20,6 @@ type PublicObject = {
 type PlateTarget = { path: string; stop: GuideStop; compare: boolean }
 type PlateAction = 'plate' | 'return'
 
-export const guideStopLabels = { ear: '鼎耳', feet: '三足', motif: '纹样' }
-
 type JourneyEvent = `${PlateAction}-${'attempted' | 'arrived'}` | 'clarification-single' | 'clarification-repeated'
 
 export function recordGuideJourney(kind: JourneyEvent) {

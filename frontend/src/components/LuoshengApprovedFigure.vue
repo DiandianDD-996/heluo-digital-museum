@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import ui from '../assets/guide/ui.zh-CN.json'
 import top from '../assets/luosheng-ding-top.webp?inline'
 import side from '../assets/luosheng-ding-side.webp?inline'
 import back from '../assets/luosheng-ding-back.webp?inline'
@@ -11,8 +12,9 @@ const emit = defineEmits<{ ready: [] }>()
 const alternate = defineModel<boolean>('compare', { required: true })
 const failed = ref(false)
 const image = computed(() => props.stop === 'ear' ? top : props.stop === 'motif' ? relief : alternate.value ? back : side)
-const view = computed(() => props.stop === 'ear' ? '鼎耳 · 俯视' : props.stop === 'motif' ? '纹样 · 局部'
-  : alternate.value ? '三足 · 背视' : '三足 · 侧视')
+const view = computed(() => props.stop === 'ear' ? ui.figure.earTop : props.stop === 'motif' ? ui.figure.motifDetail
+  : alternate.value ? ui.figure.feetBack : ui.figure.feetSide)
+const caption = computed(() => ui.figure.caption.replace('{view}', view.value).replace('{text}', () => props.caption))
 watch(image, () => { failed.value = false })
 function reportReady() {
   emit('ready')
@@ -23,10 +25,10 @@ watch([() => props.stop, alternate], reportReady, { flush: 'post' })
 
 <template>
   <figure class="approved-figure" :data-lookpoint="stop" :data-compare="String(alternate)">
-    <img v-if="!failed" :src="image" :alt="'青铜鼎数字模型 ' + view" decoding="async" loading="lazy" @error="failed = true" />
-    <p v-else>图版暂不可用，可继续阅读图注。</p>
-    <figcaption data-observation-text>{{ view }}。{{ caption }}</figcaption>
-    <button v-if="stop === 'feet'" type="button" @click="alternate = !alternate">{{ alternate ? '看侧视图' : '看背视图' }}</button>
+    <img v-if="!failed" :src="image" :alt="ui.figure.imageAlt.replace('{view}', view)" decoding="async" loading="lazy" @error="failed = true" />
+    <p v-else>{{ ui.figure.unavailable }}</p>
+    <figcaption data-observation-text>{{ caption }}</figcaption>
+    <button v-if="stop === 'feet'" type="button" @click="alternate = !alternate">{{ alternate ? ui.figure.showSide : ui.plateViewLabels.feet }}</button>
   </figure>
 </template>
 
