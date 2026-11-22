@@ -1,5 +1,7 @@
 import { chromium, expect } from '@playwright/test'
 import { createServer, preview } from 'vite'
+import lexicon from '../src/assets/guide/lexicon.zh-CN.json' with { type: 'json' }
+import ui from '../src/assets/guide/ui.zh-CN.json' with { type: 'json' }
 
 async function bufferGuideReply(page) {
   await page.evaluate(() => {
@@ -40,6 +42,8 @@ async function checkCandidate(page, base) {
   const panel = page.getByRole('complementary', { name: '洛笙全站导览' })
   const trigger = panel.getByRole('button', { name: '洛笙导览', exact: true })
   const input = panel.getByRole('textbox', { name: '问洛笙' })
+  const answer = panel.getByRole('status', { name: '洛笙的回答' })
+  const suggestions = panel.getByRole('group', { name: '建议问题' })
   const ask = async (question) => {
     await input.fill(question)
     await input.press('Enter')
@@ -139,7 +143,7 @@ async function checkCandidate(page, base) {
   const result = await (await turn).json()
   expect(result.data.citations[0]?.reference.cardId).toBe('LS-DING-EARS')
   await panel.getByText('查看本轮依据').click()
-  await expect(panel.getByRole('link', { name: 'LS-DING-EARS · 修订 3' })).toBeVisible()
+  await expect(panel.getByRole('link', { name: 'LS-DING-EARS · 修订 1' })).toBeVisible()
   await timeReply('reviewed-answer', '它是什么年代的？', async () => {
     await expect(panel.getByRole('status')).toContainText('Synthetic period for the reference object')
     await expect(panel.getByText('查看本轮依据')).toBeVisible()
@@ -148,7 +152,7 @@ async function checkCandidate(page, base) {
   await panel.getByText('查看本轮依据').click()
   await expect(panel.getByRole('link', { name: 'LS-DING-PERIOD · 修订 1' })).toBeVisible()
   await ask('在哪里出土？')
-  await expect(panel.getByRole('status')).toContainText('现有资料不足以判断出土地')
+  await expect(answer).toContainText('缺的是：出土地记录。')
   await panel.getByText('查看本轮依据').click()
   await expect(panel.getByRole('link', { name: 'LS-DING-SOURCE · 修订 2' })).toBeVisible()
   await expect(panel.getByText(/LS-DING-PERIOD/)).toHaveCount(0)
@@ -358,16 +362,19 @@ async function checkCandidate(page, base) {
     await resume.click()
     await ask('这个看点的依据是什么？')
     await panel.getByText('查看本轮依据').click()
-    await expect(panel.getByRole('link', { name: 'LS-DING-EARS · 修订 3' })).toBeVisible()
+    await expect(panel.getByRole('link', { name: 'LS-DING-EARS · 修订 1' })).toBeVisible()
   } finally {
     await page.evaluate(() => window.guideTestDelay.release())
   }
-  await expect(panel.getByRole('link', { name: 'LS-DING-EARS · 修订 3' })).toBeVisible()
+  await expect(panel.getByRole('link', { name: 'LS-DING-EARS · 修订 1' })).toBeVisible()
   await expect(panel.getByText(/LS-DING-FEET/)).toHaveCount(0)
   await page.reload()
   await page.getByRole('button', { name: '问洛笙', exact: true }).click()
   await ask('另一只呢')
-  await expect(panel.getByRole('status')).toContainText('你想看鼎耳')
+  const clarify = panel.getByRole('group', { name: '请选择你想问的部位' })
+  await expect(clarify.getByRole('button')).toHaveCount(3)
+  await expect(answer).toHaveAttribute('aria-live', 'polite')
+  await expect(input).toBeFocused()
   const repeat = page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/guide/journey'
     && response.status() === 204 && response.request().postDataJSON()?.kind === 'clarification-repeated')
   await ask('另一只呢')
@@ -375,12 +382,66 @@ async function checkCandidate(page, base) {
   expect(repeatRequest.postDataJSON()).toEqual({ kind: 'clarification-repeated' })
   expect(await repeatRequest.headerValue('cookie')).toBeNull()
   expect(await repeatRequest.headerValue('referer')).toBeNull()
+  for (const key of ['Enter', 'Space']) {
+    const clarificationRequest = page.waitForRequest(request => new URL(request.url()).pathname === '/api/v1/guide/turns'
+      && request.postDataJSON().question === '三足')
+    await clarify.getByRole('button', { name: '三足', exact: true }).press(key)
+    await clarificationRequest
+    await expect(answer).toContainText('Approved foot observation')
+    await expect(clarify).toHaveCount(0)
+    if (key === 'Enter') {
+      await page.reload()
+      await page.getByRole('button', { name: '问洛笙', exact: true }).click()
+      await ask('另一只呢')
+      await expect(clarify).toBeVisible()
+    }
+  }
   await ask('它多大、哪里出土？')
-  await expect(panel.getByRole('status')).toContainText('Synthetic overall size')
-  await expect(panel.getByRole('status')).toContainText('现有资料不足以判断出土地')
+  await expect(answer).toContainText('Synthetic overall size')
+  await expect(answer).toContainText('缺的是：出土地记录。')
+  await expect(input).toBeFocused()
   await panel.getByText('查看本轮依据').click()
   await expect(panel.getByRole('link', { name: 'LS-DING-SIZE · 修订 1' })).toBeVisible()
   await expect(panel.getByRole('link', { name: 'LS-DING-SOURCE · 修订 2' })).toBeVisible()
+  const reviewed = new Set(Object.values(lexicon.exhibits['heluo-bronze-ding-3d'].suggestedQuestions)
+    .flat().map(item => item.q))
+  const shownQuestions = async () => (await suggestions.getByRole('button').allTextContents())
+    .map(label => label.trim()).filter(label => reviewed.has(label))
+  const primary = await shownQuestions()
+  expect(primary).toHaveLength(2)
+  const more = suggestions.getByRole('button', { name: '更多', exact: true })
+  await expect(more).toHaveAttribute('aria-expanded', 'false')
+  await more.press('Enter')
+  const all = await shownQuestions()
+  expect(all.length).toBeGreaterThan(primary.length)
+  const geometry = await suggestions.evaluate(group => {
+    const bounds = group.getBoundingClientRect()
+    const buttons = [...group.querySelectorAll('button')].map(button => button.getBoundingClientRect())
+    return {
+      viewportWidth: innerWidth,
+      fits: group.scrollWidth <= group.clientWidth + 1
+        && buttons.every(button => button.left >= bounds.left - 1 && button.right <= bounds.right + 1),
+      rows: new Set(buttons.map(rect => Math.round(rect.top))).size,
+    }
+  })
+  expect(geometry.fits, `suggestion layout: ${JSON.stringify(geometry)}`).toBe(true)
+  if (geometry.viewportWidth <= 390) expect(geometry.rows).toBeGreaterThan(1)
+  // At short heights the wrapped list may scroll vertically, but its last
+  // action and the composer must still be reachable with the keyboard.
+  const selfTour = suggestions.getByRole('button', { name: '我先自己逛', exact: true })
+  await suggestions.getByRole('button', { name: '收起', exact: true }).focus()
+  for (let i = 0; i < await suggestions.getByRole('button').count(); i++) {
+    if (await selfTour.evaluate(button => button === document.activeElement)) break
+    await page.keyboard.press('Tab')
+  }
+  await expect(selfTour).toBeFocused()
+  await expect(selfTour).toBeInViewport({ ratio: 0.9 })
+  await page.keyboard.press('Tab')
+  await expect(input).toBeFocused()
+  await expect(input).toBeInViewport({ ratio: 0.9 })
+  await expect(panel.getByRole('button', { name: '发送' })).toBeInViewport({ ratio: 0.9 })
+  await suggestions.getByRole('button', { name: '收起', exact: true }).press('Enter')
+  expect(await shownQuestions()).toEqual(primary)
   await expect.poll(() => [...journey.entries()].filter(([kind]) => !kind.startsWith('clarification-')).sort()).toEqual([
     ['plate-arrived', 1], ['plate-attempted', 1], ['return-arrived', 3], ['return-attempted', 3],
   ])
@@ -449,7 +510,7 @@ async function checkCandidate(page, base) {
     await expect(input).toBeFocused()
     await ask('这个看点的依据是什么？')
     await panel.getByText('查看本轮依据').click()
-    await expect(panel.getByRole('link', { name: 'LS-DING-EARS · 修订 3' })).toBeVisible()
+    await expect(panel.getByRole('link', { name: 'LS-DING-EARS · 修订 1' })).toBeVisible()
     await input.press('Escape')
   } finally {
     await page.unroute(modelRequest, failModel)
@@ -488,7 +549,7 @@ async function checkCandidate(page, base) {
     await expect(input).toBeFocused()
     await ask('这个看点的依据是什么？')
     await panel.getByText('查看本轮依据').click()
-    await expect(panel.getByRole('link', { name: 'LS-DING-EARS · 修订 3' })).toBeVisible()
+    await expect(panel.getByRole('link', { name: 'LS-DING-EARS · 修订 1' })).toBeVisible()
     await input.press('Escape')
     await expect(resume).toBeFocused()
   } finally {
@@ -580,6 +641,7 @@ async function checkPublicDetour(page, base) {
   const trigger = panel.getByRole('button', { name: '洛笙导览', exact: true })
   const input = panel.getByRole('textbox', { name: '问洛笙' })
   async function ask(question) {
+    await expect(trigger.or(input)).toBeVisible()
     if (await trigger.isVisible()) await trigger.click()
     await input.fill(question)
     await input.press('Enter')
@@ -704,7 +766,7 @@ async function checkNavigationDuringTurn(page, base, credentials) {
     ])
     expect(next.postDataJSON().lookpoint).toBeNull()
     if (destination !== 'explore') expect(next.postDataJSON().visitId).not.toBe(request.postDataJSON().visitId)
-    await expect(panel.getByRole('status')).toContainText('你想看鼎耳')
+    await expect(panel.getByRole('group', { name: '请选择你想问的部位' }).getByRole('button')).toHaveCount(3)
     await input.press('Escape')
   }
 }
@@ -771,7 +833,7 @@ async function checkVisitEnd(page, base) {
   const afterEnd = await send('另一只呢')
   expect(afterEnd.visitId).not.toBe(first.visitId)
   expect(afterEnd.lookpoint).toBeNull()
-  await expect(panel.getByRole('status')).toContainText('你想看鼎耳')
+  await expect(panel.getByRole('group', { name: '请选择你想问的部位' }).getByRole('button')).toHaveCount(3)
   await input.press('Escape')
   await expect(trigger).toBeFocused()
 
@@ -790,6 +852,7 @@ async function checkTurnFallback(page, base) {
   await page.goto(base + '/artifacts/heluo-bronze-ding')
   const panel = page.getByRole('complementary', { name: '洛笙全站导览' })
   const input = panel.getByRole('textbox', { name: '问洛笙' })
+  const answer = panel.getByRole('status', { name: '洛笙的回答' })
   const resume = page.getByRole('button', { name: '接着问' })
   await page.getByRole('button', { name: '阅读洛笙讲解' }).click()
   await page.getByRole('button', { name: '三足', exact: true }).click()
@@ -805,13 +868,13 @@ async function checkTurnFallback(page, base) {
 
   const turnsUrl = '**/api/v1/guide/turns'
   for (const [kind, message] of [
-    ['GENERATION_TIMEOUT', '这次回答超时'],
-    ['GENERATION_LIMIT_REACHED', '今天的自由问答额度已用完'],
-    ['GENERATION_BUSY', '正在回答其他游客'],
-    ['GENERATION_UNAVAILABLE', '自由问答暂不可用'],
-    ['QUESTIONING_DISABLED', '自由问答已暂停'],
-    ['network-failure', '暂时无法读取资料'],
-    ['no-response', '这次回答超时'],
+    ['GENERATION_TIMEOUT', ui.errors.timeout],
+    ['GENERATION_LIMIT_REACHED', ui.errors.limit],
+    ['GENERATION_BUSY', ui.errors.busy],
+    ['GENERATION_UNAVAILABLE', ui.errors.generation],
+    ['QUESTIONING_DISABLED', ui.errors.paused],
+    ['network-failure', ui.site.unavailable],
+    ['no-response', ui.errors.timeout],
   ]) {
     let requests = 0
     const release = Promise.withResolvers()
@@ -826,8 +889,11 @@ async function checkTurnFallback(page, base) {
     }
     await page.route(turnsUrl, intercept)
     try {
-      await submit('三只足是怎么做出来的？')
-      await expect(panel.getByRole('status')).toContainText(message, { timeout: kind === 'no-response' ? 10_000 : 5_000 })
+      await submit('这个看点的依据是什么？')
+      const progress = panel.getByText(ui.progress.checking, { exact: true })
+      if (kind === 'no-response') await expect(progress).toBeVisible({ timeout: 4500 })
+      await expect(answer).toContainText(message, { timeout: kind === 'no-response' ? 10_000 : 5_000 })
+      await expect(progress).toHaveCount(0)
       await expect(panel.getByText('查看本轮依据')).toHaveCount(0)
       await expect(caption).toContainText('背视')
       const [reread] = await Promise.all([

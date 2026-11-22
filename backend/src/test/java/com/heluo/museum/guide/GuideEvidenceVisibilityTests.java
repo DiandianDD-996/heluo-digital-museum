@@ -644,6 +644,53 @@ class GuideEvidenceVisibilityTests {
     }
 
     @Test
+    void frozenEightCardReviewSnapshotCannotBeRetrievedOrReplayed(@TempDir Path directory) throws Exception {
+        Path snapshot = Path.of("..", "docs", "plans", "luosheng-eval", "ding-zh-CN-0.5.0-review-candidate.json");
+        Path minimum = directory.resolve("minimum-version");
+        Path fixtureDigest = directory.resolve("snapshot.sha256");
+        Files.writeString(minimum, "4");
+        Files.writeString(fixtureDigest, "5f8c1c89e7ffdc2e1e84e42ae8f9925ec6fb9248ed74def0c33b3a930e9b7a79");
+        var source = new GuideEvidenceFileSource(snapshot, minimum, fixtureDigest);
+        var reader = new GuideEvidenceReader(source, new GuideEvidenceVisibility(jdbc, Clock.systemUTC()));
+        var rows = source.current(EXHIBIT, LOCALE);
+        assertEquals(List.of("LS-DING-SOURCE", "LS-DING-EARS", "LS-DING-FEET", "LS-DING-MOTIF",
+                "LS-DING-RECORD-02", "LS-DING-MODEL-02", "LS-DING-PERIOD", "LS-DING-SIZE"),
+                rows.stream().map(row -> row.card().id()).toList());
+        for (var row : rows) {
+            assertEquals(GuideEvidenceVisibility.Status.DRAFT, row.card().status());
+            assertEquals(null, row.card().publishedAt());
+            assertTrue(reader.search(EXHIBIT, LOCALE, row.aliases().get(0)).isEmpty());
+            var ref = new GuideEvidenceVisibility.Reference(row.card().id(), row.card().revision());
+            var saved = new GuideAnswerReplay.StoredAnswer(EXHIBIT, LOCALE, row.text(), List.of(ref));
+            assertTrue(new GuideAnswerReplay(reader).replay(EXHIBIT, LOCALE, saved).isEmpty());
+        }
+    }
+
+    @Test
+    void eightCardSignoffCandidateCannotBeUsedBeforeItsPlaceholderDate(@TempDir Path directory) throws Exception {
+        Path pack = Path.of("..", "docs", "plans", "luosheng-eval", "ding-zh-CN-0.5.0-signoff-candidate.json");
+        Path minimum = directory.resolve("minimum-version");
+        Path fixtureDigest = directory.resolve("candidate.sha256");
+        Files.writeString(minimum, "4");
+        Files.writeString(fixtureDigest, "5d82f52922a706af27783571cbb0966b75ff63e0388308953e73161f464a798f");
+        var source = new GuideEvidenceFileSource(pack, minimum, fixtureDigest);
+        var effectiveAt = Instant.parse("2099-01-01T00:00:00Z");
+        var visibilityBefore = new GuideEvidenceVisibility(jdbc, Clock.fixed(effectiveAt.minusSeconds(1), ZoneOffset.UTC));
+        var visibilityAt = new GuideEvidenceVisibility(jdbc, Clock.fixed(effectiveAt, ZoneOffset.UTC));
+        var before = new GuideEvidenceReader(source, visibilityBefore);
+        var at = new GuideEvidenceReader(source, visibilityAt);
+        var rows = source.current(EXHIBIT, LOCALE);
+        assertEquals(8, rows.size());
+        for (var row : rows) {
+            var ref = new GuideEvidenceVisibility.Reference(row.card().id(), row.card().revision());
+            var saved = new GuideAnswerReplay.StoredAnswer(EXHIBIT, LOCALE, row.text(), List.of(ref));
+            assertTrue(before.search(EXHIBIT, LOCALE, row.aliases().get(0)).isEmpty());
+            assertTrue(new GuideAnswerReplay(before).replay(EXHIBIT, LOCALE, saved).isEmpty());
+            assertEquals(List.of(row), at.resolve(EXHIBIT, LOCALE, List.of(ref)).orElseThrow());
+        }
+    }
+
+    @Test
     void rejectsByteChangesAndMissingApprovalForSameVersion(@TempDir Path directory) throws Exception {
         Path file = directory.resolve("evidence.json");
         Path minimum = directory.resolve("minimum-version");

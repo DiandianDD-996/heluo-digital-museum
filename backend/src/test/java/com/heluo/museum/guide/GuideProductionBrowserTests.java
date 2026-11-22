@@ -38,6 +38,8 @@ class GuideProductionBrowserTests {
             String log = captured.get(5, TimeUnit.SECONDS);
             assertEquals(0, process.exitValue(), log);
             assertTrue(log.contains("returned artifact and booking slots passed without guide UI or requests"), log);
+            assertTrue(log.contains("preset and turn routes both returned 404"), log);
+            System.out.println(log);
         } finally {
             if (process.isAlive()) process.destroyForcibly();
         }

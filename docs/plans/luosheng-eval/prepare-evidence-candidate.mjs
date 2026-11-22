@@ -1,14 +1,16 @@
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { auditEvidenceReview, candidateBytes } from './check-evidence-review.mjs'
+import { eightCandidateBytes } from './ding-eight-candidate.mjs'
 
 const flags = process.argv.slice(2)
 const extended = flags[0] === '--extended'
-const [effectiveAt, destination, ...extra] = flags.slice(Number(extended))
+const eight = flags[0] === '--eight'
+const [effectiveAt, destination, ...extra] = flags.slice(Number(extended || eight))
 
 try {
   if (!effectiveAt || !destination || extra.length) {
-    throw new Error('用法：prepare-evidence-candidate.mjs [--extended] <候选 UTC 生效时间> <候选文件路径>')
+    throw new Error('用法：prepare-evidence-candidate.mjs [--extended 或 --eight] <候选 UTC 生效时间> <候选文件路径>')
   }
 
   const root = new URL('../../../', import.meta.url)
@@ -18,10 +20,12 @@ try {
     return snapshots.get(path)
   }
   const register = read('docs/plans/2026-11-19-luosheng-evidence-cards.md').toString('utf8')
-  const { issues } = auditEvidenceReview(register, read, undefined, { extended })
-  if (issues.length) throw new Error(issues.join('\n'))
+  if (!eight) {
+    const { issues } = auditEvidenceReview(register, read, undefined, { extended })
+    if (issues.length) throw new Error(issues.join('\n'))
+  }
 
-  const bytes = candidateBytes(read, effectiveAt, extended)
+  const bytes = eight ? eightCandidateBytes(read, effectiveAt) : candidateBytes(read, effectiveAt, extended)
   writeFileSync(destination, bytes, { flag: 'wx' })
   console.log(`候选文件已生成\nSHA-256 ${createHash('sha256').update(bytes).digest('hex')}`)
 } catch (error) {

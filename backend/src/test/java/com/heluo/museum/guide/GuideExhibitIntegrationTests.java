@@ -61,6 +61,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class GuideExhibitIntegrationTests {
     private static final String URL = "/api/v1/guide/exhibits/heluo-bronze-ding-3d";
+    private static final Path EVAL = Path.of("..", "docs", "plans", "luosheng-eval");
+    private static final Path DATED_CANDIDATE = EVAL.resolve("ding-zh-CN-0.5.0-signoff-candidate.2026-11-22.json");
+    private static final String DATED_DIGEST = "1f8d3c15ab6bc7d9b694eb212205778e2d27d82f8c7017333c8521342405d1cf";
     @TempDir static Path files;
     @Autowired MockMvc mvc;
     @Autowired JdbcTemplate jdbc;
@@ -215,6 +218,108 @@ class GuideExhibitIntegrationTests {
         jdbc.update("update exhibits_3d set status='WITHDRAWN' where slug='heluo-bronze-ding-3d'");
         mvc.perform(post(url).session(session).header("Sec-Fetch-Site", "same-origin").contentType("application/json").content(body))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void realPauseFileStopsExistingAndNewVisitsWithoutDisablingPresetsOrPublicSlots() throws Exception {
+        var pack = files.resolve("evidence.json");
+        Files.writeString(pack, candidatePack());
+        Files.writeString(files.resolve("minimum-version"), "2");
+        approveTestPack(pack);
+        long owner = jdbc.queryForObject("select id from users where username='guide_preset_test'", Long.class);
+        var date = LocalDate.now(ZoneId.of("Asia/Shanghai")).plusDays(2);
+        jdbc.update("insert into appointment_slots(visit_date,start_time,end_time,capacity,created_by,updated_by)"
+                + " values(?,?,?,?,?,?)", date, LocalTime.of(10, 0), LocalTime.of(10, 30), 6, owner, owner);
+        var existing = new MockHttpSession();
+        var visit = UUID.randomUUID();
+        var generation = metrics.counter("museum.guide.generation.started");
+        double initialCount = generation.count();
+        String question = "它是什么年代的？";
+        ask(existing, visit, question).andExpect(jsonPath("$.data.citations[0].reference.cardId").value("LS-DING-PERIOD"));
+
+        var pause = files.resolve("paused");
+        Files.writeString(pause, "paused");
+        try {
+            for (var session : List.of(existing, new MockHttpSession())) {
+                ask(session, session == existing ? visit : UUID.randomUUID(), question)
+                        .andExpect(jsonPath("$.data.kind").value("QUESTIONING_DISABLED"))
+                        .andExpect(jsonPath("$.data.generated").value(false))
+                        .andExpect(jsonPath("$.data.text").doesNotExist())
+                        .andExpect(jsonPath("$.data.plate").doesNotExist())
+                        .andExpect(jsonPath("$.data.citations").isEmpty());
+            }
+            mvc.perform(get(URL)).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.available").value(true))
+                    .andExpect(jsonPath("$.data.entries[0].cardId").value("LS-DING-EARS"))
+                    .andExpect(jsonPath("$.data.entries[0].revision").value(1))
+                    .andExpect(jsonPath("$.data.entries[0].text").value("Approved observation"));
+            mvc.perform(get("/api/v1/appointment-slots").param("dateFrom", date.toString()).param("dateTo", date.toString()))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data[0].remainingPeople").value(6));
+        } finally {
+            Files.deleteIfExists(pause);
+        }
+        ask(existing, visit, question).andExpect(jsonPath("$.data.kind").value("PERIOD"))
+                .andExpect(jsonPath("$.data.citations[0].reference.cardId").value("LS-DING-PERIOD"));
+        assertEquals(initialCount, generation.count());
+    }
+
+    @Test
+    void datedTrialCandidateServesItsExactEvidenceWithoutGenerating() throws Exception {
+        var bytes = datedCandidateBytes();
+        var cards = new java.util.HashMap<String, String>();
+        mapper.readTree(bytes).get("cards").forEach(card -> cards.put(card.get("id").asText(), card.get("text").asText()));
+        Path pack = files.resolve("evidence.json");
+        Path approval = files.resolve("approved.sha256");
+        Files.write(pack, bytes);
+        Files.writeString(files.resolve("minimum-version"), "4");
+        Files.deleteIfExists(approval);
+        try {
+            mvc.perform(get(URL)).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.available").value(false));
+            Files.writeString(approval, DATED_DIGEST);
+            mvc.perform(get(URL)).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.available").value(true))
+                    .andExpect(jsonPath("$.data.entries[?(@.cardId == 'LS-DING-EARS')].text",
+                            org.hamcrest.Matchers.hasItem(cards.get("LS-DING-EARS"))));
+            var generation = metrics.counter("museum.guide.generation.started");
+            double before = generation.count();
+            var session = new MockHttpSession();
+            var visit = UUID.randomUUID();
+            ask(session, visit, "它是什么年代的？").andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.kind").value("PERIOD"))
+                    .andExpect(jsonPath("$.data.text").value(cards.get("LS-DING-PERIOD")))
+                    .andExpect(jsonPath("$.data.generated").value(false))
+                    .andExpect(jsonPath("$.data.citations[0].reference.cardId").value("LS-DING-PERIOD"));
+            ask(session, visit, "在哪里出土？").andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.kind").value("FIND_SPOT_UNKNOWN"))
+                    .andExpect(jsonPath("$.data.generated").value(false))
+                    .andExpect(jsonPath("$.data.citations[0].reference.cardId").value("LS-DING-SOURCE"));
+            ask(session, visit, "它有多大？")
+                    .andExpect(jsonPath("$.data.kind").value("REFERENCE_FACTS"))
+                    .andExpect(jsonPath("$.data.text").value(cards.get("LS-DING-SIZE")))
+                    .andExpect(jsonPath("$.data.generated").value(false))
+                    .andExpect(jsonPath("$.data.citations[0].reference.cardId").value("LS-DING-SIZE"));
+            ask(session, visit, "鼎耳多高？")
+                    .andExpect(jsonPath("$.data.kind").value("REFERENCE_FACTS"))
+                    .andExpect(jsonPath("$.data.text").value(GuideVoice.packaged().missing("DETAIL_SIZE")))
+                    .andExpect(jsonPath("$.data.generated").value(false))
+                    .andExpect(jsonPath("$.data.citations").isEmpty());
+            ask(session, visit, "图版是原器照片吗？")
+                    .andExpect(jsonPath("$.data.kind").value("PLATE_PROVENANCE"))
+                    .andExpect(jsonPath("$.data.text").value(cards.get("LS-DING-SOURCE")))
+                    .andExpect(jsonPath("$.data.generated").value(false))
+                    .andExpect(jsonPath("$.data.citations[0].reference.cardId").value("LS-DING-SOURCE"));
+            ask(session, visit, "我说的是脚")
+                    .andExpect(jsonPath("$.data.kind").value("PLATE_OBSERVATION"))
+                    .andExpect(jsonPath("$.data.text").value(cards.get("LS-DING-FEET")))
+                    .andExpect(jsonPath("$.data.generated").value(false))
+                    .andExpect(jsonPath("$.data.citations[0].reference.cardId").value("LS-DING-FEET"));
+            assertEquals(before, generation.count());
+        } finally {
+            Files.deleteIfExists(approval);
+            Files.deleteIfExists(files.resolve("minimum-version"));
+            Files.deleteIfExists(pack);
+        }
     }
 
     @Test
@@ -423,31 +528,96 @@ class GuideExhibitIntegrationTests {
     }
 
     @Test
+    @EnabledIfEnvironmentVariable(named = "LUOSHENG_LOCAL_DEMO", matches = "1")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void serveLocalCandidate() throws Exception {
+        seedDemoSlots(1);
+        boolean dated = "1".equals(System.getenv("LUOSHENG_LOCAL_DEMO_DATED"));
+        if (dated) prepareDatedLocalDemo();
+        else prepareBrowserEvidence(true);
+        var builder = new ProcessBuilder("node", "scripts/luosheng-local-demo.mjs")
+                .directory(Path.of("..", "frontend").toFile()).redirectErrorStream(true);
+        configureBrowser(builder, true);
+        builder.environment().put("LUOSHENG_LOCAL_DEMO_DATED", dated ? "1" : "0");
+        builder.environment().remove("LUOSHENG_TEST_APPROVAL_FILE");
+        builder.environment().remove("LUOSHENG_TEST_PAUSE_FILE");
+        if (dated && "1".equals(System.getenv("LUOSHENG_LOCAL_DEMO_SMOKE"))) {
+            builder.environment().put("LUOSHENG_TEST_APPROVAL_FILE", files.resolve("approved.sha256").toAbsolutePath().toString());
+            builder.environment().put("LUOSHENG_TEST_PAUSE_FILE", files.resolve("paused").toAbsolutePath().toString());
+        }
+        var process = builder.start();
+        try (var output = process.inputReader(StandardCharsets.UTF_8)) {
+            var forwarding = CompletableFuture.runAsync(() -> output.lines().forEach(System.out::println));
+            org.junit.jupiter.api.Assertions.assertTrue(process.waitFor(930, TimeUnit.SECONDS),
+                    "Local guide demo did not stop on time");
+            forwarding.get(5, TimeUnit.SECONDS);
+            assertEquals(0, process.exitValue());
+        } finally {
+            if (process.isAlive()) process.destroyForcibly();
+        }
+    }
+
+    private static byte[] datedCandidateBytes() throws Exception {
+        var bytes = Files.readAllBytes(DATED_CANDIDATE);
+        assertEquals(DATED_DIGEST, HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes)));
+        return bytes;
+    }
+
+    private void prepareDatedLocalDemo() throws Exception {
+        var verifier = new ProcessBuilder("node", EVAL.resolve("ding-eight-candidate.mjs").toString(),
+                DATED_CANDIDATE.toString(), "--signoffs",
+                EVAL.resolve("ding-zh-CN-0.5.0-signoff-draft.2026-11-22.json").toString())
+                .inheritIO().start();
+        try {
+            org.junit.jupiter.api.Assertions.assertTrue(verifier.waitFor(15, TimeUnit.SECONDS), "Signoff preflight timed out");
+            assertEquals(0, verifier.exitValue(), "The dated local demo requires matching signoff records");
+        } finally {
+            if (verifier.isAlive()) verifier.destroyForcibly();
+        }
+        Files.write(files.resolve("evidence.json"), datedCandidateBytes());
+        Files.writeString(files.resolve("minimum-version"), "4");
+        Files.writeString(files.resolve("approved.sha256"), DATED_DIGEST);
+        // The test context pins the model endpoint to loopback port 1; no provider credentials are used.
+    }
+
+    @Test
     @EnabledIfEnvironmentVariable(named = "LUOSHENG_RUN_BROWSER", matches = "1")
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void visitorUsesCandidateFromHomeAndReturnsToApprovedPlate() throws Exception {
+        seedDemoSlots(2);
+        runBrowser(true);
+    }
+
+    private void seedDemoSlots(int daysAhead) {
         // The browser's HTTP requests run on another connection to this test-only H2 database.
         long owner = jdbc.queryForObject("select id from users where username='guide_preset_test'", Long.class);
-        var date = LocalDate.now(ZoneId.of("Asia/Shanghai")).plusDays(2);
+        var date = LocalDate.now(ZoneId.of("Asia/Shanghai")).plusDays(daysAhead);
         String insert = "insert into appointment_slots(visit_date,start_time,end_time,capacity,created_by,updated_by)"
                 + " values(?,?,?,?,?,?)";
         jdbc.update(insert, date, LocalTime.of(9, 0), LocalTime.of(9, 30), 1, owner, owner);
         jdbc.update(insert, date, LocalTime.of(9, 30), LocalTime.of(10, 0), 6, owner, owner);
-        runBrowser(true);
     }
 
-    private void runBrowser(boolean candidate) throws Exception {
+    private void prepareBrowserEvidence(boolean candidate) throws Exception {
         Path pack = files.resolve("evidence.json");
         String contents = candidate ? candidatePack() : reviewedPack();
         Files.writeString(pack, contents);
         Files.writeString(files.resolve("minimum-version"), "2");
         approveTestPack(pack);
-        var builder = new ProcessBuilder("node", "scripts/luosheng-preset-check.mjs")
-                .directory(Path.of("..", "frontend").toFile()).redirectErrorStream(true);
+    }
+
+    private void configureBrowser(ProcessBuilder builder, boolean candidate) {
         builder.environment().put("MUSEUM_DEV_API_URL", "http://127.0.0.1:" + port);
         builder.environment().put("VITE_GUIDE_PRESET_ENABLED", "true");
         builder.environment().put("VITE_GUIDE_SITE_ENABLED", Boolean.toString(candidate));
         builder.environment().put("VITE_GUIDE_TURNS_ENABLED", Boolean.toString(candidate));
+    }
+
+    private void runBrowser(boolean candidate) throws Exception {
+        prepareBrowserEvidence(candidate);
+        var builder = new ProcessBuilder("node", "scripts/luosheng-preset-check.mjs")
+                .directory(Path.of("..", "frontend").toFile()).redirectErrorStream(true);
+        configureBrowser(builder, candidate);
         builder.environment().put("LUOSHENG_CHECK_PUBLIC_TURNS", Boolean.toString(candidate));
         builder.environment().put("LUOSHENG_CHECK_SEEDED_SLOTS", candidate ? "1" : "0");
         if (candidate) builder.environment().put("LUOSHENG_EXPECT_SLOT_FIXTURE_PAIR", "1");

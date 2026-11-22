@@ -1,0 +1,146 @@
+{
+  "formatVersion": 1,
+  "releaseVersion": 4,
+  "cards": [
+    {
+      "id": "LS-DING-SOURCE",
+      "revision": 2,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "zh-CN",
+      "status": "PUBLISHED",
+      "text": "项目登记的数字重制参考是克利夫兰艺术博物馆编号 1962.281 的 Tripod (Ding)。该馆公开记录未填写出土地，现有依据不能确认或排除洛阳出土。展签图版由项目派生模型渲染，不是原器照片，也不能证明原器颜色。该条目不能证明原物归本数字博物馆所有、项目模型是原始扫描，或它是参考馆的官方复原。",
+      "aliases": [
+        "出处",
+        "来源",
+        "出土地",
+        "原器照片",
+        "原器颜色",
+        "数字重制"
+      ],
+      "publicSource": "https://www.clevelandart.org/art/1962.281",
+      "publishedAt": "2026-11-21T16:00:00Z"
+    },
+    {
+      "id": "LS-DING-EARS",
+      "revision": 1,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "zh-CN",
+      "status": "PUBLISHED",
+      "text": "数字模型的俯视图里，鼎口两侧各有一处立起的结构，展签拟称为鼎耳。轮廓像把手，但仅凭外形不能判断参考原物的用途、搬运方式或受力能力，也不能判断游客当前在看哪一侧。",
+      "aliases": [
+        "鼎耳",
+        "把手",
+        "双耳",
+        "俯视"
+      ],
+      "publishedAt": "2026-11-21T16:00:00Z"
+    },
+    {
+      "id": "LS-DING-FEET",
+      "revision": 1,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "zh-CN",
+      "status": "PUBLISHED",
+      "text": "数字模型的侧视图能清楚看到两足，背视图的中间和两侧各可辨一足。两张图的差异可由固定视角下的遮挡解释。不能据此判断参考原器缺损、补配或断裂，也不能把图版的固定视角当成游客当前的镜头。",
+      "aliases": [
+        "鼎足",
+        "三足",
+        "两足",
+        "背视",
+        "侧视"
+      ],
+      "publishedAt": "2026-11-21T16:00:00Z"
+    },
+    {
+      "id": "LS-DING-MOTIF",
+      "revision": 2,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "zh-CN",
+      "status": "PUBLISHED",
+      "text": "从数字模型的正面局部图看，口沿下方的器腹有凸出的宽线，可沿宽线观察它向内转折的地方。这张图只能支持对轮廓的观察；不能据此判断纹样寓意、特定工艺、确切年代、原器颜色，或把渲染光影当成磨损或氧化痕迹。",
+      "aliases": [
+        "纹样",
+        "鼎腹",
+        "器腹",
+        "线条",
+        "寓意"
+      ],
+      "publishedAt": "2026-11-21T16:00:00Z"
+    },
+    {
+      "id": "LS-DING-RECORD-02",
+      "revision": 1,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "zh-CN",
+      "status": "PUBLISHED",
+      "text": "克利夫兰艺术博物馆编号 1962.281 的公开记录没有填写出土地，流传记录列表也是空的。字段为空只说明这一条记录没有填写，不能据此断定实物没有其他考古线索。",
+      "aliases": [
+        "出土地",
+        "哪里出土",
+        "洛阳出土",
+        "来源",
+        "流传"
+      ],
+      "publicSource": "https://openaccess-api.clevelandart.org/api/artworks/138016",
+      "publishedAt": "2026-11-21T16:00:00Z"
+    },
+    {
+      "id": "LS-DING-MODEL-02",
+      "revision": 1,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "zh-CN",
+      "status": "PUBLISHED",
+      "text": "渲染图能确认的是外表面的形状。原器的重量、内壁、铭文和真实颜色不在图版里，不能从这几张图判断。",
+      "aliases": [
+        "能看到什么",
+        "模型能看什么",
+        "内壁",
+        "铭文",
+        "重量"
+      ],
+      "publicSource": null,
+      "publishedAt": "2026-11-21T16:00:00Z"
+    },
+    {
+      "id": "LS-DING-PERIOD",
+      "revision": 1,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "zh-CN",
+      "status": "PUBLISHED",
+      "text": "你眼前的是数字模型。克利夫兰艺术博物馆将它参考的实物《Tripod (Ding)》（馆藏号 1962.281）定为商代安阳时期，约公元前 1250 至前 1046 年。安阳时期是馆方使用的文化分期，出土地需要另行查证。",
+      "aliases": [
+        "什么年代",
+        "哪个朝代",
+        "何时铸造",
+        "什么时候做",
+        "多少年历史",
+        "断代"
+      ],
+      "publicSource": "https://www.clevelandart.org/art/1962.281",
+      "publishedAt": "2026-11-21T16:00:00Z"
+    },
+    {
+      "id": "LS-DING-SIZE",
+      "revision": 1,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "zh-CN",
+      "status": "PUBLISHED",
+      "text": "克利夫兰艺术博物馆的馆藏记录显示，参考实物《Tripod (Ding)》（馆藏号 1962.281）的整体尺寸为 24.5 × 20 厘米。馆方在这一字段中只列了两个整体尺寸数值。数字模型与鼎耳、鼎足等局部尺寸需另行测量。",
+      "aliases": [
+        "整体尺寸",
+        "它多大",
+        "尺寸多少"
+      ],
+      "publicSource": "https://www.clevelandart.org/art/1962.281",
+      "publishedAt": "2026-11-21T16:00:00Z"
+    }
+  ]
+}

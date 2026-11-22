@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { chromium, expect } from '@playwright/test'
 import { createServer } from 'vite'
@@ -8,6 +9,9 @@ const capture = process.env.LUOSHENG_REVIEW_CAPTURE
 const manual = process.argv.includes('--manual-preview')
 const benchmark = process.env.LUOSHENG_BENCHMARK === '1'
 const unified = process.env.LUOSHENG_UNIFIED_CHECK === '1'
+const voice = JSON.parse(await readFile(new URL('../../docs/plans/luosheng-copy/voice.zh-CN.json', import.meta.url), 'utf8'))
+const sourceHint = voice.actionTemplates.source
+const missingFindSpot = voice.insufficient.template.replace('{missing}', voice.insufficient.missing.FIND_SPOT)
 if (unified) process.env.VITE_GUIDE_UNIFIED_PREVIEW = process.env.LUOSHENG_PREVIEW_MODE === 'model' ? 'model' : 'http'
 if (manual && unified && process.env.LUOSHENG_PREVIEW_MODE !== 'model') {
   process.env.VITE_GUIDE_REVIEWED_PREVIEW = 'true'
@@ -528,7 +532,7 @@ async function checkBrowser(port) {
         await expect.poll(() => motif.evaluate(img => img.naturalWidth)).toBeGreaterThan(0)
         await question.fill('你怎么知道的？')
         await question.press('Enter')
-        await expect(panel.getByText('相关参考资料在下方，你可以点开核对。')).toBeVisible()
+        await expect(panel.getByText(sourceHint, { exact: true })).toBeVisible()
         await expect(panel.getByRole('link', { name: '测试出处' })).toHaveAttribute('href', 'https://museum.example.test/MOTIF')
         await expect(panel.getByRole('button', { name: '看纹样图版' })).toHaveCount(0)
         await expect(panel.getByRole('heading', { name: '沿着鼎腹纹样看' })).toBeVisible()
@@ -549,8 +553,26 @@ async function checkBrowser(port) {
     await captureFollowUpReview(browser, `http://127.0.0.1:${port}`)
     for (const [width, theme] of [[1440, 'light'], [390, 'dark']]) {
       const pointsPage = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' })
+      const timings = {}
       try {
         await pointsPage.addInitScript(value => localStorage.setItem('heluo.theme', value), theme)
+        // Record viewer state changes without polling or modifying the renderer.
+        await pointsPage.addInitScript(() => {
+          const transitions = window.pointCloudTestTransitions = []
+          new MutationObserver(records => {
+            for (const record of records) {
+              if (transitions.length >= 30 || !record.target.closest('.exhibit-viewer-wrap')) continue
+              transitions.push({
+                ms: Math.round(performance.now()),
+                at: Date.now(),
+                attribute: record.attributeName,
+                from: record.oldValue,
+                to: record.target.getAttribute(record.attributeName),
+              })
+            }
+          }).observe(document, { subtree: true, attributes: true, attributeOldValue: true,
+            attributeFilter: ['data-quality', 'data-viewer-state', 'data-point-cloud-state', 'data-render-state'] })
+        })
         if (width === 390) await pointsPage.route(/\.glb(?:[?#]|$)/i, route => route.abort())
         let posts = 0
         pointsPage.on('request', request => {
@@ -566,6 +588,19 @@ async function checkBrowser(port) {
         const start = viewer.locator('.viewer-poster-start')
         if (await start.isVisible()) await start.click()
         await expect(viewer).toHaveAttribute('data-viewer-state', width === 390 ? 'error' : 'ready', { timeout: 30_000 })
+        timings.viewer = Date.now()
+        const canvas = viewer.locator('canvas')
+        const host = viewer.locator('[data-point-cloud-state]')
+        let solid
+        if (width === 1440) {
+          timings.screenshotStart = Date.now()
+          solid = await canvas.screenshot()
+          timings.screenshotEnd = Date.now()
+          // A visitor reads the guide below the viewer. Pause offscreen rendering
+          // before asking, instead of taking a baseline screenshot mid-interaction.
+          await pointsPage.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }))
+          await expect(host).toHaveAttribute('data-render-state', 'paused-offscreen')
+        }
         await input.fill('我想看点云。')
         await input.press('Enter')
         await expect(guide.getByText(/不是文物表面的真实颗粒/)).toBeVisible()
@@ -575,21 +610,17 @@ async function checkBrowser(port) {
           await expect(guide.getByRole('heading', { name: '找一找鼎耳' })).toBeVisible()
         } else {
           const modes = pointsPage.getByRole('group', { name: '展品显示模式' })
-          const host = viewer.locator('[data-point-cloud-state]')
           await expect(modes).toHaveAttribute('data-mode', 'solid')
           await expect(host).toHaveAttribute('data-point-cloud-state', 'idle')
-          const canvas = viewer.locator('canvas')
-          const solid = await canvas.screenshot()
           const [buttonRect, guideRect] = await Promise.all([action.boundingBox(), guide.boundingBox()])
           assert(buttonRect && guideRect && buttonRect.x >= guideRect.x
             && buttonRect.x + buttonRect.width <= guideRect.x + guideRect.width)
-          // Keep the software-rendered viewer in view while focusing the distant control.
+          timings.focusStart = Date.now()
           await action.evaluate(button => button.focus({ preventScroll: true }))
           await expect(action).toBeFocused()
+          timings.confirm = Date.now()
           await pointsPage.keyboard.press('Enter')
           await expect(host).toHaveAttribute('data-point-cloud-state', /loading|ready/)
-          // The renderer pauses offscreen, so sampling can run without competing for software rendering.
-          await pointsPage.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }))
           await expect(host).toHaveAttribute('data-render-state', 'paused-offscreen')
           try {
             await expect(host).toHaveAttribute('data-point-cloud-state', 'ready', { timeout: 40_000 })
@@ -605,6 +636,11 @@ async function checkBrowser(port) {
         }
         assert.equal(posts, 0)
         console.log(`Luosheng point cloud confirmation passed: ${width}px ${theme}`)
+      } catch (error) {
+        const viewerTransitions = await pointsPage.evaluate(() => window.pointCloudTestTransitions).catch(() => null)
+        console.error(`Point cloud viewer transitions (${width}px ${theme}): ${JSON.stringify(viewerTransitions)}`)
+        console.error(`Point cloud test timings (${width}px ${theme}): ${JSON.stringify(timings)}`)
+        throw error
       } finally {
         await pointsPage.close()
       }
@@ -719,20 +755,20 @@ async function checkBrowser(port) {
     await expect(source).toHaveAttribute('href', 'https://museum.example.test/FEET')
     await input.fill('三足的这件鼎是在洛阳出土的吗？')
     await send()
-    await expect(guide.getByText('现有资料不足以判断出土地。所附链接是参考记录，不是出土证明。')).toBeVisible()
+    await expect(guide.getByText(`${missingFindSpot} ${sourceHint}`, { exact: true })).toBeVisible()
     await expect(source).toHaveAttribute('href', 'https://museum.example.test/SOURCE')
     await expect(button('看三足图版')).toHaveCount(0)
     for (const question of ['这是实物拍的照片吗？', '这就是原器真实颜色吧？']) {
       await input.fill(question)
       await send()
-      await expect(guide.getByText('洛笙的图版来自数字模型渲染，不是原器照片，也不能用来确认原器颜色。')).toBeVisible()
+      await expect(guide.getByText('Synthetic reference record', { exact: true })).toBeVisible()
       await expect(source).toHaveAttribute('href', 'https://museum.example.test/SOURCE')
       await expect(button('看三足图版')).toHaveCount(0)
       await expect(guide.getByRole('heading', { name: '数一数鼎足' })).toBeVisible()
     }
     await input.fill('你怎么知道的？')
     await send()
-    await expect(guide.getByText('相关参考资料在下方，你可以点开核对。')).toBeVisible()
+    await expect(guide.getByText(sourceHint, { exact: true })).toBeVisible()
     await expect(source).toHaveAttribute('href', 'https://museum.example.test/SOURCE')
     await expect(button('看三足图版')).toHaveCount(0)
     await expect(guide.getByRole('heading', { name: '数一数鼎足' })).toBeVisible()
@@ -873,7 +909,7 @@ async function checkBrowser(port) {
     await expect(source).toHaveCount(0)
     await input.fill('鼎耳和三足分别怎么观察？')
     await send()
-    await expect(guide.getByText(/Synthetic.*observation.*Synthetic.*observation/)).toBeVisible()
+    await expect(guide.getByText('Synthetic ear observation Synthetic foot observation', { exact: true })).toBeVisible()
     const pairedSources = guide.getByRole('link', { name: /^测试出处 [12]$/ })
     await expect(pairedSources).toHaveCount(2)
     const links = await pairedSources.evaluateAll(items => items.map(item => item.href))
@@ -881,7 +917,7 @@ async function checkBrowser(port) {
     await expect(guide.getByRole('button', { name: /^看.*图版$/ })).toHaveCount(0)
     await input.fill('你怎么知道的？')
     await send()
-    await expect(guide.getByText('相关参考资料在下方，你可以点开核对。')).toBeVisible()
+    await expect(guide.getByText(sourceHint, { exact: true })).toBeVisible()
     assert.deepEqual(await pairedSources.evaluateAll(items => items.map(item => item.href)), links)
     await input.fill('材质检测做过吗？')
     await send()

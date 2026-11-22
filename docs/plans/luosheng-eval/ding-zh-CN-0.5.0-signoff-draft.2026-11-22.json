@@ -1,0 +1,85 @@
+{
+  "content": {
+    "reference": "Codex 回复批注 fdf68636-c108-4945-82fd-73556a2d3438",
+    "role": "项目用户（本次内容审核结论确认）",
+    "reviewedOn": "2026-11-22",
+    "decision": "APPROVED",
+    "candidateSha256": "1f8d3c15ab6bc7d9b694eb212205778e2d27d82f8c7017333c8521342405d1cf",
+    "cards": [
+      {
+        "id": "LS-DING-SOURCE",
+        "revision": 2
+      },
+      {
+        "id": "LS-DING-EARS",
+        "revision": 1
+      },
+      {
+        "id": "LS-DING-FEET",
+        "revision": 1
+      },
+      {
+        "id": "LS-DING-MOTIF",
+        "revision": 2
+      },
+      {
+        "id": "LS-DING-RECORD-02",
+        "revision": 1
+      },
+      {
+        "id": "LS-DING-MODEL-02",
+        "revision": 1
+      },
+      {
+        "id": "LS-DING-PERIOD",
+        "revision": 1
+      },
+      {
+        "id": "LS-DING-SIZE",
+        "revision": 1
+      }
+    ]
+  },
+  "assets": {
+    "reference": "Codex 回复批注 fdf68636-c108-4945-82fd-73556a2d3438",
+    "role": "项目用户（本次素材审核结论确认）",
+    "reviewedOn": "2026-11-22",
+    "decision": "APPROVED",
+    "candidateSha256": "1f8d3c15ab6bc7d9b694eb212205778e2d27d82f8c7017333c8521342405d1cf",
+    "cards": [
+      {
+        "id": "LS-DING-SOURCE",
+        "revision": 2
+      },
+      {
+        "id": "LS-DING-EARS",
+        "revision": 1
+      },
+      {
+        "id": "LS-DING-FEET",
+        "revision": 1
+      },
+      {
+        "id": "LS-DING-MOTIF",
+        "revision": 2
+      },
+      {
+        "id": "LS-DING-RECORD-02",
+        "revision": 1
+      },
+      {
+        "id": "LS-DING-MODEL-02",
+        "revision": 1
+      },
+      {
+        "id": "LS-DING-PERIOD",
+        "revision": 1
+      },
+      {
+        "id": "LS-DING-SIZE",
+        "revision": 1
+      }
+    ],
+    "scope": "仅限本候选八卡关联的现有图版与模型在受控内部试用中使用；不登记为独立馆方凭据或公网发布批准。"
+  }
+}
