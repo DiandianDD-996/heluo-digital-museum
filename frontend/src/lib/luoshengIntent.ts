@@ -186,6 +186,8 @@ export function parseIntent(question: string, context: IntentContext): Intent {
   if (discovery.kind === 'clarify-discovery') return { kind: 'discovery-clarify' }
   if (stops.length) return { kind: 'site-navigation', stops }
   if (/网站|博物馆|带我|逛|介绍|开始|你好|能做什么|路线/.test(topic)) return { kind: 'site-page', route: 'home' }
+  const offTopicNoise = !/[\u4e00-\u9fff]/.test(topic) || /天气|机票|外卖|股票|笑话|写代码|翻译/.test(topic)
+  if (context.onArtifact && !offTopicNoise && topic.length >= 2) return { kind: 'object-evidence' }
   return { kind: 'unknown' }
 }
 

@@ -17,11 +17,10 @@ import { useLocale } from '../stores/locale'
 import { unifiedGuideEnabled, useLuoshengVisit } from '../stores/luoshengVisit'
 
 const route = useRoute()
-const LuoshengPreset = import.meta.env.VITE_GUIDE_PRESET_ENABLED === 'true' ||
-  (import.meta.env.VITE_GUIDE_SITE_ENABLED === 'true' && import.meta.env.VITE_GUIDE_TURNS_ENABLED === 'true')
+const LuoshengPreset = import.meta.env.VITE_GUIDE_ENABLED === 'true'
+  || import.meta.env.VITE_GUIDE_PRESET_ENABLED === 'true'
+  || (import.meta.env.VITE_GUIDE_SITE_ENABLED === 'true' && import.meta.env.VITE_GUIDE_TURNS_ENABLED === 'true')
   ? defineAsyncComponent(() => import('../components/LuoshengPreset.vue')) : null
-const LuoshengPreview = import.meta.env.DEV && !LuoshengPreset
-  ? defineAsyncComponent(() => import('../components/LuoshengPreview.vue')) : null
 const router = useRouter()
 const { locale } = useLocale()
 const imageFailed = ref(false)
@@ -238,15 +237,11 @@ onBeforeUnmount(() => { detailRequestId += 1; gsapContext?.revert(); window.remo
       <div v-if="artifact.collectionLocation" data-motion="facts"><dt>{{ copy.location }}</dt><dd>{{ artifact.collectionLocation }}</dd></div>
     </dl>
 
-    <LuoshengPreview
-      v-if="LuoshengPreview && !isEnglish && artifact?.slug === GUIDE_ARTIFACT && artifact.exhibits.some(item => item.slug === GUIDE_EXHIBIT)"
-      place="artifact"
-    />
     <LuoshengPreset
       v-if="LuoshengPreset && !isEnglish && artifact?.slug === GUIDE_ARTIFACT && artifact.exhibits.some(item => item.slug === GUIDE_EXHIBIT)"
       :exhibit-slug="GUIDE_EXHIBIT"
     />
-    <button v-if="visit?.object?.path === route.path && (!visit.object.exhibit || !LuoshengPreview)" type="button"
+    <button v-if="visit?.object?.path === route.path" type="button"
       class="museum-button" @click="visit.openFrom($event.currentTarget as HTMLElement)">问洛笙</button>
     <section class="detail-reading"><aside data-motion="reading-note"><span>{{ copy.contents }}</span><nav v-if="contents.length > 1" class="detail-toc" :aria-label="copy.contents"><a v-for="item in contents" :key="item.id" :href="`#${item.id}`">{{ item.title }}</a></nav><p v-else>{{ copy.note }}</p><p v-if="isConcept" class="detail-source">{{ copy.source }}</p><i data-motion="reading-rule" aria-hidden="true"></i></aside><div class="detail-content"><template v-for="(block, index) in contentBlocks" :key="`${index}-${block.text}`"><h2 v-if="block.heading" :id="`reading-section-${index}`" data-motion="paragraph">{{ block.text }}</h2><p v-else data-motion="paragraph"><PlainTextLinks :text="block.text" /></p></template></div></section>
 

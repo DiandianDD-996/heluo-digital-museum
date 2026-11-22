@@ -4,10 +4,10 @@ import type { Router } from 'vue-router'
 import { GUIDE_ARTIFACT, type GuideStop } from '../lib/luoshengPreview'
 
 export const unifiedGuidePreview = import.meta.env.DEV && !(
-  import.meta.env.VITE_GUIDE_PRESET_ENABLED === 'true'
+  import.meta.env.VITE_GUIDE_ENABLED === 'true' || import.meta.env.VITE_GUIDE_PRESET_ENABLED === 'true'
 ) && ['http', 'model'].includes(import.meta.env.VITE_GUIDE_UNIFIED_PREVIEW)
-export const unifiedGuideTurns = import.meta.env.VITE_GUIDE_SITE_ENABLED === 'true'
-  && import.meta.env.VITE_GUIDE_TURNS_ENABLED === 'true'
+export const unifiedGuideTurns = import.meta.env.VITE_GUIDE_ENABLED === 'true'
+  || (import.meta.env.VITE_GUIDE_SITE_ENABLED === 'true' && import.meta.env.VITE_GUIDE_TURNS_ENABLED === 'true')
 export const unifiedGuideEnabled = unifiedGuidePreview || unifiedGuideTurns
 
 type PublicObject = {

@@ -87,7 +87,7 @@ const turns = useLuoshengTurns<Reply>(scope, async ({ question, lookpoint, signa
     const item = result.items[0]
     if (!item) return { text: copy(ui.site.searchEmpty, { keyword: intent.keyword }), stops: ['explore'] }
     let directPlate = item.slug === GUIDE_ARTIFACT && unifiedGuidePreview
-    if (import.meta.env.VITE_GUIDE_TURNS_ENABLED === 'true' && item.slug === GUIDE_ARTIFACT && !directPlate) {
+    if (unifiedGuideTurns && item.slug === GUIDE_ARTIFACT && !directPlate) {
       const preset = await apiGet<{ available: boolean; entries: { cardId: string }[] }>(
         '/guide/exhibits/heluo-bronze-ding-3d?locale=zh-CN', undefined, { signal, timeoutMs: 3000 },
       ).catch(() => null)
@@ -126,6 +126,7 @@ watch(() => visit?.openRequest, async () => {
   input.value?.focus()
 }, { flush: 'post' })
 const unifiedReply = computed(() => turns.state.value.status === 'answered' ? turns.state.value.answer : null)
+const recentHistory = computed(() => turns.history.value.slice(-5, -1))
 const replyPlate = computed(() => unifiedReply.value?.plate ?? unifiedReply.value?.observations?.[0])
 const readingTarget = computed(() => {
   if (!visit?.lookpoint || object.value?.slug !== GUIDE_ARTIFACT) return null
@@ -350,6 +351,12 @@ watch(() => visit?.targetFailure, failure => {
         </button>
       </header>
       <div v-if="visit" class="site-guide-body">
+        <ol v-if="recentHistory.length" class="site-guide-history" aria-label="最近对话记录">
+          <li v-for="(turn, idx) in recentHistory" :key="`${idx}-${turn.question}`" class="site-guide-history-item">
+            <p class="site-guide-history-q"><strong>问：</strong>{{ turn.question }}</p>
+            <p class="site-guide-history-a">{{ turn.answer.text }}</p>
+          </li>
+        </ol>
         <div class="site-guide-response">
           <img v-if="unifiedReply?.cover && unifiedReply.cover !== failedCover" :key="unifiedReply.cover"
             :src="unifiedReply.cover" class="site-guide-cover" alt="" width="64" height="64" decoding="async"
@@ -772,4 +779,23 @@ watch(() => visit?.targetFailure, failure => {
   /* Keep the composer reachable at browser zoom without hiding questions off to the side. */
   .site-guide-prompts { max-block-size: 22dvh; overflow-y: auto; scrollbar-width: thin; }
 }
+.site-guide-history {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 .55rem;
+  display: grid;
+  gap: .45rem;
+  border-bottom: 1px solid var(--guide-edge);
+  max-block-size: 10rem;
+  overflow-y: auto;
+  font-size: .82rem;
+  color: var(--guide-muted);
+}
+.site-guide-history-item { display: grid; gap: .15rem; }
+.site-guide-history-q, .site-guide-history-a {
+  margin: 0;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+.site-guide-history-q strong { color: var(--guide-ink); }
 </style>

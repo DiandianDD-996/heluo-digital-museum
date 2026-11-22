@@ -46,7 +46,7 @@ const isAdminRoute = computed(() => route.path.startsWith('/admin'))
 const showMobileTabs = computed(() => !isAdminRoute.value && !route.path.startsWith('/login') && !route.path.startsWith('/reset-password'))
 const shellRouteClass = computed(() => `app-shell--${String(route.name ?? 'unknown')}`)
 const showSiteFooter = computed(() => !isAdminRoute.value && route.name !== 'appointment' && route.name !== 'shop')
-const SiteGuide = import.meta.env.DEV || import.meta.env.VITE_GUIDE_SITE_ENABLED === 'true'
+const SiteGuide = import.meta.env.VITE_GUIDE_ENABLED === 'true' || import.meta.env.VITE_GUIDE_SITE_ENABLED === 'true'
   ? defineAsyncComponent(() => import('./components/LuoshengSiteGuide.vue'))
   : null
 const siteGuideRoutes = ['home', 'explore', 'artifact-detail', 'article-detail', 'exhibits', 'exhibit-detail', 'appointment', 'shop']

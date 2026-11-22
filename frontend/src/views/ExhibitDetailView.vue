@@ -7,7 +7,7 @@ import { Box, Connection, InfoFilled, VideoPlay } from '@element-plus/icons-vue'
 import { qualityLabel, type PointCloudQuality } from '../lib/pointCloudQuality'
 import { apiGet } from '../lib/api'
 import BottomSheet from '../components/BottomSheet.vue'
-import { GUIDE_ARTIFACT, GUIDE_EXHIBIT, readGuideHandoff, type GuideView } from '../lib/luoshengPreview'
+import { GUIDE_ARTIFACT, GUIDE_EXHIBIT, readGuideHandoff } from '../lib/luoshengPreview'
 import { useLocale } from '../stores/locale'
 import { unifiedGuideEnabled, useLuoshengVisit } from '../stores/luoshengVisit'
 import { createGsapContext, isConstrainedGsapReveal, shouldRunGsapReveal } from '../lib/gsap'
@@ -26,11 +26,10 @@ interface Exhibit {
 interface ViewerController { rotate:()=>void; zoomIn:()=>void; zoomOut:()=>void; resetView:()=>void; setView:(view:ViewName, options?: { animated?: boolean })=>void; setMode:(mode:'solid'|'points')=>void }
 
 const route = useRoute()
-const LuoshengPreset = import.meta.env.VITE_GUIDE_PRESET_ENABLED === 'true' ||
-  (import.meta.env.VITE_GUIDE_SITE_ENABLED === 'true' && import.meta.env.VITE_GUIDE_TURNS_ENABLED === 'true')
+const LuoshengPreset = import.meta.env.VITE_GUIDE_ENABLED === 'true'
+  || import.meta.env.VITE_GUIDE_PRESET_ENABLED === 'true'
+  || (import.meta.env.VITE_GUIDE_SITE_ENABLED === 'true' && import.meta.env.VITE_GUIDE_TURNS_ENABLED === 'true')
   ? defineAsyncComponent(() => import('../components/LuoshengPreset.vue')) : null
-const LuoshengPreview = import.meta.env.DEV && !LuoshengPreset
-  ? defineAsyncComponent(() => import('../components/LuoshengPreview.vue')) : null
 const { locale } = useLocale()
 const exhibit = ref<Exhibit|null>(null)
 const loading = ref(true)
@@ -116,11 +115,6 @@ const exhibitDescription = computed(() => {
 const renderedQuality = computed(() => locale.value === 'zh-CN' ? qualityLabel(renderQuality.value) : ({ high:'High quality', medium:'Balanced quality', low:'Performance mode', mobile:'Mobile quality', fallback:'Solid fallback' }[renderQuality.value]))
 const activeModel = computed(() => exhibit.value ? selectExhibitModelSource(exhibit.value, preferMobileModel.value) : null)
 const viewerInteractive = computed(() => viewerRuntimeState.value === 'ready')
-const guidePointCloud = computed(() => {
-  if (!viewerInteractive.value || renderQuality.value === 'fallback' || pointCloudFailed.value) return undefined
-  if (pointCloudLoading.value) return 'loading'
-  return displayMode.value === 'points' ? 'active' : 'ready'
-})
 const posterStatus = computed(() => viewerRuntimeState.value === 'error' ? viewerRuntimeError.value || copy.value.viewerUnavailable : copy.value.posterHint)
 const formattedModelSize = computed(() => {
   const bytes = activeModel.value?.sizeBytes
@@ -271,14 +265,6 @@ function selectMode(mode:'solid'|'points') {
 }
 function togglePointCloud() { selectMode(displayMode.value === 'points' ? 'solid' : 'points') }
 function chooseView(view:ViewName) { if (!viewerInteractive.value) return; activeView.value = view; viewer.value?.setView(view, { animated: true }) }
-function orientFromGuide(view: GuideView) {
-  if (!viewerInteractive.value) return
-  chooseView(view)
-  root.value?.querySelector('.exhibit-scene')?.scrollIntoView({ behavior: 'instant', block: 'start' })
-}
-function showGuidePoints() {
-  if (guidePointCloud.value === 'ready') selectMode('points')
-}
 function reset() { if (!viewerInteractive.value) return; activeView.value = 'front'; viewer.value?.resetView() }
 onMounted(load)
 watch(() => route.params.slug, load)
@@ -364,14 +350,6 @@ onBeforeUnmount(() => {
       <div class="view-switcher" data-motion="dock-section"><h2>{{ copy.viewsTitle }}</h2><div tabindex="0" role="group" :aria-label="copy.viewsTitle"><button v-for="view in views" :key="view.key" type="button" :class="{ active: activeView === view.key }" :data-view="view.key" :aria-label="view.label" :aria-pressed="activeView === view.key" :disabled="!viewerInteractive" @click="chooseView(view.key)"><img :src="view.thumbnail || exhibit.coverImageUrl" alt=""/><span>{{ view.label }}</span></button></div></div>
       <div class="exhibit-location" data-motion="dock-section"><svg viewBox="0 0 120 54" aria-hidden="true"><path d="M5 34 C18 8 34 42 51 20 S82 13 96 31 108 44 116 18"/><circle cx="8" cy="33" r="3"/></svg><p><span>{{ copy.current }}</span><b>{{ displayTitle }}</b>{{ exhibit.collectionLocation || copy.digitalExhibit }}</p></div>
     </section>
-    <LuoshengPreview
-      v-if="LuoshengPreview && locale === 'zh-CN' && exhibit.slug === GUIDE_EXHIBIT && exhibit.artifact.slug === GUIDE_ARTIFACT"
-      place="exhibit"
-      :viewer-status="viewerRuntimeState === 'ready' || viewerRuntimeState === 'error' || viewerRuntimeState === 'poster' ? viewerRuntimeState : 'loading'"
-      :point-cloud="guidePointCloud"
-      @orient="orientFromGuide"
-      @show-points="showGuidePoints"
-    />
     <LuoshengPreset
       v-if="LuoshengPreset && locale === 'zh-CN' && exhibit.slug === GUIDE_EXHIBIT && exhibit.artifact.slug === GUIDE_ARTIFACT"
       :exhibit-slug="GUIDE_EXHIBIT"

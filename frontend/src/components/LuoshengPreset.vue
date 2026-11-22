@@ -72,7 +72,7 @@ onBeforeUnmount(() => {
 })
 
 watch(selectedCard, card => {
-  if (import.meta.env.VITE_GUIDE_TURNS_ENABLED !== 'true' || !card || ApprovedFigure.value
+  if (!unifiedGuideTurns || !card || ApprovedFigure.value
     || figureFailed.value || figureTimeout !== undefined) return
   const settle = (component?: Component) => {
     if (figureTimeout === undefined) return
