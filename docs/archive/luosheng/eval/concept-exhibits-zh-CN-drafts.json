@@ -1,0 +1,145 @@
+{
+  "formatVersion": 1,
+  "releaseVersion": 1,
+  "status": "BLOCKED_REVIEW_BUNDLE",
+  "notes": [
+    "本文件是送审草稿，不是可发布卡包：所有卡片为 DRAFT，不得配置到任何环境。",
+    "来源是本馆自有展签正文（backend/src/main/resources/db/migration/V19__expand_artifact_editorial_content.sql），publicSource 为空是刻意的：这些概念展品没有外部馆藏记录。",
+    "阻塞项：玉璧只有测试夹具，没有生产 3D 展项与图版；水鸟既没有 3D 展项，也没有可用的看点词汇。两件都要先有展项、图版和档案，才能进入问答。",
+    "水鸟若要上线，必须新增看点词汇（如翼、喙、颈），这超出当前 ear/feet/motif 枚举，属于 ADR-008 记录的边界。"
+  ],
+  "cards": [
+    {
+      "id": "LS-JADE-IDENT-01",
+      "revision": 1,
+      "exhibitSlug": "river-map-jade-bi-3d",
+      "artifactSlug": "river-map-jade-bi",
+      "locale": "zh-CN",
+      "status": "DRAFT",
+      "text": "这是一件项目组自主创作的玉璧概念展品，不对应真实馆藏。它没有考古出土地、年代或流传记录。",
+      "aliases": ["是真的吗", "哪件馆藏", "出土", "年代", "哪里的"],
+      "publicSource": null
+    },
+    {
+      "id": "LS-JADE-FORM-01",
+      "revision": 1,
+      "exhibitSlug": "river-map-jade-bi-3d",
+      "artifactSlug": "river-map-jade-bi",
+      "locale": "zh-CN",
+      "status": "DRAFT",
+      "text": "外缘是一个完整圆形，中央有孔。外圆把视线聚拢，中孔又让视线穿过器物，实体和空处互相定义。",
+      "aliases": ["外缘", "圆孔", "中间的孔", "形状", "器形"],
+      "publicSource": null
+    },
+    {
+      "id": "LS-JADE-MAT-01",
+      "revision": 1,
+      "exhibitSlug": "river-map-jade-bi-3d",
+      "artifactSlug": "river-map-jade-bi",
+      "locale": "zh-CN",
+      "status": "DRAFT",
+      "text": "玉石的光泽不像镜面那样立刻夺目，要移动视角才看得见细微变化。切割、钻孔、研磨和抛光都是长时间的劳动。",
+      "aliases": ["材质", "玉", "光泽", "怎么做的", "工艺"],
+      "publicSource": null
+    },
+    {
+      "id": "LS-JADE-MEAN-01",
+      "revision": 1,
+      "exhibitSlug": "river-map-jade-bi-3d",
+      "artifactSlug": "river-map-jade-bi",
+      "locale": "zh-CN",
+      "status": "DRAFT",
+      "text": "圆形玉器在传统文化里常被联系到完整、循环、身份和礼仪。不同年代和语境中的含义并不相同，不能用一句固定答案概括。",
+      "aliases": ["象征", "寓意", "什么意思", "代表什么"],
+      "publicSource": null
+    },
+    {
+      "id": "LS-JADE-VIEW-01",
+      "revision": 1,
+      "exhibitSlug": "river-map-jade-bi-3d",
+      "artifactSlug": "river-map-jade-bi",
+      "locale": "zh-CN",
+      "status": "DRAFT",
+      "text": "数字图像可以放大纹理，但不能完全替代光线在真实表面上缓慢移动的经验。看这件作品时，可以一次只观察一个转折或一道细纹。",
+      "aliases": ["怎么看", "观看方法", "数字和实物", "放大"],
+      "publicSource": null
+    },
+    {
+      "id": "LS-JADE-LIMIT-01",
+      "revision": 1,
+      "exhibitSlug": "river-map-jade-bi-3d",
+      "artifactSlug": "river-map-jade-bi",
+      "locale": "zh-CN",
+      "status": "DRAFT",
+      "text": "概念作品的材料、工艺和尺寸都来自创作者设定，不构成对某件古代玉器的说明。",
+      "aliases": ["有多大", "多重", "什么材料", "是不是仿制的"],
+      "publicSource": null
+    },
+    {
+      "id": "LS-BIRD-IDENT-01",
+      "revision": 1,
+      "exhibitSlug": "water-bird-bronze-3d",
+      "artifactSlug": "water-bird-bronze",
+      "locale": "zh-CN",
+      "status": "DRAFT",
+      "text": "这是一件项目组自主创作的水鸟青铜概念雕塑，不是真实馆藏的复原，也没有考古记录。",
+      "aliases": ["是真的吗", "哪件馆藏", "出土", "复原", "仿制"],
+      "publicSource": null
+    },
+    {
+      "id": "LS-BIRD-FORM-01",
+      "revision": 1,
+      "exhibitSlug": "water-bird-bronze-3d",
+      "artifactSlug": "water-bird-bronze",
+      "locale": "zh-CN",
+      "status": "DRAFT",
+      "text": "水鸟昂首而立，细长颈部把视线从足部引向头部，收拢的双翼让身体保持稳定。静止的姿态里保留了欲行、欲飞的张力。",
+      "aliases": ["造型", "脖子", "翅膀", "姿态", "形态"],
+      "publicSource": null
+    },
+    {
+      "id": "LS-BIRD-MAT-01",
+      "revision": 1,
+      "exhibitSlug": "water-bird-bronze-3d",
+      "artifactSlug": "water-bird-bronze",
+      "locale": "zh-CN",
+      "status": "DRAFT",
+      "text": "青铜通常给人厚重、坚固的印象，这件作品却把坚硬材料和柔软羽翼放在一起。表面的连续线条提示羽毛、水波和时间流动，不是对古代纹样的复制。",
+      "aliases": ["材质", "青铜", "纹样", "线条", "表面"],
+      "publicSource": null
+    },
+    {
+      "id": "LS-BIRD-MEAN-01",
+      "revision": 1,
+      "exhibitSlug": "water-bird-bronze-3d",
+      "artifactSlug": "water-bird-bronze",
+      "locale": "zh-CN",
+      "status": "DRAFT",
+      "text": "中国早期器物中常见鸟、兽和复合动物形象，它们可能关联环境观察、身份表达或礼仪想象。面对概念作品，我们不替历史给出唯一答案。",
+      "aliases": ["象征", "寓意", "什么意思", "代表什么"],
+      "publicSource": null
+    },
+    {
+      "id": "LS-BIRD-VIEW-01",
+      "revision": 1,
+      "exhibitSlug": "water-bird-bronze-3d",
+      "artifactSlug": "water-bird-bronze",
+      "locale": "zh-CN",
+      "status": "DRAFT",
+      "text": "数字放大让我们看清纹线，也提醒我们把目光放回真实的河流和生命环境。鸟需要湿地，聚落依赖水系。",
+      "aliases": ["怎么看", "观看方法", "环境", "生态"],
+      "publicSource": null
+    },
+    {
+      "id": "LS-BIRD-LIMIT-01",
+      "revision": 1,
+      "exhibitSlug": "water-bird-bronze-3d",
+      "artifactSlug": "water-bird-bronze",
+      "locale": "zh-CN",
+      "status": "DRAFT",
+      "text": "这件作品的年代、出土地和制作者都来自创作设定，不能当作某件古代器物的说明。",
+      "aliases": ["年代", "什么时候做的", "谁做的", "出土地"],
+      "publicSource": null
+    }
+  ]
+}

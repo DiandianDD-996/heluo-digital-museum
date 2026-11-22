@@ -78,7 +78,7 @@ docs/plans/2026-11-21-luosheng-smart-usable-master.md、ADR-006、ADR-007。
 在 C:\Users\Jie\Documents\博物馆 中执行洛笙“智能与易用”改造。
 
 必读：AGENTS.md、PROJECT_STATUS.md、本总方案、地基方案、上一轮 Goal A 的执行记录。
-前置门禁：Goal A 已完成，WP1 结论、WP2 语料、WP3 句级校验的测试全部通过；`docs/plans/luosheng-copy/` 四份源文件已存在并完成馆方审阅；工作树干净。任一不满足则停止。
+前置门禁：Goal A 已完成，WP1 结论、WP2 语料、WP3 句级校验的测试全部通过；`docs/plans/luosheng-copy/` 五份源文件已存在并完成馆方审阅；工作树干净。任一不满足则停止。
 
 按 INT-1 → INT-2 → INT-5 → INT-3 → INT-4 顺序执行。
 INT-2（受控分类器）和任何新增公共端点，在实现前必须先向用户说明请求/响应、限流、隐私影响，得到确认后才写代码。
@@ -255,7 +255,7 @@ INT-2（受控分类器）和任何新增公共端点，在实现前必须先向
 | `COPY-GUIDE.md` | 语气标准、事实三分、禁用词、改写对照 | 不打包，供审阅与测试引用 |
 | `voice.zh-CN.json` | 非事实文案：开场、过渡、缺证、澄清、降级 | `backend/src/main/resources/guide/voice.zh-CN.json` |
 | `ui.zh-CN.json` | 界面文案与无障碍标签 | `frontend/src/assets/guide/ui.zh-CN.json` |
-| `suggested-questions.zh-CN.json` | 建议问题库 | 合并进 `lexicon.zh-CN.json` 的 `suggestedQuestions` |
+| `suggested-questions.zh-CN.json` | 建议问题库 | 原样合并进 `lexicon.zh-CN.json` 的 `suggestedQuestions`，由离线测试核对归组、顺序和每条完整内容 |
 | `PROMPT-v6.md` | 生成提示词与输出契约 | `GuideStructuredGenerator` 的系统提示词 |
 
 集成规则：
@@ -478,7 +478,7 @@ INT-2（受控分类器）和任何新增公共端点，在实现前必须先向
 - [ ] INT-4 至少 8 张卡完成双签，覆盖 top 10 问题中的 8 个。
 - [ ] 8 人试用达到 §9 指标，或明确标记“样本不足、不达标”。
 - [ ] 50 条抽样回答人工核对，无依据断言 = 0。
-- [ ] 文案源包（`docs/plans/luosheng-copy/`）已由馆方审阅并冻结 SHA-256；运行时副本与源包一致。
+- [ ] 文案源包（`docs/plans/luosheng-copy/`）已由馆方审阅并冻结 SHA-256；运行时副本与源包一致。待馆方审阅可核对[待审指纹](luosheng-eval/copy-review-candidate.sha256)，此清单不代表批准。
 - [ ] 默认关闭构建的隔离测试通过；开启构建在 390/1440、深浅主题下主路径通过。
 - [ ] 暂停开关、撤回卡、迟到答复、模型超时/繁忙/额度/网络故障各复验一次。
 - [ ] 回滚方案：关闭前端开关即可回到纯公开浏览；不依赖数据库回滚。
@@ -542,11 +542,18 @@ INT-2（受控分类器）和任何新增公共端点，在实现前必须先向
 | B | INT-1 | 通过 | `codex/feat-guide-baseline` + 未提交变更 | 词表通过 657 项前端测试、类型检查与 `--check` 一致性校验；删除卡片别名时校验以退出码 1 失败 | [执行记录](luosheng-eval/optimization-run-log.md#2026-11-21--int-1-语言资产数据化) | 仅前端；新增别名无需改码，新增看点仍受 `GuideStop` 约束 |
 | B | INT-5 | 通过 | `codex/feat-guide-baseline` + 未提交变更 | 前端 82 文件 669 项、类型检查、构建与预算全过；缺证分类待服务端字段 | [执行记录](luosheng-eval/optimization-run-log.md#2026-11-21--int-5-交互易用性) | 未做 390/1440 实页观感 |
 | B | INT-2 | 未开始 | | | | |
-| B | INT-3 | 已实现，待放行验收 | `e0b1177` + 未提交变更 | v6 固定语料 7/10 接受、无依据 0/3 通过；声音包 SHA-256 故障注入和全部工程命令见执行日志 | [执行记录](luosheng-eval/optimization-run-log.md#2026-11-21--int-3-声音包与生成-v6) | 不启用向导；候选实页和真实模型未验 |
-| B | INT-4 | 未开始 | | | | |
-| B | INT-5 | 未开始 | | | | |
-| C | INT-6 | 未开始 | | | | |
-| C | 发布门禁 | 未开始 | | | | |
+| B | INT-3 | 已实现，待放行验收 | `f33d311` + 未提交变更 | v6 固定语料 7/10 接受、无依据 0/3 通过；八卡本机实页复验展签、图版替代文字、导航、馆藏检索和预约交接文案 | [原执行记录](luosheng-eval/optimization-run-log.md#2026-11-21--int-3-声音包与生成-v6) · [文案补迁](luosheng-eval/optimization-run-log.md#2026-11-22--正式导览回复文案补迁) | 生产默认关闭；新文案指纹待馆方审阅，真实模型未验 |
+| B | INT-4 | 草稿已交付，待人工签核 | `f33d311` + 未提交变更 | 鼎新增 9 张草稿、概念展品 12 张草稿（阻塞）；两份 JSON 解析通过，全为 DRAFT；离线工具 67 项通过 | [执行记录](luosheng-eval/optimization-run-log.md#2026-11-21--int-4-内容冲刺草稿) | 未签核；只有鼎有 3D 展项 |
+| B | INT-4 送审预检 | 部分通过，仍待审 | `f33d311` + 未提交变更 | 旧六卡现有指纹匹配、退出码 2；新九卡补审阅字段并通过结构与 claim 检查；全量离线 69 项通过 | [预检](luosheng-eval/optimization-run-log.md#2026-11-22--int-4-青铜鼎送审预检) · [建议队列](luosheng-eval/content-queue.md) | 鼎 15/20、双签 0、正式覆盖未验；未生成正式指纹 |
+| B | INT-4 草稿补齐 | 鼎 20/20 份编辑草稿，待人工签核 | `f33d311` + 未提交变更 | 新增 5 张含 1 张仅编辑参考；离线 70 项通过；旧六卡签核预检仍退出 2 | [执行记录](luosheng-eval/optimization-run-log.md#2026-11-22--int-4-青铜鼎草稿补齐) | 首批建议 8 张未送，双签 0，高频覆盖未验；两件概念展品仍阻塞 |
+| B | INT-5／INT-3 实页复验 | 本机合成候选通过 | `f33d311` + 未提交变更 | 默认关闭隔离；390px 深色／1440px 浅色澄清、建议换行、跨页与失败回退 | [复验](luosheng-eval/optimization-run-log.md#2026-11-22--int-5int-3-双视口与默认关闭复验) | 非正式批次，不替代签核、真机读屏、真人或真实模型试用 |
+| B | INT-5 交叉主题与原生缩放 | 本机合成候选通过 | `f33d311` + 未提交变更 | Chrome 390／1440px 深浅四组、1440px 原生 200% 深浅两组、2× CSS reflow；短视口建议保留换行与键盘可达 | [扩展复验](luosheng-eval/optimization-run-log.md#2026-11-22--int-5-交叉主题与原生缩放复验) | 不是正式签核候选，不替代移动真机、读屏、真实模型或真人试用 |
+| B | INT-4 首批八稿人工交接 | 材料预检完成，未送审 | `f33d311` + 未提交变更 | 八稿原文、修订和来源定位；旧六卡现有指纹匹配；离线 72 项通过 | [人工交接](luosheng-eval/content-queue.md#8-首批八张的人工审阅材料) | 新两稿未冻结；双签 0，正式覆盖未验 |
+| B | INT-4 首批八卡冻结 | 审阅候选已生成 | `f33d311` + 未提交变更 | `0.5.0-draft` 八卡原文、编号和修订不变，指纹已登记；无生效时间 | [冻结记录](luosheng-eval/content-queue.md#10-八卡冻结审阅候选) | 草稿审阅通过，不等于冻结候选正式双签 |
+| B | INT-4 八卡签核材料 | 已出包，仅供核对 | `f33d311` + 未提交变更 | 与冻结八卡逐字匹配；2099 年占位，指纹已登记 | [签核材料](luosheng-eval/content-queue.md#11-仅供签核的八卡文件不部署) | 不挂载；真实候选须另定时间和核对双签 |
+| B | INT-4 八卡受控候选 | 用户已确认两项审核；本机展示通过 | `f33d311` + 未提交变更 | 同一指纹与八卡修订预检通过；隔离 Chrome 在 1440px 浅色／390px 深色核对原文、出处与缺证 | [候选登记](luosheng-eval/content-queue.md#13-2026-11-22-受控试用候选待双签) · [本机复跑](2026-11-19-luosheng-acceptance.md#本机体验正式全站导览) | 不替代独立原件核对、真实高频覆盖、馆方文案批准或公网发布许可 |
+| C | INT-6 | 门禁未到：暂不执行 | | 工作树未清，签核与真人试用结果未齐 | [试用手册](2026-11-21-luosheng-trial-kit.md) · [结果空表](luosheng-eval/trial-results-template.md) | 尚未实现 helpful 计数；未收集数据，不代填试用与人工抽查结果 |
+| C | 发布门禁 | 已核对工程证据，保持默认关闭 | `f33d311` + 未提交变更 | 默认产物隔离、开启态浏览器、八卡本机展示与停用路径已验证；不是同批正式实例验收 | [放行记录](2026-11-19-luosheng-acceptance.md#unified-release-record) | 缺独立馆方批准、正式受控实例与模型授权、真实高频覆盖、真机、8 人试用与 50 条实际回答核验，未放行 |
 
 ---
 
