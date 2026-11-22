@@ -53,14 +53,15 @@ final class GuideEvidenceFileSource implements GuideEvidenceReader.Source {
                 throw new IllegalArgumentException("Unapproved evidence pack");
             }
             Pack pack = READER.readValue(bytes);
-            if (pack == null || pack.formatVersion() != 1 || pack.releaseVersion() < minimumReleaseVersion()
+            if (pack == null || (pack.formatVersion() != 1 && pack.formatVersion() != 2)
+                    || pack.releaseVersion() < minimumReleaseVersion()
                     || pack.cards() == null) {
                 throw new IllegalArgumentException("Invalid pack");
             }
             var ids = new HashSet<String>();
             return pack.cards().stream().map(row -> {
                         if (row == null) throw new IllegalArgumentException("Null evidence row");
-                        return row.toEvidence(ids);
+                        return row.toEvidence(ids, pack.formatVersion());
                     })
                     .filter(evidence -> evidence.card().exhibitSlug().equals(exhibitSlug)
                             && evidence.card().locale().equals(locale))
@@ -104,12 +105,25 @@ final class GuideEvidenceFileSource implements GuideEvidenceReader.Source {
 
     private record Row(String id, int revision, String exhibitSlug, String artifactSlug, String locale,
                        Status status, String publishedAt, String expiresAt, String text,
-                       List<String> aliases, String publicSource, ClaimRow claim) {
-        Evidence toEvidence(HashSet<String> ids) {
+                       List<String> aliases, String publicSource, ClaimRow claim,
+                       String stop, List<String> spoken, List<String> boundary, List<String> systemConstraints) {
+        Evidence toEvidence(HashSet<String> ids, int formatVersion) {
+            boolean v2 = formatVersion == 2;
+            List<String> spokenList = spoken == null ? List.of() : spoken;
+            List<String> boundaryList = boundary == null ? List.of() : boundary;
+            List<String> constraintsList = systemConstraints == null ? List.of() : systemConstraints;
+            String effectiveText = !missing(text) ? text
+                    : (v2 && !spokenList.isEmpty()
+                            ? String.join("", spokenList) + (boundaryList.isEmpty() ? "" : String.join("", boundaryList))
+                            : null);
             if (missing(id) || !ids.add(id) || revision < 1 || missing(exhibitSlug) || missing(artifactSlug)
                     || missing(locale) || status == null || aliases == null
-                    || (status == Status.PUBLISHED && (missing(publishedAt) || missing(text)))
-                    || aliases.stream().anyMatch(Row::missing)) {
+                    || (status == Status.PUBLISHED && (missing(publishedAt) || missing(effectiveText)))
+                    || (v2 && status == Status.PUBLISHED && spokenList.isEmpty())
+                    || aliases.stream().anyMatch(Row::missing)
+                    || spokenList.stream().anyMatch(Row::missing)
+                    || boundaryList.stream().anyMatch(Row::missing)
+                    || constraintsList.stream().anyMatch(Row::missing)) {
                 throw new IllegalArgumentException("Invalid evidence row");
             }
             URI source = publicSource == null ? null : URI.create(publicSource);
@@ -118,8 +132,9 @@ final class GuideEvidenceFileSource implements GuideEvidenceReader.Source {
                 throw new IllegalArgumentException("Invalid public source");
             }
             return new Evidence(new Card(id, revision, exhibitSlug, artifactSlug, locale, status,
-                    parseTime(publishedAt), parseTime(expiresAt)), text, aliases, source,
-                    claim == null ? null : new GuideEvidenceReader.Claim(claim.key(), claim.value()));
+                    parseTime(publishedAt), parseTime(expiresAt)), effectiveText, aliases, source,
+                    claim == null ? null : new GuideEvidenceReader.Claim(claim.key(), claim.value()),
+                    spokenList, boundaryList, constraintsList);
         }
 
         private static boolean missing(String value) {

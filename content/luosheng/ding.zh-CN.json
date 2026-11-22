@@ -1,0 +1,235 @@
+{
+  "formatVersion": 2,
+  "releaseVersion": 5,
+  "cards": [
+    {
+      "id": "LS-DING-SOURCE",
+      "revision": 3,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "zh-CN",
+      "status": "PUBLISHED",
+      "stop": null,
+      "spoken": [
+        "这件数字鼎参考的是克利夫兰艺术博物馆馆藏编号 1962.281 的青铜鼎（Tripod）。",
+        "页面里的图版由项目数字模型渲染而成，方便你换角度观察外轮廓。"
+      ],
+      "boundary": [
+        "馆方公开记录未填写出土地，现有资料不能确认或排除洛阳出土。",
+        "这些图版不是原器照片，不能代表原器真实颜色；该条目也不说明原物归本馆所有、模型是原始扫描或参考馆官方复原。"
+      ],
+      "systemConstraints": [],
+      "text": "这件数字鼎参考的是克利夫兰艺术博物馆馆藏编号 1962.281 的青铜鼎（Tripod）。页面里的图版由项目数字模型渲染而成，方便你换角度观察外轮廓。馆方公开记录未填写出土地，现有资料不能确认或排除洛阳出土。这些图版不是原器照片，不能代表原器真实颜色；该条目也不说明原物归本馆所有、模型是原始扫描或参考馆官方复原。",
+      "aliases": [
+        "出处",
+        "来源",
+        "出土地",
+        "原器照片",
+        "原器颜色",
+        "数字重制",
+        "克利夫兰",
+        "哪家博物馆"
+      ],
+      "publicSource": "https://www.clevelandart.org/art/1962.281",
+      "publishedAt": "2026-11-22T00:00:00Z"
+    },
+    {
+      "id": "LS-DING-EARS",
+      "revision": 2,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "zh-CN",
+      "status": "PUBLISHED",
+      "stop": "ear",
+      "spoken": [
+        "从上往下看，鼎口两边各立起一只像把手的结构，展签里称它为鼎耳。",
+        "你可以切到俯视图，对比口沿两侧这对立耳的轮廓。"
+      ],
+      "boundary": [
+        "虽然它长得像把手，但光凭外形还不能判断原物当年的用途、搬运方式或受力能力。"
+      ],
+      "systemConstraints": [
+        "cannot-infer-visitor-side"
+      ],
+      "text": "从上往下看，鼎口两边各立起一只像把手的结构，展签里称它为鼎耳。你可以切到俯视图，对比口沿两侧这对立耳的轮廓。虽然它长得像把手，但光凭外形还不能判断原物当年的用途、搬运方式或受力能力。",
+      "aliases": [
+        "鼎耳",
+        "耳朵",
+        "把手",
+        "双耳",
+        "俯视",
+        "立起"
+      ],
+      "publishedAt": "2026-11-22T00:00:00Z"
+    },
+    {
+      "id": "LS-DING-FEET",
+      "revision": 2,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "zh-CN",
+      "status": "PUBLISHED",
+      "stop": "feet",
+      "spoken": [
+        "侧面看只有两条腿，是因为第三只足正好被鼎身挡住了。",
+        "换到背面，中间和两边一共三只足都能清楚看见。"
+      ],
+      "boundary": [
+        "两张图的差别只是固定视角下的遮挡，不能据此判断原器缺损、断裂或修补过。"
+      ],
+      "systemConstraints": [
+        "camera-is-not-gaze"
+      ],
+      "text": "侧面看只有两条腿，是因为第三只足正好被鼎身挡住了。换到背面，中间和两边一共三只足都能清楚看见。两张图的差别只是固定视角下的遮挡，不能据此判断原器缺损、断裂或修补过。",
+      "aliases": [
+        "鼎足",
+        "三足",
+        "两足",
+        "两条腿",
+        "腿",
+        "脚",
+        "背视",
+        "侧视"
+      ],
+      "publishedAt": "2026-11-22T00:00:00Z"
+    },
+    {
+      "id": "LS-DING-MOTIF",
+      "revision": 3,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "zh-CN",
+      "status": "PUBLISHED",
+      "stop": "motif",
+      "spoken": [
+        "看正面局部图，鼎口下方器腹一圈有凸出的宽线，可以顺着它看清向内转折的轮廓。"
+      ],
+      "boundary": [
+        "这张局部图只能用来看轮廓，不能据此判断纹样寓意、具体工艺、确切年代或原器颜色，也不要把渲染光影当成氧化或磨损痕迹。"
+      ],
+      "systemConstraints": [],
+      "text": "看正面局部图，鼎口下方器腹一圈有凸出的宽线，可以顺着它看清向内转折的轮廓。这张局部图只能用来看轮廓，不能据此判断纹样寓意、具体工艺、确切年代或原器颜色，也不要把渲染光影当成氧化或磨损痕迹。",
+      "aliases": [
+        "纹样",
+        "花纹",
+        "鼎腹",
+        "器腹",
+        "肚子",
+        "宽线",
+        "线条",
+        "寓意",
+        "氧化",
+        "磨损"
+      ],
+      "publishedAt": "2026-11-22T00:00:00Z"
+    },
+    {
+      "id": "LS-DING-RECORD-02",
+      "revision": 2,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "zh-CN",
+      "status": "PUBLISHED",
+      "stop": null,
+      "spoken": [
+        "克利夫兰艺术博物馆编号 1962.281 的公开记录里，出土地一栏是空的，流传记录也没有填写。"
+      ],
+      "boundary": [
+        "记录为空只代表这条公开档案没有填写，不能据此断定实物没有其他考古线索，也不能确认它是洛阳出土。"
+      ],
+      "systemConstraints": [],
+      "text": "克利夫兰艺术博物馆编号 1962.281 的公开记录里，出土地一栏是空的，流传记录也没有填写。记录为空只代表这条公开档案没有填写，不能据此断定实物没有其他考古线索，也不能确认它是洛阳出土。",
+      "aliases": [
+        "出土地",
+        "哪里出土",
+        "洛阳出土",
+        "流传",
+        "发掘"
+      ],
+      "publicSource": "https://openaccess-api.clevelandart.org/api/artworks/138016",
+      "publishedAt": "2026-11-22T00:00:00Z"
+    },
+    {
+      "id": "LS-DING-MODEL-02",
+      "revision": 2,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "zh-CN",
+      "status": "PUBLISHED",
+      "stop": null,
+      "spoken": [
+        "这里的数字模型和渲染图主要帮你看清器物的外表面形状。"
+      ],
+      "boundary": [
+        "原器的重量、内壁、铭文和真实颜色都不在图版信息里，不能从这几张图判断。"
+      ],
+      "systemConstraints": [],
+      "text": "这里的数字模型和渲染图主要帮你看清器物的外表面形状。原器的重量、内壁、铭文和真实颜色都不在图版信息里，不能从这几张图判断。",
+      "aliases": [
+        "能看到什么",
+        "模型能看什么",
+        "内壁",
+        "铭文",
+        "重量",
+        "多重"
+      ],
+      "publicSource": null,
+      "publishedAt": "2026-11-22T00:00:00Z"
+    },
+    {
+      "id": "LS-DING-PERIOD",
+      "revision": 2,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "zh-CN",
+      "status": "PUBLISHED",
+      "stop": null,
+      "spoken": [
+        "你眼前的是数字模型。克利夫兰艺术博物馆把参考实物定在商代安阳时期，约公元前 1250 至前 1046 年。"
+      ],
+      "boundary": [
+        "“安阳时期”是馆方使用的文化分期，出土地仍需另行查证，现有资料不支持更细的年份或王世断代。"
+      ],
+      "systemConstraints": [],
+      "text": "你眼前的是数字模型。克利夫兰艺术博物馆把参考实物定在商代安阳时期，约公元前 1250 至前 1046 年。“安阳时期”是馆方使用的文化分期，出土地仍需另行查证，现有资料不支持更细的年份或王世断代。",
+      "aliases": [
+        "什么年代",
+        "哪个朝代",
+        "何时铸造",
+        "什么时候做",
+        "多少年历史",
+        "断代",
+        "年代"
+      ],
+      "publicSource": "https://www.clevelandart.org/art/1962.281",
+      "publishedAt": "2026-11-22T00:00:00Z"
+    },
+    {
+      "id": "LS-DING-SIZE",
+      "revision": 2,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "zh-CN",
+      "status": "PUBLISHED",
+      "stop": null,
+      "spoken": [
+        "克利夫兰艺术博物馆的公开记录显示，参考实物的整体尺寸是 24.5 × 20 厘米。"
+      ],
+      "boundary": [
+        "馆方记录只列出了整体尺寸的两个数值；数字模型以及鼎耳、鼎足等局部尺寸需要另行测量。"
+      ],
+      "systemConstraints": [],
+      "text": "克利夫兰艺术博物馆的公开记录显示，参考实物的整体尺寸是 24.5 × 20 厘米。馆方记录只列出了整体尺寸的两个数值；数字模型以及鼎耳、鼎足等局部尺寸需要另行测量。",
+      "aliases": [
+        "整体尺寸",
+        "它多大",
+        "尺寸多少",
+        "多大",
+        "尺寸",
+        "高度"
+      ],
+      "publicSource": "https://www.clevelandart.org/art/1962.281",
+      "publishedAt": "2026-11-22T00:00:00Z"
+    }
+  ]
+}

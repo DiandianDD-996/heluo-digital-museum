@@ -26,12 +26,30 @@ final class GuideEvidenceReader {
         }
     }
 
-    record Evidence(Card card, String text, List<String> aliases, URI publicSource, Claim claim) {
+    record Evidence(Card card, String text, List<String> aliases, URI publicSource, Claim claim,
+                    List<String> spoken, List<String> boundary, List<String> systemConstraints) {
         Evidence(Card card, String text, List<String> aliases, URI publicSource) {
             this(card, text, aliases, publicSource, null);
         }
+        Evidence(Card card, String text, List<String> aliases, URI publicSource, Claim claim) {
+            this(card, text, aliases, publicSource, claim,
+                    text == null || text.isBlank() ? List.of() : List.of(text), List.of(), List.of());
+        }
         Evidence {
             aliases = List.copyOf(aliases);
+            spoken = spoken == null || spoken.isEmpty()
+                    ? (text == null || text.isBlank() ? List.of() : List.of(text))
+                    : List.copyOf(spoken);
+            boundary = boundary == null ? List.of() : List.copyOf(boundary);
+            systemConstraints = systemConstraints == null ? List.of() : List.copyOf(systemConstraints);
+        }
+
+        String spokenText() {
+            return spoken.isEmpty() ? text : String.join("", spoken);
+        }
+
+        String boundaryText() {
+            return String.join("", boundary);
         }
     }
 

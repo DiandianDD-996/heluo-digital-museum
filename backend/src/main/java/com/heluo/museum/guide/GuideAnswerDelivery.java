@@ -40,14 +40,16 @@ final class GuideAnswerDelivery {
                 || selection.result().evidence().isEmpty()) {
             return Optional.empty();
         }
-        var answer = linkedProvenance(selection, selection.result().evidence().get(0).text());
+        var card = selection.result().evidence().get(0);
+        String body = card.boundary().isEmpty() ? card.spokenText() : card.spokenText() + "\n" + card.boundaryText();
+        var answer = linkedProvenance(selection, body);
         return session.isCurrent(selection) ? answer : Optional.empty();
     }
 
     Optional<Answer> deliverPeriod(GuideRetrievalSession session, GuideRetrievalSession.Selection selection) {
         if (!session.isCurrent(selection)) return Optional.empty();
         var answer = switch (selection.result().kind()) {
-            case PERIOD -> linkedProvenance(selection, selection.result().evidence().get(0).text());
+            case PERIOD -> linkedProvenance(selection, selection.result().evidence().get(0).spokenText());
             case PERIOD_REFERENCE -> linkedProvenance(selection, voice.missing("PERIOD") + "\n" + voice.sourceAction());
             default -> Optional.<Answer>empty();
         };
@@ -67,7 +69,7 @@ final class GuideAnswerDelivery {
             }
             String text = part.fact() == GuideFollowUpRetrieval.Fact.FIND_SPOT
                     ? unsupported + "\n" + voice.sourceAction()
-                    : cards.get(0).text();
+                    : cards.get(0).spokenText();
             var answer = linkedProvenance(selection, text, cards);
             sentences.add(answer.map(Answer::text).orElse(unsupported));
             answer.ifPresent(value -> value.citations().forEach(citation -> references.add(citation.reference())));
@@ -97,7 +99,7 @@ final class GuideAnswerDelivery {
         if (!session.isCurrent(selection) || selection.result().kind() != GuideFollowUpRetrieval.Kind.PLATE_OBSERVATION) {
             return Optional.empty();
         }
-        var answer = verifiedProvenance(selection, selection.result().evidence().get(0).text());
+        var answer = verifiedProvenance(selection, selection.result().evidence().get(0).spokenText());
         return session.isCurrent(selection) ? answer : Optional.empty();
     }
 

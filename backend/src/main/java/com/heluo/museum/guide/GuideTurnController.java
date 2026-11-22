@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
-@ConditionalOnProperty(name = "museum.guide.turns-enabled", havingValue = "true")
+@ConditionalOnExpression("${museum.guide.enabled:false} || ${museum.guide.turns-enabled:false}")
 class GuideTurnController {
     private static final Logger LOG = LoggerFactory.getLogger(GuideTurnController.class);
     private static final String VISITS = GuideTurnController.class.getName() + ".visits";
@@ -54,13 +54,15 @@ class GuideTurnController {
             @Value("${museum.guide.minimum-version-path}") String minimum,
             @Value("${museum.guide.approved-digest-path}") String digest,
             @Value("${museum.guide.profile-path:}") String profilePath,
-            @Value("${museum.guide.model-endpoint}") URI endpoint,
-            @Value("${museum.guide.model-name}") String model,
-            @Value("${museum.guide.model-key}") String key,
-            @Value("${museum.guide.daily-turn-limit}") int dailyLimit,
-            @Value("${museum.guide.pause-path}") String pausePath) {
-        if (pack.isBlank() || minimum.isBlank() || digest.isBlank()
-                || !"https".equals(endpoint.getScheme()) || dailyLimit < 1) {
+            @Value("${museum.guide.model-enabled:true}") boolean modelEnabled,
+            @Value("${museum.guide.model-endpoint:}") URI endpoint,
+            @Value("${museum.guide.model-name:}") String model,
+            @Value("${museum.guide.model-key:}") String key,
+            @Value("${museum.guide.daily-turn-limit:200}") int dailyLimit,
+            @Value("${museum.guide.max-concurrent-generations:4}") int maxConcurrentGenerations,
+            @Value("${museum.guide.pause-path:}") String pausePath) {
+        if (pack.isBlank() || minimum.isBlank() || digest.isBlank() || dailyLimit < 1 || maxConcurrentGenerations < 1
+                || (modelEnabled && (endpoint == null || !"https".equals(endpoint.getScheme())))) {
             throw new IllegalArgumentException("Missing guide evidence or approved model configuration");
         }
         visibility = new GuideEvidenceVisibility(jdbc, clock);
@@ -70,16 +72,18 @@ class GuideTurnController {
         profiles = GuideProfile.load(profilePath);
         retrieval = new GuideFollowUpRetrieval(reader, profiles);
         var generationRejections = metrics.counter("museum.guide.generation.rejected");
-        var generator = new GuideStructuredGenerator(new GuideChatCompletionModel(endpoint, model, key),
-                generationRejections::increment, voice);
-        pauseFile = pausePath.isBlank() ? null : Path.of(pausePath);
         var generationStarts = metrics.counter("museum.guide.generation.started");
+        GuideQuestionTurn.Generator generator = modelEnabled
+                ? new GuideStructuredGenerator(new GuideChatCompletionModel(endpoint, model, key),
+                        generationRejections::increment, voice)
+                : input -> java.util.Optional.empty();
+        pauseFile = pausePath.isBlank() ? null : Path.of(pausePath);
         flow = new GuideQuestionTurn(reader, input -> {
             generationStarts.increment();
             LOG.info("event=guide_generation_started");
             return generator.generate(input);
-        }, 1, Duration.ofSeconds(8),
-                new GuideDailyGenerationLimit(clock, dailyLimit), voice);
+        }, maxConcurrentGenerations, Duration.ofSeconds(8),
+                new GuideDailyGenerationLimit(clock, dailyLimit), voice, modelEnabled);
     }
 
     @PostMapping(path = "/api/v1/guide/turns", consumes = "application/json")

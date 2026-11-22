@@ -181,10 +181,9 @@ final class GuideFollowUpRetrieval {
             if (recent != null && recent.exhibitSlug().equals(exhibitSlug) && recent.locale().equals(locale)) {
                 return resolve(exhibitSlug, locale, List.of(recent.reference()), Kind.EVIDENCE);
             }
-            var observations = reader.listPublished(exhibitSlug, locale).stream()
-                    .filter(item -> item.publicSource() == null)
-                    .limit(3).toList();
-            if (!observations.isEmpty()) return new Result(Kind.EVIDENCE, observations);
+            var allVisible = reader.listPublished(exhibitSlug, locale).stream()
+                    .limit(8).toList();
+            if (!allVisible.isEmpty()) return new Result(Kind.EVIDENCE, allVisible);
         }
         return new Result(Kind.INSUFFICIENT_EVIDENCE, List.of());
     }

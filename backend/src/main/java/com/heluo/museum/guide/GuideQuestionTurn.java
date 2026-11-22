@@ -10,13 +10,32 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /** Internal question flow; the caller supplies an explicitly selected generator. */
 final class GuideQuestionTurn {
-    record EvidenceExcerpt(Reference reference, String text) {}
+    record EvidenceExcerpt(Reference reference, String text, List<String> spoken, List<String> boundary) {
+        EvidenceExcerpt(Reference reference, String text) {
+            this(reference, text, text == null || text.isBlank() ? List.of() : List.of(text), List.of());
+        }
+        EvidenceExcerpt {
+            spoken = spoken == null || spoken.isEmpty()
+                    ? (text == null || text.isBlank() ? List.of() : List.of(text))
+                    : List.copyOf(spoken);
+            boundary = boundary == null ? List.of() : List.copyOf(boundary);
+        }
+        String spokenText() {
+            return spoken.isEmpty() ? text : String.join("", spoken);
+        }
+        String boundaryText() {
+            return String.join("", boundary);
+        }
+    }
     record Input(String question, String locale, List<EvidenceExcerpt> evidence, java.util.Set<String> allowedStops) {
         Input(String question, String locale, List<EvidenceExcerpt> evidence) {
             this(question, locale, evidence, java.util.Set.of());
@@ -42,25 +61,38 @@ final class GuideQuestionTurn {
     private final GuideAnswerDelivery delivery;
     private final Generator generator;
     private final Semaphore generationSlots;
+    private final ExecutorService generationPool;
     private final long generationTimeoutNanos;
     private final GuideDailyGenerationLimit dailyLimit;
+    private final boolean modelEnabled;
     private boolean questioningEnabled = true;
     private long questioningVersion;
 
     GuideQuestionTurn(GuideEvidenceReader reader, Generator generator, int maxConcurrentGenerations,
             Duration generationTimeout, GuideDailyGenerationLimit dailyLimit) {
-        this(reader, generator, maxConcurrentGenerations, generationTimeout, dailyLimit, GuideVoice.packaged());
+        this(reader, generator, maxConcurrentGenerations, generationTimeout, dailyLimit, GuideVoice.packaged(), true);
     }
 
     GuideQuestionTurn(GuideEvidenceReader reader, Generator generator, int maxConcurrentGenerations,
             Duration generationTimeout, GuideDailyGenerationLimit dailyLimit, GuideVoice voice) {
+        this(reader, generator, maxConcurrentGenerations, generationTimeout, dailyLimit, voice, true);
+    }
+
+    GuideQuestionTurn(GuideEvidenceReader reader, Generator generator, int maxConcurrentGenerations,
+            Duration generationTimeout, GuideDailyGenerationLimit dailyLimit, GuideVoice voice, boolean modelEnabled) {
         if (maxConcurrentGenerations < 1) throw new IllegalArgumentException("Invalid generation limit");
         generationTimeoutNanos = generationTimeout.toNanos();
         if (generationTimeoutNanos <= 0) throw new IllegalArgumentException("Invalid generation timeout");
         delivery = new GuideAnswerDelivery(reader, voice);
         this.generator = generator;
         this.dailyLimit = Objects.requireNonNull(dailyLimit);
+        this.modelEnabled = modelEnabled;
         generationSlots = new Semaphore(maxConcurrentGenerations);
+        generationPool = Executors.newFixedThreadPool(maxConcurrentGenerations, runnable -> {
+            Thread thread = new Thread(runnable, "luosheng-generation");
+            thread.setDaemon(true);
+            return thread;
+        });
     }
 
     Optional<Reply> ask(GuideRetrievalSession session, String question, UUID requestId) {
@@ -137,13 +169,21 @@ final class GuideQuestionTurn {
     private Optional<Reply> generate(GuideRetrievalSession session, GuideRetrievalSession.Selection selection,
             String question, long version) {
         var evidence = selection.result().evidence().stream().map(item -> new EvidenceExcerpt(
-                new Reference(item.card().id(), item.card().revision()), item.text())).toList();
+                new Reference(item.card().id(), item.card().revision()), item.text(), item.spoken(), item.boundary())).toList();
         if (!session.isCurrent(selection)) return Optional.empty();
-        var generated = awaitDraft(session, selection, new Input(question, selection.locale(), evidence, session.allowedStops()), version);
-        if (generated.failure() != null) {
-            return current(session, selection, new Reply(generated.failure(), null));
+        Draft draft;
+        if (!modelEnabled) {
+            if (evidence.isEmpty()) return current(session, selection, new Reply(ReplyKind.INSUFFICIENT_EVIDENCE, null));
+            var primary = evidence.get(0);
+            draft = new Draft(primary.spokenText(), List.of(primary.reference()));
+        } else {
+            var generated = awaitDraft(session, selection, new Input(question, selection.locale(), evidence, session.allowedStops()), version);
+            if (generated.failure() != null) {
+                return current(session, selection, new Reply(generated.failure(), null));
+            }
+            draft = generated.draft();
         }
-        var answer = delivery.deliver(session, selection, generated.draft());
+        var answer = delivery.deliver(session, selection, draft);
         if (answer.isEmpty()) return current(session, selection, new Reply(ReplyKind.INSUFFICIENT_EVIDENCE, null));
         var verified = answer.get();
         var topic = verified.citations().size() == 1
@@ -165,9 +205,9 @@ final class GuideQuestionTurn {
             Input input, long version) {
         if (!generationSlots.tryAcquire()) return Generation.unavailable(ReplyKind.GENERATION_BUSY);
         var result = new CompletableFuture<Generation>();
-        Thread worker;
+        Future<?> task;
         try {
-            worker = new Thread(null, () -> {
+            task = generationPool.submit(() -> {
                 var generated = Generation.unavailable(ReplyKind.GENERATION_UNAVAILABLE);
                 try {
                     if (session.isCurrent(selection) && !Thread.currentThread().isInterrupted()) {
@@ -186,9 +226,7 @@ final class GuideQuestionTurn {
                     generationSlots.release();
                     result.complete(generated);
                 }
-            }, "luosheng-generation", 0, false);
-            worker.setDaemon(true);
-            worker.start();
+            });
         } catch (RuntimeException | Error startupFailure) {
             generationSlots.release();
             throw startupFailure;
@@ -196,10 +234,10 @@ final class GuideQuestionTurn {
         try {
             return result.get(generationTimeoutNanos, TimeUnit.NANOSECONDS);
         } catch (TimeoutException expired) {
-            worker.interrupt();
+            task.cancel(true);
             return Generation.unavailable(ReplyKind.GENERATION_TIMEOUT);
         } catch (InterruptedException interrupted) {
-            worker.interrupt();
+            task.cancel(true);
             Thread.currentThread().interrupt();
             return Generation.unavailable(ReplyKind.GENERATION_UNAVAILABLE);
         } catch (ExecutionException unavailable) {

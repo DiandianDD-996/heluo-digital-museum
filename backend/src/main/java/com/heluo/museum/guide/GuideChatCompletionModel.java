@@ -38,8 +38,8 @@ final class GuideChatCompletionModel implements GuideStructuredGenerator.Model {
                 Map.of("role", "system", "content", prompt.instructions()),
                 Map.of("role", "user", "content", new String(prompt.payload(), StandardCharsets.UTF_8)));
         var body = JSON.writeValueAsBytes(Map.of("model", model, "messages", messages, "stream", false,
-                "max_tokens", 768, "response_format", Map.of("type", "json_object")));
-        var request = HttpRequest.newBuilder(endpoint).timeout(Duration.ofSeconds(11))
+                "temperature", 0, "max_tokens", 768, "response_format", Map.of("type", "json_object")));
+        var request = HttpRequest.newBuilder(endpoint).timeout(Duration.ofMillis(7500))
                 .header("Authorization", "Bearer " + key)
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofByteArray(body)).build();

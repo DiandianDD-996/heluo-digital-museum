@@ -7,7 +7,7 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@ConditionalOnProperty(name = "museum.guide.preset-enabled", havingValue = "true")
+@ConditionalOnExpression("${museum.guide.enabled:false} || ${museum.guide.preset-enabled:false}")
 class GuideExhibitController {
     private final GuideEvidenceVisibility visibility;
     private final GuideEvidenceReader reader;
@@ -41,7 +41,7 @@ class GuideExhibitController {
             throw new ResourceNotFoundException("Guide exhibit unavailable");
         }
         List<Entry> entries = reader.listPublished(slug, locale).stream()
-                .map(row -> new Entry(row.card().id(), row.card().revision(), row.text(), row.publicSource()))
+                .map(row -> new Entry(row.card().id(), row.card().revision(), row.spokenText(), row.publicSource()))
                 .toList();
         return ResponseEntity.ok().cacheControl(CacheControl.noStore())
                 .body(ApiResponse.ok(new Preset(slug, locale, !entries.isEmpty(), entries), "guide exhibit"));
