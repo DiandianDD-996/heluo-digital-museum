@@ -1,6 +1,6 @@
 # 洛笙 AI 向导：深度评审 + 收敛落地方案
 
-2026-11-22 · 状态：**Phase 0（M0）已完成，待进入 Phase 1（M1）** · 关联：LS-01 ～ LS-08、ADR-006/007/008、[ADR-009](../decisions/ADR-009-luosheng-v1-convergence.md)
+2026-11-22 · 状态：**Phase 0–4 工程全部完成，待 Phase 5 真人试用与演示站上线** · 关联：LS-01 ～ LS-08、ADR-006/007/008、[ADR-009](../decisions/ADR-009-luosheng-v1-convergence.md)
 
 > **决定记录（2026-11-22 用户已全部拍板）：**
 > - D1 作品集与演示站，用户本人即馆方；D2 接话 + 选卡；D3 SiteGuide 唯一问答面板 + Preset 展签只读，删除 Preview；

@@ -84,7 +84,7 @@ flowchart LR
 
 ## 7. 当前状态（≤10 行，只写现在）
 
-- 2026-11-22：ADR-009 已采纳，Phase 0（M0 止血收敛）已完成；历史计划、状态与追踪表已归档，`oracleJdk-27` 已移出仓库。
-- 已确认参数：DeepSeek 每日上限 `200` 次/天；纳入并发池（默认 4）+ `temperature=0`、青铜鼎页大白话放行、5 轮轻量对话流三项修补。
-- 生产仍默认关闭；8 卡为 0.5.0 候选，尚未按 schema v3 改写（Phase 2）。
-- 下一步：执行 Phase 1（M1 真实模型摸底 + 修复 `GuideChatCompletionModel` 参数）。
+- 2026-11-22：Phase 0–4 全部工程与真实 DeepSeek v7 评测已完成（JSON 服从 100%、红队 100%、选卡 88.5%、P95 517ms）。
+- 已交付：`content/luosheng/ding.zh-CN.json`（Schema v3）、`luosheng-structured-v7`、4 并发有界线程池、每日额度 200、大白话通道、`LuoshengPreview` 移除与 5 轮轻量对话流。
+- 剩余放行项（须作者本人完成）：审定 `v3-card-diff.md` 打 tag、抽查 `v7-leads.md`、5 人真人试用 + 真机走查（`trial-v1.md`）、演示站开启与安全阀演练。
+- 下一步：审查 diff 提交后，完成上述人工验收项即可在演示站公开开启。

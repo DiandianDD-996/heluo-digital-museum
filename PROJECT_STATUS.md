@@ -7,26 +7,26 @@
 | 模块 | 当前状态 | 说明 |
 | --- | --- | --- |
 | 数字博物馆主体（前后端 + 3D + 预约 + 商城模拟支付 + 后台） | **已完成并已部署演练** | F-01～F-14、A-01～A-02、N-01～N-06 均已达成；PocketBay 演示站已跑通 |
-| 洛笙 AI 向导（可选扩展 v1） | **Phase 0（M0）已完成，生产默认关闭** | 已采纳 [ADR-009](docs/decisions/ADR-009-luosheng-v1-convergence.md)，唯一活文档见 [docs/luosheng/README.md](docs/luosheng/README.md) |
+| 洛笙 AI 向导（可选扩展 v1） | **Phase 0–4 工程全部落地，待 Phase 5 真人试用与上线开关** | 唯一活文档见 [docs/luosheng/README.md](docs/luosheng/README.md)，决策见 [ADR-009](docs/decisions/ADR-009-luosheng-v1-convergence.md) |
 
 ## 最近完成（2026-11-22）
 
-- **洛笙 Phase 0（M0 止血收尾）完成**：
-  - 未提交改动已拆分为干净提交；`frontend/src/oracleJdk-27/` 已移出仓库至 `C:\Tools\oracleJdk-27`。
-  - 15 份历史洛笙计划与运行日志已归档至 `docs/archive/luosheng/`；`PROJECT_STATUS.md` 与 `docs/01-requirements-traceability.md` 均已瘦身至 ≤150 行。
-  - 用户已拍板：`museum.guide.daily-turn-limit=200`（DeepSeek），并纳入并发线程池（默认 4）+ `temperature=0`、青铜鼎页大白话直通后端、5 轮轻量对话流三项修补。
+- **Phase 0（止血收尾）**：工作树拆分为 3 个干净提交；`oracleJdk-27` 移至 `C:\Tools\oracleJdk-27`；15 份旧计划与历史状态/追踪表归档至 `docs/archive/`。
+- **Phase 1（真实模型摸底 + 参数修复）**：`GuideChatCompletionModel` 补齐 `temperature=0` 与 7.5s 超时对齐；建立 30 题评测集与 `scripts/luosheng-eval.mjs`；实测 DeepSeek v6 基线（红队 0/6、选卡 76.9%，坐实检索与提示词短板）。
+- **Phase 2（8 卡口语化 Schema v3）**：生成 `content/luosheng/ding.zh-CN.json`（`formatVersion: 2`，拆 `spoken`/`boundary`/`systemConstraints`）、SHA-256 指纹与 `v3-card-diff.md` 审定表；后端 `GuideEvidenceFileSource`/`GuideEvidenceReader`/`GuideExhibitController`/`GuideAnswerDelivery` 全面兼容 v1/v2 并默认交付口语句。
+- **Phase 3（生成 v7 接话+选卡 + 并发与大白话通道）**：`GuideStructuredGenerator` 升至 `luosheng-structured-v7`（24 字无事实 `lead` 黑名单 + 选卡 + 程序拼接原文）；`GuideTurnController`/`GuideQuestionTurn` 升级为可配置有界线程池（默认并发 4，每日上限 200）；前端青铜鼎页放行中文大白话。实测 DeepSeek v7（30×2=60 样本）：JSON 服从 100%、红队 100%（12/12）、选卡 88.5%、P95 517ms，并导出 52 条 `lead` 供人工抽查。
+- **Phase 4（界面合一 + 5 轮对话流）**：删除 `LuoshengPreview.vue`；开关收敛为 `VITE_GUIDE_ENABLED`、`museum.guide.enabled`、`museum.guide.model-enabled`（同步 `.env.example`）；`LuoshengSiteGuide.vue` 升级为最近 5 轮轻量对话流；新增 `luosheng-e2e.mjs` 与 `luosheng-isolation.mjs` 统一入口。
+- **Phase 5（上线前准备）**：已生成 [trial-v1.md](docs/luosheng/eval/trial-v1.md) 试用与真机记录表及演示站开启环境变量清单。
 
-## 当前风险与已知待办
+## 当前风险与待人工项（Phase 5 放行前必做）
 
-1. **真实模型表现未测**：`luosheng-structured-v6` 尚未在真实 DeepSeek 上跑过系统基线（Phase 1 优先解决）。
-2. **线上并发与体验阻塞**：当前代码仍为 `maxConcurrentGenerations=1`、无 `temperature=0`、卡片为法务免责腔、前端单轮覆盖框（分别在 Phase 1/2/3/4 解决）。
-3. **测试引用遗留**：`docs/plans/luosheng-eval/` 下 0.5.0 候选快照目前被既有后端/离线测试引用，保留至 Phase 2 切换至 `content/luosheng/ding.zh-CN.json` 后一并清理。
-4. **移动旧版 Chrome 3D 既有问题**：Android V2366HA Chrome 133 存在 WebGL `contextlost`（同机 vivo 浏览器实测可用），暂不阻塞洛笙 v1。
+1. **8 卡单人审签与 52 条 `lead` 人工抽查**：审阅 [v3-card-diff.md](docs/luosheng/eval/v3-card-diff.md) 与 [v7-leads.md](docs/luosheng/eval/v7-leads.md) 确认零新事实、自然度达标后打 tag `luosheng-content-v3.0`。
+2. **5 人真人试用 + 手机真机走查**：由作者本人实测填写 [trial-v1.md](docs/luosheng/eval/trial-v1.md)（目标 ≥4/5 人 2 分钟内说出新细节）。
+3. **演示站开启与安全阀演练**：配置 `VITE_GUIDE_ENABLED=true`、`MUSEUM_GUIDE_ENABLED=true`、`MUSEUM_GUIDE_DAILY_TURN_LIMIT=200` 并演练一次暂停文件与一键关闭。
+4. **移动旧版 Chrome 3D 既有问题**：Android V2366HA Chrome 133 存在 WebGL `contextlost`（同机 vivo 浏览器可用），不阻塞洛笙 v1。
 
-## 下一步（严格按序）
+## 下一步
 
-1. **Phase 1（M1，1 天）**：修复 `GuideChatCompletionModel` 参数（`temperature=0` + 超时对齐），建立 30 题评测集与离线脚本，用真实 DeepSeek 跑通 30×3 基线并按分叉规则决策。
-2. **Phase 2（M2，1.5 天）**：8 张青铜鼎卡片按 Schema v3（`spoken`/`boundary`/`systemConstraints`）口语化改写，单人审签打 tag，清理旧 0.5.0 快照。
-3. **Phase 3（M3，2 天）**：升级生成 v7（接话 + 选卡）、补并发池与青铜鼎页大白话通道。
-4. **Phase 4（M4，1.5 天）**：删除 `LuoshengPreview.vue`、开关 7 合 3、`LuoshengSiteGuide` 补 5 轮对话流、浏览器脚本 11 合 2。
-5. **Phase 5（M5，1.5 天）**：5 人真人试用 + 真机走查 + 演示站公开开启。
+1. 审查本次 `git diff` 后确认提交 Phase 1–4 工程改动。
+2. 完成 [v3-card-diff.md](docs/luosheng/eval/v3-card-diff.md) 审定、[v7-leads.md](docs/luosheng/eval/v7-leads.md) 抽查与 [trial-v1.md](docs/luosheng/eval/trial-v1.md) 5 人试用 + 真机走查。
+3. 开启演示站开关并演练暂停/关闭，正式对外开放洛笙 v1。
