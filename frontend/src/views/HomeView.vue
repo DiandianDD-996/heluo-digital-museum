@@ -613,8 +613,8 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: var(--space-4);
   width: min(calc(100% - 4rem), var(--container-max));
-  margin: auto auto 2.5rem;
-  padding: var(--space-4) 0 var(--space-4);
+  margin: auto auto 4.75rem;
+  padding: var(--space-4) 0 var(--space-3);
   border-top: 1px solid var(--border-hairline);
   font-size: var(--text-xs);
   color: var(--ink-secondary);
@@ -622,9 +622,12 @@ onBeforeUnmount(() => {
 
 .home-cover__ruler {
   position: absolute;
-  inset-inline: 0;
-  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 14px;
   z-index: 3;
+  width: min(calc(100% - 4rem), var(--container-max));
+  padding-right: 7.5rem;
 }
 
 .home-cover__venue {
@@ -724,6 +727,9 @@ onBeforeUnmount(() => {
   z-index: 1;
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
   max-height: 420px;
   object-fit: contain;
   filter: drop-shadow(0 24px 32px oklch(6% 0.004 75 / 0.56));
@@ -1189,8 +1195,24 @@ onBeforeUnmount(() => {
   .home-cover__foot {
     grid-template-columns: 1fr;
     gap: var(--space-2);
-    margin-bottom: 1.5rem;
+    margin-bottom: 3.6rem;
     padding-block: var(--space-3);
+  }
+
+  .home-cover__ruler {
+    width: calc(100% - 2rem);
+    bottom: 10px;
+    padding-right: 0;
+  }
+
+  .home-closeup__prompts {
+    gap: var(--space-2) var(--space-4);
+  }
+
+  .home-closeup__chip {
+    min-width: 44px;
+    padding: 0 0.625rem;
+    justify-content: center;
   }
 
   .home-foot-link {

@@ -810,6 +810,18 @@ onBeforeUnmount(() => {
     padding-bottom: var(--space-5);
     border-bottom: 1px solid var(--border-hairline);
   }
+
+  .detail-toc a {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0.5rem 0 0.5rem var(--space-4);
+  }
+
+  .detail-source a {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
 }
 
 @media (max-width: 760px) {

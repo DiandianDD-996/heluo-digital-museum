@@ -75,14 +75,24 @@ const isInteractive = computed(() => props.variant === 'hero' && props.showPlaca
 
 const placardText = computed(() => {
   const copy = t.value.audio
-  if (!audio.enabled.value) return copy.rulerEnable
+  const defaultName = trackTitle(props.defaultTrack, locale.value)
+  const wrappedDefault = locale.value === 'en-US' ? defaultName : `《${defaultName}》`
+  if (!audio.enabled.value) return `${copy.rulerEnable} · ${wrappedDefault}`
   if (audio.isPaused.value) return copy.rulerResume
   if (audio.isMusicAudible.value) {
     const id = audio.currentTrack.value ?? props.defaultTrack
     const title = trackTitle(id, locale.value)
-    return locale.value === 'en-US' ? title : `《${title}》`
+    const wrapped = locale.value === 'en-US' ? title : `《${title}》`
+    return `${copy.rulerListen} · ${wrapped}`
   }
-  return copy.rulerEnable
+  return `${copy.rulerEnable} · ${wrappedDefault}`
+})
+
+const compactPlacardText = computed(() => {
+  if (!audio.enabled.value) return locale.value === 'en-US' ? 'Soundscape' : '开启声景'
+  if (audio.isPaused.value) return locale.value === 'en-US' ? 'Resume' : '恢复声景'
+  if (audio.isMusicAudible.value) return locale.value === 'en-US' ? 'Listening' : '正在聆听'
+  return locale.value === 'en-US' ? 'Soundscape' : '开启声景'
 })
 
 const buttonAriaLabel = computed(() => {
@@ -239,7 +249,7 @@ function resizeCanvas() {
   if (!ctx) return
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 
-  const targetBars = width < 640 ? 24 : 48
+  const targetBars = width < 640 ? 36 : 60
   if (bars.length !== targetBars) {
     bars = createRulerBars(targetBars)
     energyBuffer = undefined
@@ -374,11 +384,17 @@ defineExpose({ triggerRipple })
     @pointermove="onPointerMove"
     @pointerleave="onPointerLeave"
   >
-    <canvas
-      ref="canvasEl"
-      class="acoustic-ruler__canvas"
-      aria-hidden="true"
-    ></canvas>
+    <span v-if="variant === 'hero'" class="acoustic-ruler__tag font-mono" aria-hidden="true">
+      {{ t.audio.rulerTag }}
+    </span>
+
+    <div class="acoustic-ruler__stage">
+      <canvas
+        ref="canvasEl"
+        class="acoustic-ruler__canvas"
+        aria-hidden="true"
+      ></canvas>
+    </div>
 
     <button
       v-if="isInteractive"
@@ -390,7 +406,8 @@ defineExpose({ triggerRipple })
       @click="toggleAudioFromRuler"
     >
       <span class="acoustic-ruler__dot" aria-hidden="true"></span>
-      <span>{{ placardText }}</span>
+      <span class="acoustic-ruler__label--full">{{ placardText }}</span>
+      <span class="acoustic-ruler__label--compact" aria-hidden="true">{{ compactPlacardText }}</span>
     </button>
   </div>
 </template>

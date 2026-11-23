@@ -37,8 +37,8 @@ describe('acousticRulerEngine', () => {
     const zeroEnergies = sampleBandEnergies(zeroSpectrum, bands)
     expect(Array.from(zeroEnergies).every(v => v === 0)).toBe(true)
 
-    const normZero = normalizeChamberSpectrum(zeroEnergies, 0.18, 0.016, bands)
-    expect(normZero.rollingPeak).toBeGreaterThanOrEqual(0.18)
+    const normZero = normalizeChamberSpectrum(zeroEnergies, 0.12, 0.016, bands)
+    expect(normZero.rollingPeak).toBeGreaterThanOrEqual(0.12)
     expect(Array.from(normZero.values).every(v => v === 0)).toBe(true)
 
     // Simulated gentle chamber music (~25% bin magnitude)
@@ -47,7 +47,7 @@ describe('acousticRulerEngine', () => {
       chamber[i] = Math.round(48 + 24 * Math.sin(i * 0.25))
     }
     const chamberEnergies = sampleBandEnergies(chamber, bands)
-    const normChamber = normalizeChamberSpectrum(chamberEnergies, 0.18, 0.016, bands)
+    const normChamber = normalizeChamberSpectrum(chamberEnergies, 0.12, 0.016, bands)
     expect(normChamber.values.some(v => v > 0.2)).toBe(true)
     expect(Array.from(normChamber.values).every(v => Number.isFinite(v) && v >= 0 && v <= 1)).toBe(true)
   })
@@ -102,8 +102,17 @@ describe('acousticRulerEngine', () => {
     const ctx = {
       clearRect,
       fillRect,
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      quadraticCurveTo: vi.fn(),
+      closePath: vi.fn(),
+      fill: vi.fn(),
+      stroke: vi.fn(),
       createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
       fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 1,
       globalAlpha: 1,
       shadowBlur: 0,
     } as unknown as CanvasRenderingContext2D

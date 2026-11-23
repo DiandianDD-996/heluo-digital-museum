@@ -1052,7 +1052,7 @@ onBeforeUnmount(() => {
 .exhibit-dock {
   position: absolute;
   left: 50%;
-  bottom: 34px;
+  bottom: 54px;
   transform: translateX(-50%);
   z-index: 20;
   display: flex;
@@ -1067,7 +1067,7 @@ onBeforeUnmount(() => {
 .exhibit-scene__ruler {
   position: absolute;
   inset-inline: clamp(20px, 4vw, 56px);
-  bottom: 4px;
+  bottom: 10px;
   z-index: 4;
   pointer-events: none;
 }
@@ -1569,7 +1569,7 @@ onBeforeUnmount(() => {
 @media (max-width: 760px) {
   .exhibit-scene {
     height: calc(100dvh - 64px - 60px);
-    min-height: 520px;
+    min-height: 460px;
   }
 
   .darkroom-topbar {
@@ -1603,7 +1603,18 @@ onBeforeUnmount(() => {
   }
 
   .darkroom-invite {
-    top: 72px;
+    top: 74px;
+    max-width: calc(100% - 1.5rem);
+  }
+
+  .darkroom-invite__enable {
+    min-height: 38px;
+    padding: 0 0.7rem;
+  }
+
+  .darkroom-invite__dismiss {
+    width: 38px;
+    height: 38px;
   }
 
   .darkroom-drawer-toggle,
@@ -1619,7 +1630,7 @@ onBeforeUnmount(() => {
   .exhibit-dock {
     left: var(--space-3);
     right: var(--space-3);
-    bottom: 22px;
+    bottom: 36px;
     transform: none;
     max-width: none;
     gap: var(--space-2);
@@ -1628,7 +1639,7 @@ onBeforeUnmount(() => {
 
   .exhibit-scene__ruler {
     inset-inline: var(--space-3);
-    bottom: 2px;
+    bottom: 6px;
   }
 
   .view-switcher {
@@ -1647,6 +1658,26 @@ onBeforeUnmount(() => {
 
   .view-switcher button {
     padding: 0 0.65rem;
+  }
+}
+
+@media (max-width: 760px) and (max-height: 700px) {
+  .darkroom-topbar {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .darkroom-invite {
+    top: 68px;
+  }
+
+  .exhibit-dock {
+    bottom: 30px;
+    gap: 4px;
+    padding: 6px;
+  }
+
+  .exhibit-scene__ruler {
+    bottom: 4px;
   }
 }
 </style>

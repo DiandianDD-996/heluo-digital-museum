@@ -145,8 +145,17 @@ describe('AcousticRuler.vue', () => {
       setTransform: vi.fn(),
       clearRect: vi.fn(),
       fillRect: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      quadraticCurveTo: vi.fn(),
+      closePath: vi.fn(),
+      fill: vi.fn(),
+      stroke: vi.fn(),
       createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
       fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 1,
       globalAlpha: 1,
     } as unknown as CanvasRenderingContext2D)
   })

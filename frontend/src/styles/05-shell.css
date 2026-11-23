@@ -475,7 +475,12 @@
     }
 
     .site-footer {
-      padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+      padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .site-footer__links a {
+      min-height: 44px;
+      padding-block: 0.25rem;
     }
 
     .mobile-tab-bar {

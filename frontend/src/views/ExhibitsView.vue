@@ -326,6 +326,8 @@ onBeforeUnmount(() => {
 
 .exhibit-showcase__media {
   position: relative;
+  width: 100%;
+  min-width: 0;
   min-height: 440px;
   background-color: var(--surface-vitrine);
   background-image: var(--surface-vitrine-spotlight);
@@ -335,9 +337,12 @@ onBeforeUnmount(() => {
 }
 
 .exhibit-showcase__media img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center 45%;
   transition: transform 520ms var(--ease-curatorial);
 }
 
@@ -441,8 +446,10 @@ onBeforeUnmount(() => {
   }
 
   .exhibit-showcase__media {
-    min-height: 300px;
-    aspect-ratio: 16 / 10;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    aspect-ratio: 4 / 3;
   }
 
   .exhibit-stats {
