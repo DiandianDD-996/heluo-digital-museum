@@ -207,7 +207,7 @@
 
 ## 7. 验证结果记录（执行完成后填写）
 
-- [x] Track 1（Phase 1–2）单测 + 类型检查 + 预算门禁 + Playwright：已通过（`vue-tsc -b` 0 错误、`vitest run` 77 文件 / 432 用例全绿；`vite build` 首屏 JS gzip `79,392 / 81,638 B`、CSS gzip `12,624 / 80,000 B`、WOFF2 `0`、`music-assets-budget.mjs` `4,933,850 / 6,000,000 B`；Playwright `music-r3-browser-check.mjs` 29/29 项、`luosheng-isolation.mjs` 390 深 / 1440 浅与 `acoustic-upgrade-verify.mjs` 全绿，零报错）
+- [x] Track 1（Phase 1–2）单测 + 类型检查 + 预算门禁 + Playwright：已通过（`vue-tsc -b` 0 错误、`vitest run` 77 文件 / 432 用例全绿；`vite build` 首屏 JS gzip `79,614 / 81,638 B`、CSS gzip `12,889 / 80,000 B`、WOFF2 `0`、`music-assets-budget.mjs` `5,001,307 / 6,000,000 B`；Playwright `acoustic-upgrade-verify.mjs` 与 `luosheng-isolation.mjs` 390 深 / 1440 浅全绿，零报错；注：旧版 `music-r3-browser-check.mjs` 因仓库已切换至 R4 `.m4a` 资源路径故跳过）
 - [x] Track 2（Phase 3）3D 声画通感单测 + 暗房实景验收：已通过（`ExhibitDetailView.spec.ts` 覆盖点云低频声场滤镜切换与卸载复位、`part-focus` 立体声像微音效及暗房声景轻邀请持久化；Playwright 1440/390 双主题实景验收零遮挡、零溢出）
 - [x] Track 3（Phase 4）R4 离线质量核验 + 本地试听台用户主观确认：已通过（31 个 CC0 1.0 VCSL 样本审计、8 份 R4 WAV 渲染与 `check-r4.py`/`check-r3.py` 全绿、AAC `.m4a` 96 kbps 4 首合计 `5,001,307 B <= 6,000,000 B`、Playwright `check-preview.mjs --r4` `43/43` 通过；用户已在 `http://127.0.0.1:4197/?revision=r4` 试听确认“采纳 R4 / 进入 Phase 5”）
 - [x] Track 3（Phase 5）生产资源门禁 + ADR 归档 + 全量回归：已通过（部署 `/media/audio/music-r4/` 4 首 AAC `.m4a` + 双 CC0 许可；新增 [ADR-011](../decisions/ADR-011-music-r4-eastern-accents-and-aac-delivery.md)；`vue-tsc -b` 0 错、`vitest run` `77` 文件 / `432/432` 全绿、`vite build` + `bundle-budget` 首屏 JS `79,572 B / 81,638 B` + `music-assets-budget` `5,001,307 / 6,000,000 B` 全绿；Playwright `music-r4-browser-check.mjs` `21/21` 项通过且 `0` 报错）

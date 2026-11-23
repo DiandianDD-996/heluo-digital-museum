@@ -196,5 +196,5 @@ musicBus → duckGain ─┘
 
 - [x] `npm run typecheck`：`vue-tsc -b` 0 错误通过
 - [x] `npm run test`：`vitest run` 77 文件 / 432 用例全部通过（含 `acousticRulerEngine.spec.ts` 5 用例与 `AcousticRuler.spec.ts` 3 用例）
-- [x] `npm run build`（含 `bundle-budget.mjs` 与 `music-assets-budget.mjs`）：通过，首屏 JS gzip `79,392 B / 81,638 B`、`AcousticRuler` 独立懒加载（`4.28 kB` gzip）、CSS gzip `12,624 B / 80,000 B`、WOFF2 `0`、R3 音频 `4,933,850 / 6,000,000 B`
-- [x] Playwright 桌面/移动双主题实景截图与帧耗/停帧检查：通过（`acoustic-upgrade-verify.mjs` 全过；静音态 `0` rAF 绘制、滚离首屏 `0` rAF 绘制；播放态 1440×900 采样 240 帧单帧绘图均值 `0.0442 ms` / 峰值 `0.2 ms` <= `2.5 ms`；1440/390 浅深双主题及实体/点云切换零溢出、零遮挡、零报错）
+- [x] `npm run build`（含 `bundle-budget.mjs` 与 `music-assets-budget.mjs`）：通过，首屏 JS gzip `79,614 B / 81,638 B`、`AcousticRuler` 独立懒加载（`5.07 kB` gzip）、CSS gzip `12,889 B / 80,000 B`、WOFF2 `0`、R4 AAC `.m4a` `5,001,307 / 6,000,000 B`
+- [x] Playwright 桌面/移动双主题实景截图与帧耗/停帧检查：通过（`acoustic-upgrade-verify.mjs` 全过；含玻璃控制台边框、`XII · 十二律吕` 角标、十二律柱、古琴丝弦包络与洛水倒影实景验收；静音态 `0` rAF 绘制、滚离首屏 `0` rAF 绘制；播放态 1440×900 采样 240 帧单帧绘图均值 `0.0738 ms` / 峰值 `0.2 ms` <= `2.5 ms`；1440/390 浅深双主题及实体/点云切换零溢出、零遮挡、零报错）
