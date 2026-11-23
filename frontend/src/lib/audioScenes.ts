@@ -1,7 +1,7 @@
 import type { AmbienceScene } from './audioSystem'
 
-export type MusicScene = 'home' | 'collection' | 'exhibit' | 'story' | 'booking' | 'store' | 'account' | 'quiet'
-export type MusicTrack = 'home' | 'reading' | 'bronze'
+export type MusicScene = 'home' | 'collection' | 'exhibit' | 'story' | 'jade' | 'booking' | 'store' | 'account' | 'quiet'
+export type MusicTrack = 'home' | 'reading' | 'bronze' | 'jade'
 
 export interface MusicRecording {
   track: MusicTrack
@@ -9,22 +9,30 @@ export interface MusicRecording {
   gain: number
 }
 
-// These files already contain the approved scene levels (.8 / .58 / .72).
+// These files already contain the approved R4 scene levels (.8 / .58 / .72 / .67).
 // Compensate for the shared .62 music bus once, rather than also applying
 // the retired synthesizer's instrument gain and making the recordings dim.
 const SCENE_LEVEL = 1 / 0.62
 const recording = (track: MusicTrack, level = 1): MusicRecording => ({
   track,
-  src: `/media/audio/music-r3/${track}-r3.mp3`,
+  src: `/media/audio/music-r4/${track}-r4.m4a`,
   gain: SCENE_LEVEL * level,
 })
+
+export const SCENE_BY_TRACK: Readonly<Record<MusicTrack, MusicScene>> = {
+  home: 'home',
+  reading: 'story',
+  bronze: 'exhibit',
+  jade: 'jade',
+}
 
 export const MUSIC_RECORDINGS: Readonly<Record<MusicScene, MusicRecording | null>> = {
   home: recording('home'),
   collection: recording('home', 0.82),
   store: recording('home', 0.72),
   story: recording('reading'),
-  booking: recording('reading', 0.72),
+  jade: recording('jade'),
+  booking: recording('reading', 0.48),
   account: recording('reading', 0.64),
   exhibit: recording('bronze'),
   quiet: null,
@@ -48,17 +56,20 @@ const SOUNDSCAPES: Record<string, RouteSoundscape> = {
   'exhibit-detail': { ambience: null, music: 'story' },
   appointment: { ambience: null, music: 'booking' },
   shop: { ambience: null, music: 'store' },
-  login: { ambience: null, music: 'account' },
-  'reset-password': { ambience: null, music: 'account' },
+  login: { ambience: null, music: 'quiet' },
+  'reset-password': { ambience: null, music: 'quiet' },
   profile: { ambience: null, music: 'account' },
   admin: { ambience: null, music: 'quiet' },
   'admin-operations': { ambience: null, music: 'quiet' },
   'not-found': { ambience: null, music: 'quiet' },
 }
 
-// Only these two content assignments have been auditioned and approved.
+// Only these content assignments have been auditioned and approved for R4.
 const CONTENT_SOUNDSCAPES: Record<string, RouteSoundscape> = {
   'artifact-detail:water-bird-bronze': { ambience: null, music: 'story' },
+  'artifact-detail:river-map-jade-bi': { ambience: null, music: 'jade' },
+  'artifact-detail:painted-pottery-water-jar': { ambience: null, music: 'jade' },
+  'artifact-detail:river-map-pattern-stone': { ambience: null, music: 'jade' },
   'exhibit-detail:heluo-bronze-ding-3d': { ambience: null, music: 'exhibit' },
 }
 

@@ -6,8 +6,10 @@ import { Box, Connection, InfoFilled, VideoPlay } from '@element-plus/icons-vue'
 import { qualityLabel, type PointCloudQuality } from '../lib/pointCloudQuality'
 import { apiGet } from '../lib/api'
 import BottomSheet from '../components/BottomSheet.vue'
+import AcousticRuler from '../components/AcousticRuler.vue'
 import { GUIDE_ARTIFACT_SLUG, GUIDE_EXHIBIT_SLUG, type GuidePartName } from '../lib/guideTypes'
 import { useLocale } from '../stores/locale'
+import { useAudio } from '../stores/audio'
 import { guideEnabled, useLuoshengStore } from '../stores/luoshengStore'
 import { createGsapContext, isConstrainedGsapReveal, shouldRunGsapReveal } from '../lib/gsap'
 import { audioSystem } from '../lib/audioSystem'
@@ -50,9 +52,27 @@ const route = useRoute()
 const LuoshengPreset = guideEnabled
   ? defineAsyncComponent(() => import('../components/LuoshengPreset.vue')) : null
 const { locale } = useLocale()
+const audio = useAudio()
 const exhibit = ref<Exhibit | null>(null)
 const loading = ref(true)
 const guideStore = guideEnabled ? useLuoshengStore() : null
+
+const DARKROOM_INVITE_DISMISSED_KEY = 'museum-audio-darkroom-invite-dismissed'
+function readInviteDismissed(): boolean {
+  try {
+    return typeof localStorage !== 'undefined' && localStorage.getItem(DARKROOM_INVITE_DISMISSED_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+const inviteDismissed = ref(readInviteDismissed())
+let lastPartFocusSfxAt = 0
+
+const PART_FOCUS_AUDIO: Record<GuidePartName, { rate: number; volume: number; pan: number }> = {
+  ear: { rate: 1.14, volume: 0.16, pan: -0.22 },
+  motif: { rate: 1.0, volume: 0.18, pan: 0 },
+  feet: { rate: 0.84, volume: 0.18, pan: 0.22 },
+}
 
 watch([exhibit, loading], ([item, pending]) => {
   if (!guideStore || pending || !item || route.name !== 'exhibit-detail' || route.params.slug !== item.slug) return
@@ -73,6 +93,7 @@ watch([exhibit, loading], ([item, pending]) => {
 
 const error = ref('')
 const viewer = ref<ViewerController | null>(null)
+const acousticRulerRef = ref<InstanceType<typeof AcousticRuler> | null>(null)
 const displayMode = ref<'solid' | 'points'>('solid')
 const renderQuality = ref<PointCloudQuality>('medium')
 const activeView = ref<ViewName>('front')
@@ -248,6 +269,35 @@ const formattedModelSize = computed(() => {
   if (!bytes || bytes <= 0) return ''
   return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(2)} MB` : `${Math.ceil(bytes / 1024)} KB`
 })
+const showDarkroomInvite = computed(() => (
+  !audio.enabled.value && !inviteDismissed.value && !loading.value && Boolean(exhibit.value)
+))
+const darkroomInviteCopy = computed(() => {
+  const isBronze = exhibit.value?.slug === 'heluo-bronze-ding-3d'
+  if (locale.value === 'en-US') {
+    return {
+      text: isBronze ? 'Enable darkroom soundscape · Warm Bronze' : 'Enable darkroom soundscape · Quiet Reading',
+      enable: 'Enable',
+      dismiss: 'Dismiss soundscape invitation',
+    }
+  }
+  return {
+    text: isBronze ? '开启暗房声景 ·《观器·温金》' : '开启暗房声景 ·《水岸·静读》',
+    enable: '开启',
+    dismiss: '关闭声景邀请',
+  }
+})
+
+function acceptDarkroomInvite() {
+  audio.enable()
+}
+
+function dismissDarkroomInvite() {
+  inviteDismissed.value = true
+  try {
+    localStorage.setItem(DARKROOM_INVITE_DISMISSED_KEY, 'true')
+  } catch { /* Non-fatal if storage is blocked. */ }
+}
 
 function revealExhibitShell() {
   if (!shouldRunGsapReveal() || !root.value || !exhibit.value) return
@@ -337,6 +387,7 @@ function handleViewerState(state: ViewerRuntimeState) {
   if (state === 'ready' && !discoveryCued) {
     discoveryCued = true
     void audioSystem.playNarrative('discovery', { volume: 0.26 })
+    acousticRulerRef.value?.triggerRipple(0.5, 0.55)
   }
   if (state === 'ready' || state === 'error') clearModelPreload()
   if (state !== 'error') viewerRuntimeError.value = ''
@@ -425,10 +476,32 @@ watch(
   { immediate: true },
 )
 
+const PART_RIPPLE_POS: Record<GuidePartName, number> = {
+  ear: 0.34,
+  motif: 0.5,
+  feet: 0.66,
+}
+
 function selectMode(mode: 'solid' | 'points') {
   if (!viewerInteractive.value || (mode === 'points' && pointCloudLoading.value)) return
+  if (mode !== displayMode.value) {
+    acousticRulerRef.value?.triggerRipple(0.5, 0.65)
+  }
   viewer.value?.setMode(mode)
 }
+
+function handlePartFocus(part: GuidePartName) {
+  const now = Date.now()
+  if (now - lastPartFocusSfxAt >= 180) {
+    lastPartFocusSfxAt = now
+    void audioSystem.playInteraction('awaken-bronze', PART_FOCUS_AUDIO[part])
+  }
+  acousticRulerRef.value?.triggerRipple(PART_RIPPLE_POS[part], 0.9)
+}
+
+watch(displayMode, (mode) => {
+  audioSystem.setSpaceAcoustic(mode === 'points' ? 'pointcloud' : 'default')
+}, { immediate: true })
 
 function togglePointCloud() { selectMode(displayMode.value === 'points' ? 'solid' : 'points') }
 function chooseView(view: ViewName) { if (!viewerInteractive.value) return; activeView.value = view; viewer.value?.setView(view, { animated: true }) }
@@ -437,6 +510,7 @@ function reset() { if (!viewerInteractive.value) return; activeView.value = 'fro
 onMounted(load)
 watch(() => route.params.slug, load)
 onBeforeUnmount(() => {
+  audioSystem.setSpaceAcoustic('default')
   gsapContext?.revert()
   clearModelPreload()
 })
@@ -484,6 +558,37 @@ onBeforeUnmount(() => {
         </div>
       </header>
 
+      <Transition name="audio-panel">
+        <div
+          v-if="showDarkroomInvite"
+          class="darkroom-invite"
+          data-glass="dark"
+          data-testid="darkroom-audio-invite"
+          role="region"
+          :aria-label="darkroomInviteCopy.text"
+        >
+          <button
+            type="button"
+            class="darkroom-invite__enable"
+            data-testid="darkroom-invite-enable"
+            @click="acceptDarkroomInvite"
+          >
+            <span class="darkroom-invite__dot" aria-hidden="true"></span>
+            <span>{{ darkroomInviteCopy.text }}</span>
+            <em>{{ darkroomInviteCopy.enable }}</em>
+          </button>
+          <button
+            type="button"
+            class="darkroom-invite__dismiss"
+            data-testid="darkroom-invite-dismiss"
+            :aria-label="darkroomInviteCopy.dismiss"
+            @click="dismissDarkroomInvite"
+          >
+            ×
+          </button>
+        </div>
+      </Transition>
+
       <!-- Full-bleed Studio Darkroom 3D Stage -->
       <div class="exhibit-viewer-wrap" :data-viewer-state="viewerRuntimeState">
         <ThreeExhibitViewer
@@ -497,6 +602,7 @@ onBeforeUnmount(() => {
           initial-mode="solid"
           @mode-change="displayMode = $event"
           @view-change="activeView = $event"
+          @part-focus="handlePartFocus"
           @quality-change="renderQuality = $event"
           @state-change="handleViewerState"
           @point-cloud-state="handlePointCloudState"
@@ -657,6 +763,16 @@ onBeforeUnmount(() => {
           <button data-motion="exhibit-tool" type="button" :aria-label="copy.tools[3]" :title="copy.tools[3]" :disabled="!viewerInteractive" @click="reset">◇</button>
         </div>
       </section>
+
+      <div class="exhibit-scene__ruler">
+        <AcousticRuler
+          ref="acousticRulerRef"
+          variant="darkroom"
+          :visual-mode="displayMode"
+          :show-placard="false"
+          :default-track="exhibit.slug === 'heluo-bronze-ding-3d' ? 'bronze' : 'reading'"
+        />
+      </div>
     </section>
 
     <LuoshengPreset
@@ -866,11 +982,77 @@ onBeforeUnmount(() => {
   display: none;
 }
 
+.darkroom-invite {
+  position: absolute;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 18;
+  display: inline-flex;
+  align-items: center;
+  max-width: calc(100% - 1.5rem);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-md);
+  color: var(--ink-on-dark);
+}
+
+.darkroom-invite__enable {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0 0.75rem 0 1rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.darkroom-invite__enable em {
+  font-style: normal;
+  font-weight: 600;
+  color: oklch(84% 0.058 78);
+  padding-left: 0.25rem;
+}
+
+.darkroom-invite__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: oklch(81% 0.048 78);
+  flex-shrink: 0;
+}
+
+.darkroom-invite__dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--glass-dark-border);
+  background: transparent;
+  color: var(--ink-on-dark-muted);
+  font-size: var(--text-md);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.darkroom-invite__dismiss:hover {
+  color: var(--ink-on-dark);
+}
+
 /* ── Module 2: Centered Floating Pill Dock ── */
 .exhibit-dock {
   position: absolute;
   left: 50%;
-  bottom: var(--space-5);
+  bottom: 34px;
   transform: translateX(-50%);
   z-index: 20;
   display: flex;
@@ -880,6 +1062,14 @@ onBeforeUnmount(() => {
   padding: 6px 10px;
   border-radius: var(--radius-pill);
   box-shadow: var(--shadow-lg);
+}
+
+.exhibit-scene__ruler {
+  position: absolute;
+  inset-inline: clamp(20px, 4vw, 56px);
+  bottom: 4px;
+  z-index: 4;
+  pointer-events: none;
 }
 
 .dock-divider {
@@ -1383,8 +1573,21 @@ onBeforeUnmount(() => {
   }
 
   .darkroom-topbar {
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: var(--space-2);
     padding: var(--space-3) var(--space-3);
+  }
+
+  .darkroom-back,
+  .mobile-exhibit-info-trigger {
+    white-space: nowrap;
+    padding: 0 0.7rem;
+  }
+
+  .darkroom-title {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   .darkroom-title span,
@@ -1397,6 +1600,10 @@ onBeforeUnmount(() => {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .darkroom-invite {
+    top: 72px;
   }
 
   .darkroom-drawer-toggle,
@@ -1412,11 +1619,16 @@ onBeforeUnmount(() => {
   .exhibit-dock {
     left: var(--space-3);
     right: var(--space-3);
-    bottom: var(--space-3);
+    bottom: 22px;
     transform: none;
     max-width: none;
     gap: var(--space-2);
     padding: 8px;
+  }
+
+  .exhibit-scene__ruler {
+    inset-inline: var(--space-3);
+    bottom: 2px;
   }
 
   .view-switcher {

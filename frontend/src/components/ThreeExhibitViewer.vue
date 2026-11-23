@@ -31,6 +31,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   (event: 'mode-change', value: DisplayMode): void
   (event: 'view-change', value: ViewName): void
+  (event: 'part-focus', value: FocusPart): void
   (event: 'quality-change', value: PointCloudQuality): void
   (event: 'state-change', value: ViewerRuntimeState): void
   (event: 'point-cloud-state', value: PointCloudState): void
@@ -151,6 +152,7 @@ function focusPart(part: FocusPart, options: { animated?: boolean } = {}) {
     syncAutoRotateState()
   }
   transitionCamera(nextPosition, nextTarget, options)
+  emit('part-focus', part)
   emit('view-change', preset.view)
 }
 function syncAutoRotateState() {

@@ -104,7 +104,18 @@ class MuseumAudioSystem {
   private musicBus: GainNode | null = null
   private ambienceBus: GainNode | null = null
   private duckGain: GainNode | null = null
+  private themeFilter: BiquadFilterNode | null = null
+  private spaceFilter: BiquadFilterNode | null = null
+  private musicAnalyser: AnalyserNode | null = null
+  private analyserConsumers = 0
   private duckReleaseTimer: ReturnType<typeof setTimeout> | null = null
+  private narrativeDuckFactor = 1
+  private focusDuckSources: Map<string, number> = new Map()
+  private currentDuckTarget = 1
+  private acousticTheme: 'light' | 'dark' = 'light'
+  private acousticSpace: 'default' | 'pointcloud' = 'default'
+  private listenedContext: AudioContext | null = null
+  private contextStateCallbacks: Set<(state: string) => void> = new Set()
 
   constructor() {
     this.volumeTier = this.loadTier()
@@ -177,10 +188,25 @@ class MuseumAudioSystem {
       this.context = new AudioContext()
     }
 
+    if (this.listenedContext !== this.context && typeof this.context.addEventListener === 'function') {
+      const ctx = this.context
+      this.listenedContext = ctx
+      ctx.addEventListener('statechange', () => {
+        if (this.context !== ctx) return
+        const state = ctx.state as string
+        const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden'
+        if (this.enabled && !hidden && (state === 'suspended' || state === 'interrupted')) {
+          void ctx.resume().catch(() => {})
+        }
+        for (const cb of this.contextStateCallbacks) cb(state)
+      })
+    }
+
     if (!this.masterGain) this.buildBuses(this.context)
 
-    // Resume context if suspended (browser autoplay policy)
-    if (this.context.state === 'suspended') {
+    // Resume context if suspended or iOS Safari interrupted
+    const state = this.context.state as string
+    if (state === 'suspended' || state === 'interrupted') {
       void this.context.resume().catch(() => {})
     }
   }
@@ -192,19 +218,40 @@ class MuseumAudioSystem {
 
     const sfx = context.createGain()
     const ambience = context.createGain()
-    // Music runs through a dedicated duck stage so narrative voices can
-    // lower the bed without disturbing the bed's own configured level.
+    // Music runs through a dedicated duck stage so narrative voices and
+    // companion drawers can lower the bed without disturbing the bed's own level.
     const music = context.createGain()
     const duck = context.createGain()
 
     sfx.gain.value = this.sfxEnabled ? this.busLevels.sfx : 0
     ambience.gain.value = this.busLevels.ambience
     music.gain.value = this.musicEnabled ? this.busLevels.music : 0
-    duck.gain.value = 1
+    this.currentDuckTarget = this.computeDuckTarget()
+    duck.gain.value = this.currentDuckTarget
 
     sfx.connect(master)
     ambience.connect(master)
-    music.connect(duck)
+
+    if (typeof context.createBiquadFilter === 'function') {
+      const themeFilter = context.createBiquadFilter()
+      themeFilter.type = 'highshelf'
+      themeFilter.frequency.value = 7500
+      themeFilter.gain.value = this.acousticTheme === 'dark' ? -1.2 : 0
+
+      const spaceFilter = context.createBiquadFilter()
+      spaceFilter.type = 'lowshelf'
+      spaceFilter.frequency.value = 220
+      spaceFilter.gain.value = this.acousticSpace === 'pointcloud' ? -3.5 : 0
+
+      music.connect(themeFilter)
+      themeFilter.connect(spaceFilter)
+      spaceFilter.connect(duck)
+      this.themeFilter = themeFilter
+      this.spaceFilter = spaceFilter
+    } else {
+      music.connect(duck)
+    }
+
     duck.connect(master)
 
     this.masterGain = master
@@ -212,6 +259,7 @@ class MuseumAudioSystem {
     this.musicBus = music
     this.ambienceBus = ambience
     this.duckGain = duck
+    this.musicAnalyser = null
   }
 
   /** The tier multiplier, folded with the master on/off state so a single
@@ -284,6 +332,69 @@ class MuseumAudioSystem {
 
   isSfxEnabled(): boolean {
     return this.enabled && this.sfxEnabled
+  }
+
+  onContextStateChange(listener: (state: string) => void): () => void {
+    this.contextStateCallbacks.add(listener)
+    return () => { this.contextStateCallbacks.delete(listener) }
+  }
+
+  /** Lazily attaches a read-only AnalyserNode side-tap on duckGain without
+   *  altering the main musicBus → duckGain → masterGain signal path. */
+  acquireMusicAnalyser(): AnalyserNode | null {
+    this.analyserConsumers += 1
+    if (!this.context || !this.duckGain || typeof this.context.createAnalyser !== 'function') {
+      return null
+    }
+    if (!this.musicAnalyser) {
+      const analyser = this.context.createAnalyser()
+      analyser.fftSize = 2048
+      analyser.minDecibels = -90
+      analyser.maxDecibels = -18
+      analyser.smoothingTimeConstant = 0.82
+      this.duckGain.connect(analyser)
+      this.musicAnalyser = analyser
+    }
+    return this.musicAnalyser
+  }
+
+  releaseMusicAnalyser(): void {
+    this.analyserConsumers = Math.max(0, this.analyserConsumers - 1)
+  }
+
+  getAnalyserConsumerCount(): number {
+    return this.analyserConsumers
+  }
+
+  private rampParam(param: AudioParam, target: number, duration: number): void {
+    if (!this.context) return
+    const now = this.context.currentTime
+    param.cancelScheduledValues(now)
+    param.setValueAtTime(param.value, now)
+    param.linearRampToValueAtTime(target, now + duration)
+  }
+
+  setThemeAcoustic(theme: 'light' | 'dark'): void {
+    this.acousticTheme = theme
+    if (this.themeFilter) {
+      this.rampParam(this.themeFilter.gain, theme === 'dark' ? -1.2 : 0, 0.8)
+    }
+  }
+
+  setSpaceAcoustic(mode: 'default' | 'pointcloud'): void {
+    this.acousticSpace = mode
+    if (this.spaceFilter) {
+      this.rampParam(this.spaceFilter.gain, mode === 'pointcloud' ? -3.5 : 0, 0.6)
+    }
+  }
+
+  setFocusDuck(sourceId: string, active: boolean, depth = 0.72): void {
+    if (active) {
+      this.focusDuckSources.set(sourceId, Math.max(0.1, Math.min(1, depth)))
+    } else {
+      this.focusDuckSources.delete(sourceId)
+    }
+    this.recomputeDuckGain(0.35, 1.6)
   }
 
   // -------------------------------------------------------------------
@@ -415,6 +526,22 @@ class MuseumAudioSystem {
     }
   }
 
+  private computeDuckTarget(): number {
+    let target = this.narrativeDuckFactor
+    for (const depth of this.focusDuckSources.values()) {
+      target = Math.min(target, depth)
+    }
+    return Math.max(0, Math.min(1, target))
+  }
+
+  private recomputeDuckGain(attackSeconds = DUCK_ATTACK, releaseSeconds = DUCK_RELEASE): void {
+    const target = this.computeDuckTarget()
+    const duration = target < this.currentDuckTarget ? attackSeconds : releaseSeconds
+    this.currentDuckTarget = target
+    if (!this.duckGain || !this.context) return
+    this.rampParam(this.duckGain.gain, target, duration)
+  }
+
   /**
    * Briefly lower the music bed. Re-entrant by design: a second call while
    * already ducked simply extends the release, so overlapping narrative
@@ -422,21 +549,18 @@ class MuseumAudioSystem {
    */
   private duckMusic(): void {
     if (!this.duckGain || !this.context) return
-    const now = this.context.currentTime
-    this.duckGain.gain.cancelScheduledValues(now)
-    this.duckGain.gain.setValueAtTime(this.duckGain.gain.value, now)
-    this.duckGain.gain.linearRampToValueAtTime(DUCK_DEPTH, now + DUCK_ATTACK)
+    this.narrativeDuckFactor = DUCK_DEPTH
+    this.recomputeDuckGain(DUCK_ATTACK, DUCK_RELEASE)
 
     if (this.duckReleaseTimer) clearTimeout(this.duckReleaseTimer)
     this.duckReleaseTimer = setTimeout(() => {
-      if (!this.duckGain || !this.context) return
-      const releaseAt = this.context.currentTime
-      this.duckGain.gain.cancelScheduledValues(releaseAt)
-      this.duckGain.gain.setValueAtTime(this.duckGain.gain.value, releaseAt)
-      this.duckGain.gain.linearRampToValueAtTime(1, releaseAt + DUCK_RELEASE)
+      this.narrativeDuckFactor = 1
+      this.recomputeDuckGain(DUCK_ATTACK, DUCK_RELEASE)
       this.duckReleaseTimer = null
     }, 900)
   }
+
+  // Legacy ambient bed retained for bus-level tests; inactive under the complete R3 mix.
 
   /**
    * Switch ambient soundscape with crossfade. Re-entrant: asking for the

@@ -29,10 +29,12 @@ export class RecordedMusicPlayer {
   private paused = false
   private readonly createMedia: () => HTMLAudioElement
   private readonly onPlaybackFailure: () => void
+  private readonly onStateChange: () => void
 
-  constructor(options: { createMedia?: () => HTMLAudioElement, onPlaybackFailure?: () => void } = {}) {
+  constructor(options: { createMedia?: () => HTMLAudioElement, onPlaybackFailure?: () => void, onStateChange?: () => void } = {}) {
     this.createMedia = options.createMedia ?? (() => new Audio())
     this.onPlaybackFailure = options.onPlaybackFailure ?? (() => {})
+    this.onStateChange = options.onStateChange ?? (() => {})
   }
 
   start(context: AudioContext, destination: AudioNode, scene: MusicScene): void {
@@ -130,8 +132,10 @@ export class RecordedMusicPlayer {
           this.active = voice
           if (outgoing) this.retire(outgoing, CROSSFADE_SECONDS)
           this.ramp(voice, voice.recording.gain, outgoing ? CROSSFADE_SECONDS : FADE_IN_SECONDS)
+          this.onStateChange()
         } else if (this.active === voice) {
           this.ramp(voice, voice.recording.gain, FADE_IN_SECONDS)
+          this.onStateChange()
         }
       }).catch(() => {
         if (!voice.disposed && attempt === voice.attempt && !this.paused) this.fail(voice)
@@ -160,8 +164,29 @@ export class RecordedMusicPlayer {
       param.cancelScheduledValues(now)
       param.setValueAtTime(param.value, now)
     }
-    if (seconds <= 0) param.setValueAtTime(value, now)
-    else param.linearRampToValueAtTime(value, now + seconds)
+    const startValue = Math.max(0, param.value)
+    if (seconds <= 0 || Math.abs(value - startValue) < 1e-6) {
+      param.setValueAtTime(value, now)
+      return
+    }
+    if (typeof param.setValueCurveAtTime === 'function') {
+      const steps = Math.max(16, Math.round(seconds * 30))
+      const curve = new Float32Array(steps)
+      const fadingOut = value < startValue
+      for (let i = 0; i < steps; i += 1) {
+        const t = i / (steps - 1)
+        curve[i] = fadingOut
+          ? value + (startValue - value) * Math.cos(Math.PI * 0.5 * t)
+          : startValue + (value - startValue) * Math.sin(Math.PI * 0.5 * t)
+      }
+      try {
+        param.setValueCurveAtTime(curve, now, seconds)
+        return
+      } catch {
+        // Fall back to linear ramp if the host rejects overlapping automation.
+      }
+    }
+    param.linearRampToValueAtTime(value, now + seconds)
   }
 
   private retire(voice: MusicVoice, seconds: number): void {

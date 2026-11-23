@@ -54,11 +54,14 @@ describe('route soundscapes', () => {
     expect(soundscapeFor(Symbol('route'))).toEqual(FALLBACK_SOUNDSCAPE)
   })
 
-  it('keeps the admin console quieter than the public site', () => {
+  it('keeps the admin console and auth forms quieter than the public gallery', () => {
     // Stated as an invariant because it is a design decision, not an
-    // accident: staff sit in the admin console for hours.
+    // accident: staff sit in the admin console for hours, and login/reset
+    // should not distract visitors entering credentials.
     expect(soundscapeFor('admin').music).toBe('quiet')
     expect(soundscapeFor('admin-operations').music).toBe('quiet')
+    expect(soundscapeFor('login').music).toBe('quiet')
+    expect(soundscapeFor('reset-password').music).toBe('quiet')
     expect(soundscapeFor('admin').ambience).toBeNull()
     expect(soundscapeFor('home').music).not.toBe('quiet')
   })
@@ -70,18 +73,24 @@ describe('route soundscapes', () => {
 
   it('assigns only approved content explicitly and uses reading for unknown details', () => {
     expect(soundscapeFor('artifact-detail', 'water-bird-bronze').music).toBe('story')
+    expect(soundscapeFor('artifact-detail', 'river-map-jade-bi').music).toBe('jade')
+    expect(soundscapeFor('artifact-detail', 'painted-pottery-water-jar').music).toBe('jade')
+    expect(soundscapeFor('artifact-detail', 'river-map-pattern-stone').music).toBe('jade')
     expect(soundscapeFor('exhibit-detail', 'heluo-bronze-ding-3d').music).toBe('exhibit')
     expect(soundscapeFor('exhibit-detail', 'unknown-bronze')).toEqual({ ambience: null, music: 'story' })
     expect(soundscapeFor('artifact-detail', 'unknown-material').music).toBe('story')
   })
 
-  it('keeps the three approved scene levels through the existing music bus', () => {
-    for (const scene of ['home', 'story', 'exhibit'] as const) {
+  it('keeps the four approved scene levels through the existing music bus', () => {
+    for (const scene of ['home', 'story', 'exhibit', 'jade'] as const) {
       expect(MUSIC_RECORDINGS[scene]!.gain * 0.62).toBeCloseTo(1)
     }
+    expect(MUSIC_RECORDINGS.jade!.track).toBe('jade')
+    expect(MUSIC_RECORDINGS.jade!.src).toBe('/media/audio/music-r4/jade-r4.m4a')
     expect(MUSIC_RECORDINGS.collection!.track).toBe('home')
     expect(MUSIC_RECORDINGS.collection!.gain).toBeLessThan(MUSIC_RECORDINGS.home!.gain)
     expect(MUSIC_RECORDINGS.booking!.track).toBe('reading')
+    expect(MUSIC_RECORDINGS.booking!.gain).toBeCloseTo(0.48 / 0.62)
     expect(MUSIC_RECORDINGS.booking!.gain).toBeLessThan(MUSIC_RECORDINGS.story!.gain)
     expect(MUSIC_RECORDINGS.quiet).toBeNull()
   })

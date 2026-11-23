@@ -8,6 +8,7 @@ import { audioSystem } from '../lib/audioSystem'
 import { claimHomeEntrance } from '../lib/homeEntrance'
 import PointerDotField from '../components/PointerDotField.vue'
 import HeluoPattern from '../components/HeluoPattern.vue'
+import AcousticRuler from '../components/AcousticRuler.vue'
 
 const { locale } = useLocale()
 const { isDark } = useTheme()
@@ -297,6 +298,10 @@ onBeforeUnmount(() => {
           <span>{{ copy.visit }}</span>
           <ArrowRight aria-hidden="true" />
         </RouterLink>
+      </div>
+
+      <div class="home-cover__ruler">
+        <AcousticRuler variant="hero" default-track="home" />
       </div>
     </section>
 
@@ -608,11 +613,18 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: var(--space-4);
   width: min(calc(100% - 4rem), var(--container-max));
-  margin: auto auto 0;
-  padding: var(--space-4) 0 var(--space-5);
+  margin: auto auto 2.5rem;
+  padding: var(--space-4) 0 var(--space-4);
   border-top: 1px solid var(--border-hairline);
   font-size: var(--text-xs);
   color: var(--ink-secondary);
+}
+
+.home-cover__ruler {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 3;
 }
 
 .home-cover__venue {
@@ -1177,7 +1189,8 @@ onBeforeUnmount(() => {
   .home-cover__foot {
     grid-template-columns: 1fr;
     gap: var(--space-2);
-    padding-block: var(--space-3) var(--space-4);
+    margin-bottom: 1.5rem;
+    padding-block: var(--space-3);
   }
 
   .home-foot-link {

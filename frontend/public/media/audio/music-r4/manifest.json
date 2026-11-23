@@ -1,0 +1,1217 @@
+{
+  "schemaVersion": 1,
+  "revision": "r4-approved-web-loop",
+  "date": "2026-11-23",
+  "description": "User-approved R4 scene masters (with CC0 VCSL Eastern accents & 4th movement jade), AAC 96 kbps self-contained loops.",
+  "totalAudioBytes": 5001307,
+  "audioByteBudget": 6000000,
+  "gainPolicy": "Original scene gains retained (home 0.80, reading 0.58, bronze 0.72, jade 0.67). No per-track normalization or limiting.",
+  "sourceScoreSha256": "794ffc560238b71a75429fdbb2f2d134e94a869b6c19ef6ca46c99b4ab8b6abd",
+  "sourceRenderReportSha256": "c6911c9e67279415a149b55b770bb19a245471bc4348ca39a530305adebfb090",
+  "sourceSampleManifestSha256": "282bc492a69cbd35021b2380331352bc4ca50085f0d58ae3b8629bfe1f39a7f6",
+  "sourceSampleR4ManifestSha256": "f44a09dd6d183aa63fde8b493e588b00032cce8ed08453d9fb5cd28d78e77959",
+  "exportScriptSha256": "54d7c0c13895db6bf94dc76a64f4442a741e3ffc19870b78f455176e3012a754",
+  "encoder": {
+    "pythonPackage": "PyAV",
+    "pyavVersion": "18.0.0",
+    "codec": "aac",
+    "description": "AAC (Advanced Audio Coding)",
+    "libraries": {
+      "libavutil": "60.26.102",
+      "libavcodec": "62.28.102",
+      "libavformat": "62.12.102",
+      "libavdevice": "62.3.102",
+      "libavfilter": "11.14.102",
+      "libswscale": "9.5.102",
+      "libswresample": "6.3.102"
+    },
+    "configuration": "44.1 kHz stereo; AAC-LC 96000 bit/s in MP4/M4A (ipod +faststart)"
+  },
+  "sourceLibraries": [
+    {
+      "name": "VS Chamber Orchestra: Community Edition",
+      "repository": "https://github.com/sgossner/VSCO-2-CE",
+      "sampleCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://github.com/sgossner/VSCO-2-CE/blob/440300901dfe9275fd84e0b7763af1f8443ae62e/LICENSE",
+      "recordingCredits": [
+        "Sam Gossner / Versilian Studios",
+        "Simon Dalzell / Ivy Audio"
+      ],
+      "sampleCuttingCredit": "Elan Hickler / Soundemote",
+      "homepage": "http://vis.versilstudios.net/vsco-community.html"
+    },
+    {
+      "name": "Versilian Community Sample Library (VCSL)",
+      "repository": "https://github.com/sgossner/VCSL",
+      "sampleCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sfzCommit": "dfcf4a4918771eee884b96ad4493de82ef84daf6",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/LICENSE",
+      "recordingCredits": [
+        "Sam Gossner / Versilian Studios",
+        "VCSL Contributors"
+      ]
+    }
+  ],
+  "sourceLicense": {
+    "id": "CC0-1.0",
+    "scope": "All source acoustic recordings (VSCO 2 CE and VCSL)",
+    "urls": [
+      "/media/audio/music-r4/LICENSE-CC0-1.0.txt",
+      "/media/audio/music-r4/LICENSE-VCSL-CC0-1.0.txt"
+    ],
+    "sha256": {
+      "LICENSE-CC0-1.0.txt": "36ffd9dc085d529a7e60e1276d73ae5a030b020313e6c5408593a6ae2af39673",
+      "LICENSE-VCSL-CC0-1.0.txt": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499"
+    }
+  },
+  "arrangement": "Original Heluo Digital Museum sampled chamber arrangements with CC0 VCSL acoustic accents; not historical ritual reconstruction or guqin/bianzhong/xiao live ensemble recording.",
+  "samples": [
+    {
+      "instrument": "harp",
+      "sourcePath": "Strings/Harp/KSHarp_A4_mf.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Harp/KSHarp_A4_mf.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "3665f3975cad4a33f46784aa4f896f4b4319ba2b7831e892d975bc38c9f09f23",
+      "rootMidi": 69,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "harp",
+      "sourcePath": "Strings/Harp/KSHarp_F4_mf.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Harp/KSHarp_F4_mf.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "db27ebbb37334c10e06f2ae63f4d9ff555e4d11704fcc6f0bcf503863867e577",
+      "rootMidi": 65,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "cello",
+      "sourcePath": "Strings/Cello Section/susvib/susvib_C3_v1_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Cello%20Section/susvib/susvib_C3_v1_1.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "a614ee7ca821b44660236e47b89620cf914ec6ad27a99bc0d9764f47dbe512e1",
+      "rootMidi": 60,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "cello",
+      "sourcePath": "Strings/Cello Section/susvib/susvib_E3_v1_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Cello%20Section/susvib/susvib_E3_v1_1.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "d2f961e30bf64021cf4acbd88e0e7a1fd1840943ae78c62a711bcce3d109216e",
+      "rootMidi": 64,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "cello",
+      "sourcePath": "Strings/Cello Section/susvib/susvib_F2_v1_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Cello%20Section/susvib/susvib_F2_v1_1.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "162054eab4ba118924f8f8986cf1b17ccfd65211d1945743ffbae30b4953f901",
+      "rootMidi": 53,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "viola",
+      "sourcePath": "Strings/Viola Section/susvib/ViolaEns_susvib_D3_v1_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Viola%20Section/susvib/ViolaEns_susvib_D3_v1_1.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "61ab4cfc0ea90c683433a7c50b3bb4fa86a81c9d4854589562707d54ed028349",
+      "rootMidi": 62,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "harp",
+      "sourcePath": "Strings/Harp/KSHarp_B3_mf.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Harp/KSHarp_B3_mf.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "f6f71be8c640822ef48a448b245585659acdfcc7ed5774e10f37be2fc02fcab4",
+      "rootMidi": 59,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "harp",
+      "sourcePath": "Strings/Harp/KSHarp_C3_mf.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Harp/KSHarp_C3_mf.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "e5d232771704e140959819de8cf2a3e0ba49d021ca77354c42664ce4fce6d9f3",
+      "rootMidi": 48,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "harp",
+      "sourcePath": "Strings/Harp/KSHarp_D4_mf.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Harp/KSHarp_D4_mf.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "ebfde8aab4411019e37e3426f4dd88d6a52a38c2d0261d7f10ec63d8ff584dc7",
+      "rootMidi": 62,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "harp",
+      "sourcePath": "Strings/Harp/KSHarp_G3_mf.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Harp/KSHarp_G3_mf.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "62600eb1b37bc2829ca65351f7ca7e506c9ae472abd5bea0765a8b8fa7df2772",
+      "rootMidi": 55,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "flute",
+      "sourcePath": "Woodwinds/Flute/susNV/LDFlute_susNV_A3_v1_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Woodwinds/Flute/susNV/LDFlute_susNV_A3_v1_1.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "6fc8d707afddfaaf3003551b95a83b52f514adbe488bfea1c8c5250080a07278",
+      "rootMidi": 69,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "flute",
+      "sourcePath": "Woodwinds/Flute/susNV/LDFlute_susNV_C3_v1_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Woodwinds/Flute/susNV/LDFlute_susNV_C3_v1_1.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "4f221909317e257e4d0bc49f10479643c80cb213a0486455c1bdc1d6ed13a450",
+      "rootMidi": 60,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "flute",
+      "sourcePath": "Woodwinds/Flute/susNV/LDFlute_susNV_E3_v1_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Woodwinds/Flute/susNV/LDFlute_susNV_E3_v1_1.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "87c667c2af888ed86dff87f2452248de3e3d958fc93848a4426b7c16f85f09da",
+      "rootMidi": 64,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "cello",
+      "sourcePath": "Strings/Cello Section/susvib/susvib_C1_v1_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Cello%20Section/susvib/susvib_C1_v1_1.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "abdcea431f384e135c469b0f3e4ac2a437f282f521dc5bcbe22abc221536e8de",
+      "rootMidi": 36,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "cello",
+      "sourcePath": "Strings/Cello Section/susvib/susvib_G1_v1_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Cello%20Section/susvib/susvib_G1_v1_1.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "9e5d24e8e28d6c7f650f9bb2b33d43c13e341a8bd33124c64e23881378b181ba",
+      "rootMidi": 43,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "viola",
+      "sourcePath": "Strings/Viola Section/susvib/ViolaEns_susvib_C2_v1_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Viola%20Section/susvib/ViolaEns_susvib_C2_v1_1.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "8b4e0e0985d245ac9ddc39cdd06cec5bd74fa80056c074736d6eb38fdccfe636",
+      "rootMidi": 48,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "viola",
+      "sourcePath": "Strings/Viola Section/susvib/ViolaEns_susvib_G2_v1_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Strings/Viola%20Section/susvib/ViolaEns_susvib_G2_v1_1.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "557c2e033951015c30765bf18266bce0dd0412e3ca646dd1a225c32422c60662",
+      "rootMidi": 55,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "piano",
+      "sourcePath": "Keys/Upright Piano/Player_dyn1_rr1_014.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Keys/Upright%20Piano/Player_dyn1_rr1_014.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "f3d00b63bb178680fdd4d9ed7ea43d1df1cf29e00b567ccb022c2bd411a20607",
+      "rootMidi": 49,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "piano",
+      "sourcePath": "Keys/Upright Piano/Player_dyn1_rr1_018.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Keys/Upright%20Piano/Player_dyn1_rr1_018.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "01387cb5318c5abf11410ae8e2f4ef6aa83ec03254b4bccfe865aba262a2e412",
+      "rootMidi": 57,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "piano",
+      "sourcePath": "Keys/Upright Piano/Player_dyn1_rr1_022.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VSCO-2-CE/440300901dfe9275fd84e0b7763af1f8443ae62e/Keys/Upright%20Piano/Player_dyn1_rr1_022.wav",
+      "sourceCommit": "440300901dfe9275fd84e0b7763af1f8443ae62e",
+      "sha256": "660e57ad8fd868ed9c56fe36e4862a6aff1cb65b7838a568d4c4f2f0865ad1ab",
+      "rootMidi": 65,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "jade_chime",
+      "sourcePath": "Idiophones/Struck Idiophones/Hand Chimes/sus_D3_r01_main.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hand%20Chimes/sus_D3_r01_main.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "fc9e1ee181909bf8b1d82b31e26af6379c3a84def609befd98db1752e260a561",
+      "rootMidi": 62,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "jade_chime",
+      "sourcePath": "Idiophones/Struck Idiophones/Hand Chimes/sus_E3_r01_main.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hand%20Chimes/sus_E3_r01_main.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "7bfca4820f7eb14582354809ef297622c60c5f2cda1071859b5f6b9a093b239d",
+      "rootMidi": 64,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "jade_chime",
+      "sourcePath": "Idiophones/Struck Idiophones/Hand Chimes/sus_F#3_r01_main.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hand%20Chimes/sus_F%233_r01_main.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "729347d799fd5e4d09d83033719caa4c24e5ebdfa8a74fd6983e20aa62941de0",
+      "rootMidi": 66,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "jade_chime",
+      "sourcePath": "Idiophones/Struck Idiophones/Hand Chimes/sus_G#3_r01_main.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hand%20Chimes/sus_G%233_r01_main.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "b91c5c191d15a0e455e927c8cafe4ea3761efadab82b085e0fd22361317d177e",
+      "rootMidi": 68,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "jade_chime",
+      "sourcePath": "Idiophones/Struck Idiophones/Hand Chimes/sus_C4_r01_main.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hand%20Chimes/sus_C4_r01_main.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "89980f18db9e08a137d1fc18f0505281bd6c192021b9dd33dafb7d3117ef608c",
+      "rootMidi": 72,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "jade_chime",
+      "sourcePath": "Idiophones/Struck Idiophones/Hand Chimes/sus_D4_r01_main.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hand%20Chimes/sus_D4_r01_main.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "ab6598ca5d49f8d19f14b9e5fdfbdb35353ca7cc83e7d4f78946b6faa9371c67",
+      "rootMidi": 74,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "jade_chime",
+      "sourcePath": "Idiophones/Struck Idiophones/Hand Chimes/sus_E4_r01_main.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hand%20Chimes/sus_E4_r01_main.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "7196b23009e1acc8e03591c35e54144487991c75cfe22413e84e0bbfeb478caf",
+      "rootMidi": 76,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "jade_chime",
+      "sourcePath": "Idiophones/Struck Idiophones/Hand Chimes/sus_F#4_r01_main.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hand%20Chimes/sus_F%234_r01_main.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "858c506fc9c6c35bcb9e0c08850892cab77c1496a83ccff493377df6e6fb1bd4",
+      "rootMidi": 78,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "jade_chime",
+      "sourcePath": "Idiophones/Struck Idiophones/Hand Chimes/sus_A4_r01_main.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hand%20Chimes/sus_A4_r01_main.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "43604b3b049f3d7c60c6e5c8601d7027045ded1f124debcd65c2ccef723daaa1",
+      "rootMidi": 81,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "dan_tranh",
+      "sourcePath": "Chordophones/Zithers/Dan Tranh/Normal/F#2_mf_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Chordophones/Zithers/Dan%20Tranh/Normal/F%232_mf_1.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "94cd0320b44d8c2de26f97254029a714559e9c86912a1e8037d6cc2fcc2ad1a2",
+      "rootMidi": 54,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "dan_tranh",
+      "sourcePath": "Chordophones/Zithers/Dan Tranh/Normal/G#2_mf_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Chordophones/Zithers/Dan%20Tranh/Normal/G%232_mf_1.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "201f24411976a2ed6b6954d8e56aea4e28187cfc50cc4731a8c868a657328221",
+      "rootMidi": 56,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "dan_tranh",
+      "sourcePath": "Chordophones/Zithers/Dan Tranh/Normal/b2_mf_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Chordophones/Zithers/Dan%20Tranh/Normal/b2_mf_1.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "94c973b854c9aefdfa91eab26953e424b0799a927780d54efc1a8af27265478f",
+      "rootMidi": 59,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "dan_tranh",
+      "sourcePath": "Chordophones/Zithers/Dan Tranh/Normal/C#3_mf_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Chordophones/Zithers/Dan%20Tranh/Normal/C%233_mf_1.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "2b03d7243bdced595cfaa6d87afc8e68eafd74a0ef7d1221271209f66a8ce0fc",
+      "rootMidi": 61,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "dan_tranh",
+      "sourcePath": "Chordophones/Zithers/Dan Tranh/Normal/D#3_mf_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Chordophones/Zithers/Dan%20Tranh/Normal/D%233_mf_1.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "9995e1e0c4279780ad4ec1cdc0b9ffede9cfd9239639f60de5906e002830c100",
+      "rootMidi": 63,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "dan_tranh",
+      "sourcePath": "Chordophones/Zithers/Dan Tranh/Normal/F#3_mf_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Chordophones/Zithers/Dan%20Tranh/Normal/F%233_mf_1.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "bf57662192fdf0cdaccffdaf40dc0c0b1008e7d02ee5452a2584fcc91248bfa5",
+      "rootMidi": 66,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "dan_tranh",
+      "sourcePath": "Chordophones/Zithers/Dan Tranh/Normal/G#3_mf_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Chordophones/Zithers/Dan%20Tranh/Normal/G%233_mf_1.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "e5606a3d944a54e5f4f0b8e69885262d893d67658f43ac9f03b2fcaf9ff9dd6f",
+      "rootMidi": 68,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "dan_tranh",
+      "sourcePath": "Chordophones/Zithers/Dan Tranh/Normal/B3_mf_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Chordophones/Zithers/Dan%20Tranh/Normal/B3_mf_1.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "df91841b4552f2367334ceafaf5a4d839bd5aa57721f0e360ccebd94d7b70c53",
+      "rootMidi": 71,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "dan_tranh",
+      "sourcePath": "Chordophones/Zithers/Dan Tranh/Normal/D#4_mf_1.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Chordophones/Zithers/Dan%20Tranh/Normal/D%234_mf_1.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "aa65c890fc7ecbaba2a02cdd51a5a32ce695eff901280fdabbd9e6829996c68a",
+      "rootMidi": 75,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "bronze_bell",
+      "sourcePath": "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_F2_v1_rr1_Main.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Vibraphone/Soft%20Mallets/Vibes_soft_F2_v1_rr1_Main.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "df5cfcc72af80fac2191300d09922474c4ac25c5cbc43ff387953d607f7c1320",
+      "rootMidi": 53,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "bronze_bell",
+      "sourcePath": "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_A2_v1_rr1_Main.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Vibraphone/Soft%20Mallets/Vibes_soft_A2_v1_rr1_Main.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "b6e23a94322107d0ab884d7c38e51be538eb45f613c6a24e980c2261151bed75",
+      "rootMidi": 57,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "bronze_bell",
+      "sourcePath": "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_C3_v1_rr2_Main.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Vibraphone/Soft%20Mallets/Vibes_soft_C3_v1_rr2_Main.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "1dda9a4c3205c365345d66dcb68c8e09c0dca76a310b8fe8108e43c7e8c1cd0a",
+      "rootMidi": 60,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "bronze_bell",
+      "sourcePath": "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_E3_v1_rr2_Main.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Vibraphone/Soft%20Mallets/Vibes_soft_E3_v1_rr2_Main.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "620a241017d0de0e6cb789c97d439401f25d659d08f753746690632e71de8f0b",
+      "rootMidi": 64,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "bronze_bell",
+      "sourcePath": "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_G3_v1_rr1_Main.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Vibraphone/Soft%20Mallets/Vibes_soft_G3_v1_rr1_Main.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "9b479e4c84fb1caafba8c1c106a8922cea20bba81c37d65f93afae339626767f",
+      "rootMidi": 67,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "bronze_bell",
+      "sourcePath": "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_B3_v1_rr1_Main.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Vibraphone/Soft%20Mallets/Vibes_soft_B3_v1_rr1_Main.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "7edfbd70f93781d2cbb17c2fc8befe474de9987c6353db2358af4e13a0269345",
+      "rootMidi": 71,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "bronze_bell",
+      "sourcePath": "Idiophones/Struck Idiophones/Vibraphone/Soft Mallets/Vibes_soft_D4_v1_rr1_Main.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Vibraphone/Soft%20Mallets/Vibes_soft_D4_v1_rr1_Main.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "daedf613863d4de0a383d66b2db6ab9ffd8dc492d16ff7d735cf3b3107046a26",
+      "rootMidi": 74,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "bronze_gong",
+      "sourcePath": "Idiophones/Struck Idiophones/Gong 1/gong_p.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Gong%201/gong_p.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "3d103e1a7af12eeb17e0c5488f11933ca92b9fbdefa39b8020b64238da2db0d0",
+      "rootMidi": 50,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "wooden_wind",
+      "sourcePath": "Aerophones/Edge-blown Aerophones/Baroque Tenor Recorder/Sustain/TenRecorder_Sus_D3_rr1_Main.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Aerophones/Edge-blown%20Aerophones/Baroque%20Tenor%20Recorder/Sustain/TenRecorder_Sus_D3_rr1_Main.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "c59cad8370536db0cc27f371ed7d2a46f1087ae17097c316bcddb14771758a2e",
+      "rootMidi": 62,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "wooden_wind",
+      "sourcePath": "Aerophones/Edge-blown Aerophones/Baroque Tenor Recorder/Sustain/TenRecorder_Sus_E3_rr1_Main.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Aerophones/Edge-blown%20Aerophones/Baroque%20Tenor%20Recorder/Sustain/TenRecorder_Sus_E3_rr1_Main.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "9186898290add53b2b38c89b957fa288593e05152c4917988036615f51eefe87",
+      "rootMidi": 64,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "wooden_wind",
+      "sourcePath": "Aerophones/Edge-blown Aerophones/Baroque Tenor Recorder/Sustain/TenRecorder_Sus_G#3_rr1_Main.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Aerophones/Edge-blown%20Aerophones/Baroque%20Tenor%20Recorder/Sustain/TenRecorder_Sus_G%233_rr1_Main.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "a192bbc1ca88e7569853d67bebac9cdc6f74e2e42a6dd23ca7dad74ef96f69ea",
+      "rootMidi": 68,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "wooden_wind",
+      "sourcePath": "Aerophones/Edge-blown Aerophones/Baroque Tenor Recorder/Sustain/TenRecorder_Sus_D4_rr1_Main.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Aerophones/Edge-blown%20Aerophones/Baroque%20Tenor%20Recorder/Sustain/TenRecorder_Sus_D4_rr1_Main.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "cd08bb69ddd2a6b142538ea0cd6c2a683c2874d1aefb244d2a9cf8d4716ca1d3",
+      "rootMidi": 74,
+      "license": "CC0-1.0"
+    },
+    {
+      "instrument": "wooden_wind",
+      "sourcePath": "Aerophones/Edge-blown Aerophones/Baroque Tenor Recorder/Sustain/TenRecorder_Sus_E4_rr1_Main.wav",
+      "sourceUrl": "https://raw.githubusercontent.com/sgossner/VCSL/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Aerophones/Edge-blown%20Aerophones/Baroque%20Tenor%20Recorder/Sustain/TenRecorder_Sus_E4_rr1_Main.wav",
+      "sourceCommit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+      "sha256": "cf14d054a7e8acdeb6bfa3a3f0f25cd661f6e42766d5f9ca11a5a0d523aa4dc0",
+      "rootMidi": 76,
+      "license": "CC0-1.0"
+    }
+  ],
+  "tracks": [
+    {
+      "id": "home",
+      "title": "入馆·河洛晨光",
+      "file": "home-r4.m4a",
+      "url": "/media/audio/music-r4/home-r4.m4a",
+      "mimeType": "audio/mp4",
+      "durationSeconds": 98.2,
+      "bytes": 1203612,
+      "sha256": "a539778f69ebcee1cea8465fb553c76b0528030161fab07cea17681f8896ccee",
+      "sampleRate": 44100,
+      "channels": 2,
+      "nominalBitRate": 96000,
+      "source": {
+        "file": "01-home-scene-r4.wav",
+        "sha256": "bbd5dea8f4a3e8581377229dddf44322fa0dec21b8b659ef75084ad298bee885",
+        "durationSeconds": 106.0,
+        "integratedLufs": -25.938,
+        "oversampledPeakDbtp": -11.109
+      },
+      "loop": {
+        "method": "tail-folded-into-head-complementary-raised-cosine",
+        "nativeLoop": true,
+        "loopStartSeconds": 0,
+        "loopEndSeconds": 98.2,
+        "sourceTrimEndSeconds": 100.0,
+        "crossfadeSeconds": 1.8,
+        "sourceTailStartSeconds": 98.2,
+        "sourceTailEndSeconds": 100.0,
+        "sourceTailRemovedAfterSeconds": 100.0,
+        "firstPlaybackPrefixChangedSeconds": 1.8,
+        "unchangedBodySourceStartSeconds": 1.8,
+        "unchangedBodySourceEndSeconds": 98.2,
+        "gainAppliedToWholeTrack": 1.0,
+        "pcmSeamAdjacentStep": 0.000274658,
+        "pcmNaturalSourceAdjacentStep": 0.000274658,
+        "initialPlaybackAdvice": "Fade in the player briefly; the first 1.8 seconds contain the previous tail and the original opening.",
+        "formula": "prefix[i] = tail[i] * (1-w[i]) + originalHead[i] * w[i]; w[i] = (1-cos(pi*i/(N-1)))/2; body is unchanged"
+      },
+      "pcmBeforeEncoding": {
+        "durationSeconds": 98.2,
+        "integratedLufs": -25.982,
+        "oversampledPeakDbtp": -11.109,
+        "samplePeakDbfs": -11.115,
+        "clippedSamples": 0,
+        "maximumAdjacentStep": 0.020813,
+        "dcOffset": 1e-08,
+        "monoCorrelation": 0.9858
+      },
+      "decoded": {
+        "durationSeconds": 98.2,
+        "integratedLufs": -25.999,
+        "oversampledPeakDbtp": -11.179,
+        "samplePeakDbfs": -11.185,
+        "clippedSamples": 0,
+        "maximumAdjacentStep": 0.0211068,
+        "dcOffset": 3e-07,
+        "monoCorrelation": 0.9862
+      },
+      "loudnessDeltaFromSceneLu": -0.061,
+      "container": {
+        "codec": "aac",
+        "sampleRate": 44100,
+        "channels": 2,
+        "containerStartSeconds": 0.0,
+        "containerDurationSeconds": 98.2,
+        "rawDecodedFrames": 4331520,
+        "trimmedTrailingPaddingSamples": 900
+      },
+      "headOffsetSamples": 0,
+      "tailOffsetSamples": 0,
+      "repeatBoundary": {
+        "adjacentStepAcrossRepeat": 0.002575803,
+        "nearZeroRunAcrossRepeatSeconds": 0.0,
+        "nearZeroThresholdDbfs": -90,
+        "levels400ms": [
+          {
+            "relativeStartSeconds": -1.2,
+            "ungatedLufs": -33.701
+          },
+          {
+            "relativeStartSeconds": -1.1,
+            "ungatedLufs": -33.82
+          },
+          {
+            "relativeStartSeconds": -1.0,
+            "ungatedLufs": -34.278
+          },
+          {
+            "relativeStartSeconds": -0.9,
+            "ungatedLufs": -36.101
+          },
+          {
+            "relativeStartSeconds": -0.8,
+            "ungatedLufs": -38.319
+          },
+          {
+            "relativeStartSeconds": -0.7,
+            "ungatedLufs": -39.631
+          },
+          {
+            "relativeStartSeconds": -0.6,
+            "ungatedLufs": -39.527
+          },
+          {
+            "relativeStartSeconds": -0.5,
+            "ungatedLufs": -38.838
+          },
+          {
+            "relativeStartSeconds": -0.4,
+            "ungatedLufs": -39.047
+          },
+          {
+            "relativeStartSeconds": -0.3,
+            "ungatedLufs": -38.805
+          },
+          {
+            "relativeStartSeconds": -0.2,
+            "ungatedLufs": -38.817
+          },
+          {
+            "relativeStartSeconds": -0.1,
+            "ungatedLufs": -39.833
+          },
+          {
+            "relativeStartSeconds": 0.0,
+            "ungatedLufs": -39.799
+          },
+          {
+            "relativeStartSeconds": 0.1,
+            "ungatedLufs": -38.942
+          },
+          {
+            "relativeStartSeconds": 0.2,
+            "ungatedLufs": -38.441
+          },
+          {
+            "relativeStartSeconds": 0.3,
+            "ungatedLufs": -37.934
+          },
+          {
+            "relativeStartSeconds": 0.4,
+            "ungatedLufs": -37.696
+          },
+          {
+            "relativeStartSeconds": 0.5,
+            "ungatedLufs": -37.722
+          },
+          {
+            "relativeStartSeconds": 0.6,
+            "ungatedLufs": -33.839
+          },
+          {
+            "relativeStartSeconds": 0.7,
+            "ungatedLufs": -29.014
+          },
+          {
+            "relativeStartSeconds": 0.8,
+            "ungatedLufs": -27.057
+          },
+          {
+            "relativeStartSeconds": 0.9,
+            "ungatedLufs": -26.189
+          },
+          {
+            "relativeStartSeconds": 1.0,
+            "ungatedLufs": -26.167
+          }
+        ],
+        "limit": "PCM repeat simulation; native browser loop scheduling still needs browser verification."
+      }
+    },
+    {
+      "id": "reading",
+      "title": "水岸·静读",
+      "file": "reading-r4.m4a",
+      "url": "/media/audio/music-r4/reading-r4.m4a",
+      "mimeType": "audio/mp4",
+      "durationSeconds": 103.0,
+      "bytes": 1263399,
+      "sha256": "bf32c8de8bb4f55833578aa299f1d528e98cda4c01250dc70ec884110511defd",
+      "sampleRate": 44100,
+      "channels": 2,
+      "nominalBitRate": 96000,
+      "source": {
+        "file": "02-reading-scene-r4.wav",
+        "sha256": "766ff93de3f5bf6eb6d1d25075f0e90dafa42bc92d1e11452696e604d3dc39ca",
+        "durationSeconds": 110.0,
+        "integratedLufs": -28.732,
+        "oversampledPeakDbtp": -14.057
+      },
+      "loop": {
+        "method": "tail-folded-into-head-complementary-raised-cosine",
+        "nativeLoop": true,
+        "loopStartSeconds": 0,
+        "loopEndSeconds": 103.0,
+        "sourceTrimEndSeconds": 104.8,
+        "crossfadeSeconds": 1.8,
+        "sourceTailStartSeconds": 103.0,
+        "sourceTailEndSeconds": 104.8,
+        "sourceTailRemovedAfterSeconds": 104.8,
+        "firstPlaybackPrefixChangedSeconds": 1.8,
+        "unchangedBodySourceStartSeconds": 1.8,
+        "unchangedBodySourceEndSeconds": 103.0,
+        "gainAppliedToWholeTrack": 1.0,
+        "pcmSeamAdjacentStep": 0.001647949,
+        "pcmNaturalSourceAdjacentStep": 0.001647949,
+        "initialPlaybackAdvice": "Fade in the player briefly; the first 1.8 seconds contain the previous tail and the original opening.",
+        "formula": "prefix[i] = tail[i] * (1-w[i]) + originalHead[i] * w[i]; w[i] = (1-cos(pi*i/(N-1)))/2; body is unchanged"
+      },
+      "pcmBeforeEncoding": {
+        "durationSeconds": 103.0,
+        "integratedLufs": -28.719,
+        "oversampledPeakDbtp": -14.057,
+        "samplePeakDbfs": -14.063,
+        "clippedSamples": 0,
+        "maximumAdjacentStep": 0.0126953,
+        "dcOffset": 0.0,
+        "monoCorrelation": 0.9937
+      },
+      "decoded": {
+        "durationSeconds": 103.0,
+        "integratedLufs": -28.736,
+        "oversampledPeakDbtp": -14.054,
+        "samplePeakDbfs": -14.059,
+        "clippedSamples": 0,
+        "maximumAdjacentStep": 0.0125624,
+        "dcOffset": 1.1e-07,
+        "monoCorrelation": 0.9938
+      },
+      "loudnessDeltaFromSceneLu": -0.004,
+      "container": {
+        "codec": "aac",
+        "sampleRate": 44100,
+        "channels": 2,
+        "containerStartSeconds": 0.0,
+        "containerDurationSeconds": 103.0,
+        "rawDecodedFrames": 4542464,
+        "trimmedTrailingPaddingSamples": 164
+      },
+      "headOffsetSamples": 0,
+      "tailOffsetSamples": 0,
+      "repeatBoundary": {
+        "adjacentStepAcrossRepeat": 0.004888454,
+        "nearZeroRunAcrossRepeatSeconds": 0.0,
+        "nearZeroThresholdDbfs": -90,
+        "levels400ms": [
+          {
+            "relativeStartSeconds": -1.2,
+            "ungatedLufs": -46.719
+          },
+          {
+            "relativeStartSeconds": -1.1,
+            "ungatedLufs": -45.732
+          },
+          {
+            "relativeStartSeconds": -1.0,
+            "ungatedLufs": -45.084
+          },
+          {
+            "relativeStartSeconds": -0.9,
+            "ungatedLufs": -44.874
+          },
+          {
+            "relativeStartSeconds": -0.8,
+            "ungatedLufs": -44.316
+          },
+          {
+            "relativeStartSeconds": -0.7,
+            "ungatedLufs": -44.588
+          },
+          {
+            "relativeStartSeconds": -0.6,
+            "ungatedLufs": -44.515
+          },
+          {
+            "relativeStartSeconds": -0.5,
+            "ungatedLufs": -44.073
+          },
+          {
+            "relativeStartSeconds": -0.4,
+            "ungatedLufs": -39.824
+          },
+          {
+            "relativeStartSeconds": -0.3,
+            "ungatedLufs": -38.049
+          },
+          {
+            "relativeStartSeconds": -0.2,
+            "ungatedLufs": -37.651
+          },
+          {
+            "relativeStartSeconds": -0.1,
+            "ungatedLufs": -37.514
+          },
+          {
+            "relativeStartSeconds": 0.0,
+            "ungatedLufs": -39.469
+          },
+          {
+            "relativeStartSeconds": 0.1,
+            "ungatedLufs": -42.118
+          },
+          {
+            "relativeStartSeconds": 0.2,
+            "ungatedLufs": -43.292
+          },
+          {
+            "relativeStartSeconds": 0.3,
+            "ungatedLufs": -43.74
+          },
+          {
+            "relativeStartSeconds": 0.4,
+            "ungatedLufs": -43.712
+          },
+          {
+            "relativeStartSeconds": 0.5,
+            "ungatedLufs": -43.078
+          },
+          {
+            "relativeStartSeconds": 0.6,
+            "ungatedLufs": -42.383
+          },
+          {
+            "relativeStartSeconds": 0.7,
+            "ungatedLufs": -42.055
+          },
+          {
+            "relativeStartSeconds": 0.8,
+            "ungatedLufs": -32.821
+          },
+          {
+            "relativeStartSeconds": 0.9,
+            "ungatedLufs": -29.517
+          },
+          {
+            "relativeStartSeconds": 1.0,
+            "ungatedLufs": -27.81
+          }
+        ],
+        "limit": "PCM repeat simulation; native browser loop scheduling still needs browser verification."
+      }
+    },
+    {
+      "id": "bronze",
+      "title": "观器·温金",
+      "file": "bronze-r4.m4a",
+      "url": "/media/audio/music-r4/bronze-r4.m4a",
+      "mimeType": "audio/mp4",
+      "durationSeconds": 107.6,
+      "bytes": 1320486,
+      "sha256": "c9d57abae56711f2429a47b7ad54bac2266472069cabdbb57aa1bed88685e195",
+      "sampleRate": 44100,
+      "channels": 2,
+      "nominalBitRate": 96000,
+      "source": {
+        "file": "03-bronze-scene-r4.wav",
+        "sha256": "f814fb01c0d057430dbefd0c9373631191f3d3c0f0182e9d7c4a70adf4d8a95b",
+        "durationSeconds": 115.0,
+        "integratedLufs": -26.854,
+        "oversampledPeakDbtp": -11.6
+      },
+      "loop": {
+        "method": "tail-folded-into-head-complementary-raised-cosine",
+        "nativeLoop": true,
+        "loopStartSeconds": 0,
+        "loopEndSeconds": 107.6,
+        "sourceTrimEndSeconds": 109.4,
+        "crossfadeSeconds": 1.8,
+        "sourceTailStartSeconds": 107.6,
+        "sourceTailEndSeconds": 109.4,
+        "sourceTailRemovedAfterSeconds": 109.4,
+        "firstPlaybackPrefixChangedSeconds": 1.8,
+        "unchangedBodySourceStartSeconds": 1.8,
+        "unchangedBodySourceEndSeconds": 107.6,
+        "gainAppliedToWholeTrack": 1.0,
+        "pcmSeamAdjacentStep": 0.001251221,
+        "pcmNaturalSourceAdjacentStep": 0.001251221,
+        "initialPlaybackAdvice": "Fade in the player briefly; the first 1.8 seconds contain the previous tail and the original opening.",
+        "formula": "prefix[i] = tail[i] * (1-w[i]) + originalHead[i] * w[i]; w[i] = (1-cos(pi*i/(N-1)))/2; body is unchanged"
+      },
+      "pcmBeforeEncoding": {
+        "durationSeconds": 107.6,
+        "integratedLufs": -26.833,
+        "oversampledPeakDbtp": -11.6,
+        "samplePeakDbfs": -11.606,
+        "clippedSamples": 0,
+        "maximumAdjacentStep": 0.0215454,
+        "dcOffset": 1e-08,
+        "monoCorrelation": 0.9853
+      },
+      "decoded": {
+        "durationSeconds": 107.6,
+        "integratedLufs": -26.861,
+        "oversampledPeakDbtp": -11.687,
+        "samplePeakDbfs": -11.692,
+        "clippedSamples": 0,
+        "maximumAdjacentStep": 0.0215988,
+        "dcOffset": 9e-08,
+        "monoCorrelation": 0.9857
+      },
+      "loudnessDeltaFromSceneLu": -0.007,
+      "container": {
+        "codec": "aac",
+        "sampleRate": 44100,
+        "channels": 2,
+        "containerStartSeconds": 0.0,
+        "containerDurationSeconds": 107.6,
+        "rawDecodedFrames": 4745216,
+        "trimmedTrailingPaddingSamples": 56
+      },
+      "headOffsetSamples": 0,
+      "tailOffsetSamples": 0,
+      "repeatBoundary": {
+        "adjacentStepAcrossRepeat": 0.013545688,
+        "nearZeroRunAcrossRepeatSeconds": 0.0,
+        "nearZeroThresholdDbfs": -90,
+        "levels400ms": [
+          {
+            "relativeStartSeconds": -1.2,
+            "ungatedLufs": -29.898
+          },
+          {
+            "relativeStartSeconds": -1.1,
+            "ungatedLufs": -28.475
+          },
+          {
+            "relativeStartSeconds": -1.0,
+            "ungatedLufs": -28.434
+          },
+          {
+            "relativeStartSeconds": -0.9,
+            "ungatedLufs": -28.855
+          },
+          {
+            "relativeStartSeconds": -0.8,
+            "ungatedLufs": -29.422
+          },
+          {
+            "relativeStartSeconds": -0.7,
+            "ungatedLufs": -29.951
+          },
+          {
+            "relativeStartSeconds": -0.6,
+            "ungatedLufs": -29.787
+          },
+          {
+            "relativeStartSeconds": -0.5,
+            "ungatedLufs": -27.812
+          },
+          {
+            "relativeStartSeconds": -0.4,
+            "ungatedLufs": -27.264
+          },
+          {
+            "relativeStartSeconds": -0.3,
+            "ungatedLufs": -27.604
+          },
+          {
+            "relativeStartSeconds": -0.2,
+            "ungatedLufs": -27.49
+          },
+          {
+            "relativeStartSeconds": -0.1,
+            "ungatedLufs": -29.414
+          },
+          {
+            "relativeStartSeconds": 0.0,
+            "ungatedLufs": -30.897
+          },
+          {
+            "relativeStartSeconds": 0.1,
+            "ungatedLufs": -32.345
+          },
+          {
+            "relativeStartSeconds": 0.2,
+            "ungatedLufs": -35.211
+          },
+          {
+            "relativeStartSeconds": 0.3,
+            "ungatedLufs": -36.129
+          },
+          {
+            "relativeStartSeconds": 0.4,
+            "ungatedLufs": -37.087
+          },
+          {
+            "relativeStartSeconds": 0.5,
+            "ungatedLufs": -38.293
+          },
+          {
+            "relativeStartSeconds": 0.6,
+            "ungatedLufs": -38.734
+          },
+          {
+            "relativeStartSeconds": 0.7,
+            "ungatedLufs": -33.705
+          },
+          {
+            "relativeStartSeconds": 0.8,
+            "ungatedLufs": -31.666
+          },
+          {
+            "relativeStartSeconds": 0.9,
+            "ungatedLufs": -31.072
+          },
+          {
+            "relativeStartSeconds": 1.0,
+            "ungatedLufs": -30.401
+          }
+        ],
+        "limit": "PCM repeat simulation; native browser loop scheduling still needs browser verification."
+      }
+    },
+    {
+      "id": "jade",
+      "title": "温润·玉石",
+      "file": "jade-r4.m4a",
+      "url": "/media/audio/music-r4/jade-r4.m4a",
+      "mimeType": "audio/mp4",
+      "durationSeconds": 99.1,
+      "bytes": 1213810,
+      "sha256": "0f90cbd8e0b0e736e66ce94aa1d57324b0bc2b2074f62627668e1589b5166f71",
+      "sampleRate": 44100,
+      "channels": 2,
+      "nominalBitRate": 96000,
+      "source": {
+        "file": "04-jade-scene-r4.wav",
+        "sha256": "4ac9ad85ae0051b9a9f04091b30b6bd7fe0fcd358ba7c0d7fb12919f6e8893dc",
+        "durationSeconds": 104.0,
+        "integratedLufs": -27.479,
+        "oversampledPeakDbtp": -12.832
+      },
+      "loop": {
+        "method": "tail-folded-into-head-complementary-raised-cosine",
+        "nativeLoop": true,
+        "loopStartSeconds": 0,
+        "loopEndSeconds": 99.1,
+        "sourceTrimEndSeconds": 100.9,
+        "crossfadeSeconds": 1.8,
+        "sourceTailStartSeconds": 99.1,
+        "sourceTailEndSeconds": 100.9,
+        "sourceTailRemovedAfterSeconds": 100.9,
+        "firstPlaybackPrefixChangedSeconds": 1.8,
+        "unchangedBodySourceStartSeconds": 1.8,
+        "unchangedBodySourceEndSeconds": 99.1,
+        "gainAppliedToWholeTrack": 1.0,
+        "pcmSeamAdjacentStep": 0.000152588,
+        "pcmNaturalSourceAdjacentStep": 0.000152588,
+        "initialPlaybackAdvice": "Fade in the player briefly; the first 1.8 seconds contain the previous tail and the original opening.",
+        "formula": "prefix[i] = tail[i] * (1-w[i]) + originalHead[i] * w[i]; w[i] = (1-cos(pi*i/(N-1)))/2; body is unchanged"
+      },
+      "pcmBeforeEncoding": {
+        "durationSeconds": 99.1,
+        "integratedLufs": -27.421,
+        "oversampledPeakDbtp": -12.832,
+        "samplePeakDbfs": -12.838,
+        "clippedSamples": 0,
+        "maximumAdjacentStep": 0.0155334,
+        "dcOffset": 0.0,
+        "monoCorrelation": 0.9811
+      },
+      "decoded": {
+        "durationSeconds": 99.1,
+        "integratedLufs": -27.447,
+        "oversampledPeakDbtp": -12.87,
+        "samplePeakDbfs": -12.875,
+        "clippedSamples": 0,
+        "maximumAdjacentStep": 0.0157982,
+        "dcOffset": 2.7e-07,
+        "monoCorrelation": 0.9814
+      },
+      "loudnessDeltaFromSceneLu": 0.032,
+      "container": {
+        "codec": "aac",
+        "sampleRate": 44100,
+        "channels": 2,
+        "containerStartSeconds": 0.0,
+        "containerDurationSeconds": 99.1,
+        "rawDecodedFrames": 4370432,
+        "trimmedTrailingPaddingSamples": 122
+      },
+      "headOffsetSamples": 0,
+      "tailOffsetSamples": 0,
+      "repeatBoundary": {
+        "adjacentStepAcrossRepeat": 0.001229799,
+        "nearZeroRunAcrossRepeatSeconds": 0.0,
+        "nearZeroThresholdDbfs": -90,
+        "levels400ms": [
+          {
+            "relativeStartSeconds": -1.2,
+            "ungatedLufs": -41.734
+          },
+          {
+            "relativeStartSeconds": -1.1,
+            "ungatedLufs": -42.325
+          },
+          {
+            "relativeStartSeconds": -1.0,
+            "ungatedLufs": -42.913
+          },
+          {
+            "relativeStartSeconds": -0.9,
+            "ungatedLufs": -43.43
+          },
+          {
+            "relativeStartSeconds": -0.8,
+            "ungatedLufs": -43.933
+          },
+          {
+            "relativeStartSeconds": -0.7,
+            "ungatedLufs": -44.356
+          },
+          {
+            "relativeStartSeconds": -0.6,
+            "ungatedLufs": -44.832
+          },
+          {
+            "relativeStartSeconds": -0.5,
+            "ungatedLufs": -45.204
+          },
+          {
+            "relativeStartSeconds": -0.4,
+            "ungatedLufs": -45.691
+          },
+          {
+            "relativeStartSeconds": -0.3,
+            "ungatedLufs": -46.186
+          },
+          {
+            "relativeStartSeconds": -0.2,
+            "ungatedLufs": -46.66
+          },
+          {
+            "relativeStartSeconds": -0.1,
+            "ungatedLufs": -46.814
+          },
+          {
+            "relativeStartSeconds": 0.0,
+            "ungatedLufs": -46.671
+          },
+          {
+            "relativeStartSeconds": 0.1,
+            "ungatedLufs": -45.962
+          },
+          {
+            "relativeStartSeconds": 0.2,
+            "ungatedLufs": -45.111
+          },
+          {
+            "relativeStartSeconds": 0.3,
+            "ungatedLufs": -44.288
+          },
+          {
+            "relativeStartSeconds": 0.4,
+            "ungatedLufs": -43.819
+          },
+          {
+            "relativeStartSeconds": 0.5,
+            "ungatedLufs": -42.9
+          },
+          {
+            "relativeStartSeconds": 0.6,
+            "ungatedLufs": -41.964
+          },
+          {
+            "relativeStartSeconds": 0.7,
+            "ungatedLufs": -41.639
+          },
+          {
+            "relativeStartSeconds": 0.8,
+            "ungatedLufs": -41.951
+          },
+          {
+            "relativeStartSeconds": 0.9,
+            "ungatedLufs": -42.916
+          },
+          {
+            "relativeStartSeconds": 1.0,
+            "ungatedLufs": -42.03
+          }
+        ],
+        "limit": "PCM repeat simulation; native browser loop scheduling still needs browser verification."
+      }
+    }
+  ]
+}

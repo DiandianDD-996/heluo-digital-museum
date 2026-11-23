@@ -2,24 +2,32 @@
 /**
  * Header sound control: one master switch, with everything else tucked
  * into a panel that opens on hover or click.
- *
- * Why a panel rather than three buttons: the header already carries theme,
- * locale and account, and a museum brand bar that grows a fourth permanent
- * control starts reading as a toolbar. Sound is a preference people set
- * once and then forget, so it earns one icon and a disclosure.
- *
- * Hover and click are both supported because they serve different people.
- * A mouse user should be able to glance at the tier without committing to
- * a click; a keyboard or touch user needs a real toggle. Hover therefore
- * does not steal focus or trap anything, while click moves focus into the
- * panel so the next Tab lands somewhere sensible.
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useAudio } from '../stores/audio'
 import { useLocale } from '../stores/locale'
 import type { VolumeTier } from '../lib/audioSystem'
+import type { MusicTrack } from '../lib/audioScenes'
+import { MUSIC_CATALOG, MUSIC_TRACK_ORDER } from '../lib/musicCatalog'
 
-const { enabled, isAudible, isSfxOn, isMusicOn, volumeTier, tierOrder, toggle, enable, setSfxEnabled, setMusicEnabled, setVolumeTier } = useAudio()
+const {
+  enabled,
+  isAudible,
+  isSfxOn,
+  isMusicOn,
+  isPaused,
+  currentTrack,
+  manualTrack,
+  volumeTier,
+  tierOrder,
+  toggle,
+  enable,
+  setSfxEnabled,
+  setMusicEnabled,
+  setVolumeTier,
+  setManualTrack,
+  resumePlayback,
+} = useAudio()
 const { locale, t } = useLocale()
 
 const open = ref(false)
@@ -33,8 +41,25 @@ const copy = computed(() => t.value.audio)
 const masterLabel = computed(() => enabled.value ? copy.value.sound : copy.value.mute)
 const stateLabel = computed(() => {
   if (!enabled.value) return copy.value.muted
+  if (isPaused?.value) return copy.value.paused
   return copy.value.on
 })
+
+const activeTrackMeta = computed(() => {
+  const id = currentTrack?.value
+  return id ? MUSIC_CATALOG[id] : null
+})
+
+const trackLabel = computed(() => {
+  const meta = activeTrackMeta.value
+  if (!meta) return ''
+  return locale.value === 'en-US' ? meta.titleEn : `《${meta.titleZh}》`
+})
+
+function selectTrack(track: MusicTrack | null) {
+  if (track !== null && !isMusicOn.value) setMusicEnabled(true)
+  setManualTrack?.(track)
+}
 
 function togglePanel() {
   if (open.value && openedByClick) {
@@ -42,13 +67,10 @@ function togglePanel() {
     return
   }
   if (!enabled.value) {
-    // Turning sound on is the only meaningful first action, and it needs
-    // the click as its gesture. Opening a panel of controls for a system
-    // that is off would just be a dead end.
     enable()
+  } else if (isPaused?.value) {
+    resumePlayback?.()
   }
-  // A hover preview becomes a clicked-open panel; the first click must
-  // not immediately undo the pointerenter that preceded it.
   openedByClick = true
   open.value = true
   void nextTick(() => {
@@ -67,9 +89,6 @@ function onPointerEnter(event: PointerEvent) {
 }
 
 function onPointerLeave(event: PointerEvent) {
-  // Focus inside the panel means someone is using it — closing on pointer
-  // leave would yank it away mid-interaction for keyboard users on a
-  // machine that also has a mouse.
   if (root.value?.contains(document.activeElement) && document.activeElement !== root.value) return
   if (event.relatedTarget instanceof Node && root.value?.contains(event.relatedTarget)) return
   close()
@@ -103,9 +122,6 @@ function positionPanel() {
 }
 
 function chooseTier(value: VolumeTier) {
-  // Choosing `silent` while the master switch is on is a request to hear
-  // nothing; leaving the master on means one click restores the previous
-  // volume instead of re-running the whole enable path.
   setVolumeTier(value)
 }
 
@@ -137,7 +153,7 @@ onBeforeUnmount(() => {
   <div
     ref="root"
     class="audio-control"
-    :class="{ 'audio-control--open': open, 'audio-control--off': !enabled }"
+    :class="{ 'audio-control--open': open, 'audio-control--off': !enabled, 'audio-control--paused': isPaused }"
     :style="{ '--audio-panel-offset': `${panelOffset}px` }"
     data-glass="compact"
     data-glass-interactive
@@ -155,7 +171,7 @@ onBeforeUnmount(() => {
       aria-controls="audio-control-panel"
       @click="togglePanel"
     >
-      <svg v-if="isAudible" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 010 7.07"/><path d="M18.5 5.5a9 9 0 010 13"/></svg>
+      <svg v-if="isAudible && !isPaused" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 010 7.07"/><path d="M18.5 5.5a9 9 0 010 13"/></svg>
       <svg v-else-if="enabled" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="16" y1="9" x2="22" y2="15"/><line x1="22" y1="9" x2="16" y2="15"/></svg>
       <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
       <span>{{ masterLabel }}</span>
@@ -185,6 +201,25 @@ onBeforeUnmount(() => {
           <i aria-hidden="true" />
         </button>
 
+        <div v-if="enabled" class="audio-panel__placard" data-testid="audio-track-placard">
+          <button
+            v-if="isPaused"
+            type="button"
+            class="audio-panel__resume"
+            @click="resumePlayback?.()"
+          >
+            <span>{{ copy.resumeHint }}</span>
+            <small v-if="trackLabel">{{ trackLabel }}</small>
+          </button>
+          <p v-else-if="activeTrackMeta" class="audio-panel__now">
+            <span class="audio-panel__now-label">{{ copy.nowPlaying }} · {{ trackLabel }}</span>
+            <span class="audio-panel__now-meta font-mono">{{ activeTrackMeta.durationLabel }}</span>
+          </p>
+          <p v-else class="audio-panel__now is-quiet">
+            <span>{{ isMusicOn ? copy.quietRoom : copy.musicOff }}</span>
+          </p>
+        </div>
+
         <fieldset class="audio-panel__fieldset">
           <legend>{{ copy.volume }}</legend>
           <div class="audio-panel__tiers">
@@ -202,6 +237,32 @@ onBeforeUnmount(() => {
           </div>
         </fieldset>
 
+        <fieldset v-if="enabled" class="audio-panel__fieldset">
+          <legend>{{ copy.tracks }}</legend>
+          <div class="audio-panel__tracks">
+            <button
+              type="button"
+              class="audio-panel__track-btn"
+              :class="{ 'is-active': (manualTrack ?? null) === null }"
+              :aria-pressed="(manualTrack ?? null) === null"
+              @click="selectTrack(null)"
+            >
+              {{ copy.trackAuto }}
+            </button>
+            <button
+              v-for="id in MUSIC_TRACK_ORDER"
+              :key="id"
+              type="button"
+              class="audio-panel__track-btn"
+              :class="{ 'is-active': manualTrack === id }"
+              :aria-pressed="manualTrack === id"
+              @click="selectTrack(id)"
+            >
+              {{ locale === 'en-US' ? MUSIC_CATALOG[id].titleEn : MUSIC_CATALOG[id].titleZh }}
+            </button>
+          </div>
+        </fieldset>
+
         <label class="audio-panel__check">
           <input type="checkbox" :checked="isSfxOn" @change="setSfxEnabled(($event.target as HTMLInputElement).checked)" />
           <span>{{ copy.sfx }}</span>
@@ -211,6 +272,11 @@ onBeforeUnmount(() => {
           <input type="checkbox" :checked="isMusicOn" @change="setMusicEnabled(($event.target as HTMLInputElement).checked)" />
           <span>{{ copy.music }}</span>
         </label>
+
+        <details class="audio-panel__notes">
+          <summary>{{ copy.notesTitle }}</summary>
+          <p>{{ copy.notesBody }}</p>
+        </details>
 
         <p class="audio-panel__hint">{{ copy.hint }}</p>
       </div>

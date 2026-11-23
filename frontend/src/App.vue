@@ -4,6 +4,7 @@ import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { setUnauthorizedHandler } from './lib/api'
 import { User } from '@element-plus/icons-vue'
 import { musicDirector } from './lib/musicDirector'
+import { audioSystem } from './lib/audioSystem'
 import { installInteractionSounds, removeInteractionSounds } from './lib/interactionSound'
 import { useAuthStore } from './stores/auth'
 import { useLocale } from './stores/locale'
@@ -151,6 +152,7 @@ onBeforeUnmount(() => {
 musicDirector.setRoute(route.name, route.params.slug)
 musicDirector.init()
 watch([() => route.name, () => route.params.slug], ([name, slug]) => musicDirector.setRoute(name, slug))
+watch(isDark, (dark) => audioSystem.setThemeAcoustic(dark ? 'dark' : 'light'), { immediate: true })
 
 watch(() => route.path, async (_, previousPath) => {
   if (!previousPath) return
