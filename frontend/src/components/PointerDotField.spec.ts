@@ -46,9 +46,13 @@ describe('PointerDotField', () => {
       x: 0, y: 0, top: 0, left: 0, right: 360, bottom: 220, width: 360, height: 220, toJSON: () => ({}),
     })
     contextStub = {
-      setTransform: vi.fn(), clearRect: vi.fn(), beginPath: vi.fn(), moveTo: vi.fn(), lineTo: vi.fn(), arc: vi.fn(), fill: vi.fn(), stroke: vi.fn(),
+      setTransform: vi.fn(), clearRect: vi.fn(), beginPath: vi.fn(), closePath: vi.fn(),
+      moveTo: vi.fn(), lineTo: vi.fn(), quadraticCurveTo: vi.fn(), arc: vi.fn(), fill: vi.fn(), stroke: vi.fn(),
+      save: vi.fn(), restore: vi.fn(), translate: vi.fn(), rotate: vi.fn(), scale: vi.fn(), clip: vi.fn(),
+      setLineDash: vi.fn(), fillRect: vi.fn(),
       createRadialGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
-      fillStyle: '', strokeStyle: '', lineWidth: 1, lineCap: 'butt',
+      createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
+      fillStyle: '', strokeStyle: '', lineWidth: 1, lineCap: 'butt', globalAlpha: 1, shadowBlur: 0, shadowColor: 'transparent',
     } as unknown as CanvasRenderingContext2D
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(contextStub)
   })
@@ -271,12 +275,12 @@ describe('PointerDotField', () => {
     document.documentElement.dataset.theme = 'dark'
     const wrapper = mount(PointerDotField, { attachTo: document.body })
     await nextTick()
-    expect(contextStub.fillStyle).toBe('rgba(255, 202, 37, .98)')
+    expect(contextStub.fillStyle).toBe('rgba(224, 184, 108, .44)')
 
     document.documentElement.dataset.theme = 'light'
     window.dispatchEvent(new CustomEvent('heluo:theme-change', { detail: 'light' }))
     await vi.waitFor(() => {
-      expect(contextStub.fillStyle).toBe('rgba(255, 204, 20, .99)')
+      expect(contextStub.fillStyle).toBe('rgba(184, 134, 42, .42)')
     })
     wrapper.unmount()
   })

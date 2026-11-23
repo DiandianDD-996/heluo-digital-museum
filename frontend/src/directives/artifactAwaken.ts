@@ -47,7 +47,9 @@ interface AwakenState {
   canvas: HTMLCanvasElement | null
   particleSystem: ParticleSystem | null
   gsapModule: typeof import('gsap') | null
-  onEnter: () => void
+  lastEmitAt: number
+  onEnter: (event: PointerEvent) => void
+  onMove: (event: PointerEvent) => void
   onLeave: () => void
   onSweepEnd: (event: AnimationEvent) => void
   onClick: () => void
@@ -86,9 +88,21 @@ function triggerSweep(state: AwakenState) {
   state.container.classList.add('is-sweeping')
 }
 
-async function handleEnter(state: AwakenState) {
+function syncAwakenPointer(state: AwakenState, event: PointerEvent) {
+  const rect = state.container.getBoundingClientRect()
+  const x = Math.min(Math.max(event.clientX - rect.left, 0), rect.width)
+  const y = Math.min(Math.max(event.clientY - rect.top, 0), rect.height)
+  const pctX = rect.width > 0 ? (x / rect.width) * 100 : 50
+  const pctY = rect.height > 0 ? (y / rect.height) * 100 : 50
+  state.container.style.setProperty('--awaken-x', `${pctX.toFixed(1)}%`)
+  state.container.style.setProperty('--awaken-y', `${pctY.toFixed(1)}%`)
+  return { x, y }
+}
+
+async function handleEnter(state: AwakenState, event: PointerEvent) {
   if (!shouldAnimate()) return
 
+  const { x, y } = syncAwakenPointer(state, event)
   state.container.classList.add('is-awakened')
   triggerSweep(state)
   void audioSystem.playInteraction(MATERIAL_SOUND[state.material], { volume: 0.22 })
@@ -97,8 +111,8 @@ async function handleEnter(state: AwakenState) {
   state.gsapModule = gsapModule
   if (gsapModule && state.container.classList.contains('is-awakened')) {
     gsapModule.gsap.to(state.img, {
-      scale: 1.025,
-      rotation: -0.5,
+      scale: 1.03,
+      rotation: -0.4,
       duration: 0.6,
       ease: 'power2.out',
       overwrite: 'auto',
@@ -114,8 +128,19 @@ async function handleEnter(state: AwakenState) {
       state.particleSystem ??= createParticleSystem(canvas, MATERIAL_PARTICLE_PRESETS[state.material])
     }
     if (state.container.classList.contains('is-awakened')) {
-      state.particleSystem.emit(budget)
+      state.lastEmitAt = performance.now()
+      state.particleSystem.emit(budget, x, y)
     }
+  }
+}
+
+function handleMove(state: AwakenState, event: PointerEvent) {
+  if (!shouldAnimate() || !state.container.classList.contains('is-awakened')) return
+  const { x, y } = syncAwakenPointer(state, event)
+  const now = performance.now()
+  if (state.particleSystem && now - state.lastEmitAt > 240) {
+    state.lastEmitAt = now
+    state.particleSystem.emit(1, x, y)
   }
 }
 
@@ -149,13 +174,16 @@ export const artifactAwaken: Directive<HTMLElement, AwakenOptions | undefined> =
       canvas: null,
       particleSystem: null,
       gsapModule: null,
-      onEnter: () => void handleEnter(state),
+      lastEmitAt: 0,
+      onEnter: (event: PointerEvent) => void handleEnter(state, event),
+      onMove: (event: PointerEvent) => handleMove(state, event),
       onLeave: () => handleLeave(state),
       onSweepEnd: () => state.container.classList.remove('is-sweeping'),
       onClick: () => void audioSystem.adaptivePlay('click'),
     }
 
     element.addEventListener('pointerenter', state.onEnter, { passive: true })
+    element.addEventListener('pointermove', state.onMove, { passive: true })
     element.addEventListener('pointerleave', state.onLeave, { passive: true })
     container.addEventListener('animationend', state.onSweepEnd)
     element.addEventListener('click', state.onClick, { passive: true })
@@ -176,6 +204,7 @@ export const artifactAwaken: Directive<HTMLElement, AwakenOptions | undefined> =
     const state = states.get(element)
     if (!state) return
     element.removeEventListener('pointerenter', state.onEnter)
+    element.removeEventListener('pointermove', state.onMove)
     element.removeEventListener('pointerleave', state.onLeave)
     element.removeEventListener('click', state.onClick)
     state.container.removeEventListener('animationend', state.onSweepEnd)
@@ -184,6 +213,8 @@ export const artifactAwaken: Directive<HTMLElement, AwakenOptions | undefined> =
     state.gsapModule?.gsap.killTweensOf(state.img)
     state.container.classList.remove('artifact-awaken-surface', 'is-awakened', 'is-sweeping')
     state.container.style.removeProperty('--awaken-glow')
+    state.container.style.removeProperty('--awaken-x')
+    state.container.style.removeProperty('--awaken-y')
     states.delete(element)
   },
 }

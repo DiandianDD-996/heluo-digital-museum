@@ -11,6 +11,7 @@ import { useLocale } from '../stores/locale'
 
 type DisplayMode = 'solid' | 'points'
 type ViewName = 'front' | 'left' | 'right' | 'back' | 'top'
+type FocusPart = 'ear' | 'feet' | 'motif'
 type ViewerRuntimeState = 'loading-runtime' | 'loading-model' | 'compiling-first-frame' | 'ready' | 'error'
 type PointCloudState = 'idle' | 'loading' | 'ready' | 'error'
 type OpacityMaterial = Material & { opacity: number; transparent: boolean; depthWrite: boolean }
@@ -29,6 +30,7 @@ const props = withDefaults(defineProps<{
 }>(), { enablePointCloud: true, initialMode: 'solid' })
 const emit = defineEmits<{
   (event: 'mode-change', value: DisplayMode): void
+  (event: 'view-change', value: ViewName): void
   (event: 'quality-change', value: PointCloudQuality): void
   (event: 'state-change', value: ViewerRuntimeState): void
   (event: 'point-cloud-state', value: PointCloudState): void
@@ -50,7 +52,7 @@ let cleanup: (() => void) | undefined
 let controlsRef: OrbitControls | undefined
 let cameraRef: PerspectiveCamera | undefined
 let targetRef: Vector3 | undefined
-let cameraTransition: { from: Vector3; to: Vector3; start: number; duration: number } | undefined
+let cameraTransition: { from: Vector3; to: Vector3; fromTarget: Vector3; toTarget: Vector3; start: number; duration: number } | undefined
 let pointerInteractionRef: { pause: (duration?: number) => void } | undefined
 let changeMode: (mode: DisplayMode) => void = () => undefined
 let quality: PointCloudQuality = 'medium'
@@ -68,6 +70,11 @@ const POINT_CLOUD_INTRO_DURATION = 1800
 const POINT_CLOUD_INTRO_GATHER_ARC = .78
 const views: Record<ViewName, [number, number, number]> = {
   front: [0, .5, 9.7], left: [-6.15, .8, 6.4], right: [6.15, .8, 6.4], back: [0, .5, -9.7], top: [0, 9.45, .8],
+}
+const partPresets: Record<FocusPart, { position: [number, number, number]; targetOffset: [number, number, number]; view: ViewName }> = {
+  ear: { position: [0.45, 5.2, 3.8], targetOffset: [0, 0.9, 0], view: 'top' },
+  feet: { position: [0, -0.25, -7.2], targetOffset: [0, -0.45, 0], view: 'back' },
+  motif: { position: [0, 0.45, 5.6], targetOffset: [0, 0.25, 0], view: 'front' },
 }
 
 function selectQuality(): PointCloudQuality {
@@ -102,16 +109,49 @@ function disposeScene(scene: import('three').Object3D, disposed = new Set<unknow
   })
 }
 
+function transitionCamera(nextPosition: Vector3, nextTarget: Vector3, options: { animated?: boolean } = {}) {
+  if (!cameraRef || !controlsRef) return
+  if (options.animated !== false && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    cameraTransition = {
+      from: cameraRef.position.clone(),
+      to: nextPosition,
+      fromTarget: controlsRef.target.clone(),
+      toTarget: nextTarget,
+      start: performance.now(),
+      duration: 540,
+    }
+  } else {
+    cameraTransition = undefined
+    cameraRef.position.copy(nextPosition)
+    controlsRef.target.copy(nextTarget)
+  }
+  controlsRef.update()
+}
 function setView(name: ViewName, options: { animated?: boolean } = {}) {
   if (!cameraRef || !controlsRef || !targetRef) return
   pointerInteractionRef?.pause(560)
   const [x, y, z] = views[name]
   const distanceScale = selectExhibitCameraDistanceScale({ width: window.innerWidth })
-  const nextPosition = cameraRef.position.clone().set(targetRef.x + x * distanceScale, targetRef.y + y * distanceScale, targetRef.z + z * distanceScale)
-  if (options.animated !== false && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) cameraTransition = { from: cameraRef.position.clone(), to: nextPosition, start: performance.now(), duration: 520 }
-  else cameraRef.position.copy(nextPosition)
-  controlsRef.target.copy(targetRef)
-  controlsRef.update()
+  const nextTarget = targetRef.clone()
+  const nextPosition = cameraRef.position.clone().set(nextTarget.x + x * distanceScale, nextTarget.y + y * distanceScale, nextTarget.z + z * distanceScale)
+  transitionCamera(nextPosition, nextTarget, options)
+  emit('view-change', name)
+}
+function focusPart(part: FocusPart, options: { animated?: boolean } = {}) {
+  if (!cameraRef || !controlsRef || !targetRef) return
+  pointerInteractionRef?.pause(560)
+  const preset = partPresets[part]
+  const distanceScale = selectExhibitCameraDistanceScale({ width: window.innerWidth })
+  const [tx, ty, tz] = preset.targetOffset
+  const [px, py, pz] = preset.position
+  const nextTarget = targetRef.clone().set(targetRef.x + tx, targetRef.y + ty, targetRef.z + tz)
+  const nextPosition = cameraRef.position.clone().set(nextTarget.x + px * distanceScale, nextTarget.y + py * distanceScale, nextTarget.z + pz * distanceScale)
+  if (controlsRef.autoRotate) {
+    controlsRef.autoRotate = false
+    syncAutoRotateState()
+  }
+  transitionCamera(nextPosition, nextTarget, options)
+  emit('view-change', preset.view)
 }
 function syncAutoRotateState() {
   if (container.value) container.value.dataset.autoRotate = String(Boolean(controlsRef?.autoRotate))
@@ -136,7 +176,7 @@ function resetView() {
   setView('front', { animated: true })
 }
 function setMode(mode: DisplayMode) { changeMode(mode) }
-defineExpose({ rotate, zoomIn, zoomOut, resetView, setView, setMode })
+defineExpose({ rotate, zoomIn, zoomOut, resetView, setView, focusPart, setMode })
 
 async function initialize() {
   const version = ++initializationVersion
@@ -217,7 +257,7 @@ async function initialize() {
     let syncStageTheme: (() => void) | undefined
     const syncSceneTheme = () => {
       sceneTheme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
-      sceneFog.color.set(sceneTheme === 'dark' ? '#0c1815' : '#eee9df')
+      sceneFog.color.set(sceneTheme === 'dark' ? '#1c1b19' : '#eee9df')
       syncCloudPalette?.()
       syncStageTheme?.()
       if (container.value) container.value.dataset.themeFog = sceneTheme
@@ -256,7 +296,7 @@ async function initialize() {
     const environmentTarget = pmrem.fromScene(room, .04)
     resources.add(() => environmentTarget.dispose())
     scene.environment = environmentTarget.texture
-    scene.environmentIntensity = .5
+    scene.environmentIntensity = .82
     releasePmrem()
     releaseRoom()
 
@@ -410,30 +450,41 @@ async function initialize() {
       ring.position.y = .03
       scene.add(ring)
     })
-    syncStageTheme = () => {
-      const mobileDark = quality === 'mobile' && sceneTheme === 'dark'
-      floorMaterial.color.set(mobileDark ? '#18211d' : '#d7d0c4')
-      floorMaterial.opacity = mobileDark ? .24 : .1
-      baseMaterial.color.set(mobileDark ? '#252c27' : '#c9c1b4')
-      topMaterial.color.set(mobileDark ? '#343b35' : '#eee8dc')
-      pedestalTrimMaterial.color.set(mobileDark ? '#9c7138' : '#b68a4b')
-      floorRingMaterials.forEach((material, index) => {
-        material.color.set(mobileDark ? '#607467' : '#af9d7d')
-        material.opacity = mobileDark ? .1 - index * .018 : .12 - index * .03
-      })
-    }
-    syncStageTheme()
     const river = new THREE.CatmullRomCurve3([
       new THREE.Vector3(-7.5, 2.2, -4.3), new THREE.Vector3(-4.2, 3.25, -6.3), new THREE.Vector3(-1, 2.3, -7.7), new THREE.Vector3(2.2, 3.1, -7.3), new THREE.Vector3(5.5, 2.5, -5.7), new THREE.Vector3(7.6, 3.1, -4.2),
     ])
-    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(river.getPoints(150)), new THREE.LineBasicMaterial({ color: '#b79d70', transparent: true, opacity: .08 })))
-    scene.add(new THREE.HemisphereLight(0xfff8e9, 0x5c675f, 1.08))
-    const key = new THREE.SpotLight(0xffe8c6, 132, 16, .44, .78, 1.5)
-    key.position.set(2.2, 7.6, 3.4); key.target.position.set(0, 1.05, 0); key.castShadow = renderProfile.shadows; if (renderProfile.shadows) key.shadow.mapSize.set(1024, 1024)
+    const riverMaterial = new THREE.LineBasicMaterial({ color: '#b79d70', transparent: true, opacity: .12 })
+    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(river.getPoints(150)), riverMaterial))
+    const hemi = new THREE.HemisphereLight(0xfff9ee, 0x6b7c71, 1.32)
+    scene.add(hemi)
+    const key = new THREE.SpotLight(0xffedd4, 156, 18, .48, .82, 1.45)
+    key.position.set(2.4, 7.8, 3.6); key.target.position.set(0, 1.05, 0); key.castShadow = renderProfile.shadows; if (renderProfile.shadows) key.shadow.mapSize.set(1024, 1024)
     scene.add(key, key.target)
-    const fill = new THREE.PointLight(0xb8d1c8, 3.3, 9, 2); fill.position.set(-3.7, 2.5, 2); scene.add(fill)
-    const rim = new THREE.PointLight(0xf3cf99, 3.8, 8, 2); rim.position.set(0, 3.8, -4.6); scene.add(rim)
-    const front = new THREE.PointLight(0xffe1bd, 5.2, 11, 2); front.position.set(0, 2.8, 5.2); scene.add(front)
+    const fill = new THREE.PointLight(0xc6e4da, 5.6, 11, 2); fill.position.set(-3.8, 2.7, 2.4); scene.add(fill)
+    const rim = new THREE.PointLight(0xffda9e, 7.2, 10, 2); rim.position.set(0, 4.0, -4.4); scene.add(rim)
+    const front = new THREE.PointLight(0xffead0, 7.8, 12, 2); front.position.set(0, 2.9, 5.4); scene.add(front)
+    syncStageTheme = () => {
+      const darkStage = sceneTheme === 'dark'
+      const lightPointCloud = !darkStage && activeMode === 'points'
+      floorMaterial.color.set(darkStage ? '#242220' : lightPointCloud ? '#59534b' : '#d7d0c4')
+      floorMaterial.opacity = darkStage ? .26 : lightPointCloud ? .24 : .12
+      baseMaterial.color.set(darkStage ? '#242220' : lightPointCloud ? '#4f4a43' : '#c9c1b4')
+      topMaterial.color.set(darkStage ? '#33302c' : lightPointCloud ? '#3f3b35' : '#eee8dc')
+      pedestalTrimMaterial.color.set(darkStage ? '#d4a962' : lightPointCloud ? '#e2b65e' : '#b68a4b')
+      floorRingMaterials.forEach((material, index) => {
+        material.color.set(darkStage ? '#a8926e' : lightPointCloud ? '#b89c70' : '#af9d7d')
+        material.opacity = darkStage || lightPointCloud ? .18 - index * .035 : .14 - index * .03
+      })
+      riverMaterial.color.set(darkStage ? '#d2ad6d' : lightPointCloud ? '#d6b270' : '#b79d70')
+      riverMaterial.opacity = darkStage ? .16 : lightPointCloud ? .18 : .1
+      scene.environmentIntensity = darkStage ? 1.12 : lightPointCloud ? .72 : .84
+      hemi.intensity = darkStage ? 1.22 : lightPointCloud ? .96 : 1.32
+      key.intensity = darkStage ? 186 : lightPointCloud ? 122 : 156
+      fill.intensity = darkStage ? 7.8 : lightPointCloud ? 5.0 : 5.6
+      rim.intensity = darkStage ? 13 : lightPointCloud ? 9.5 : 7.2
+      front.intensity = darkStage ? 10.2 : lightPointCloud ? 6.0 : 7.8
+    }
+    syncStageTheme()
 
     // Rendering directly preserves the alpha channel. Bloom post-processing
     // turns transparent pixels black and would cover the photographic room.
@@ -450,6 +501,7 @@ async function initialize() {
       cloudMaterial.uniforms.uCopperRange.value = palette.copperRange
       cloudMaterial.uniforms.uPointOpacity.value = palette.opacity
       cloudMaterial.uniforms.uPointSize.value = selectPointCloudPointSize(quality, sceneTheme)
+      cloudMaterial.uniforms.uLightTheme.value = sceneTheme === 'light' ? 1 : 0
     }
     let artifact: Group | undefined
     let dust: Points | undefined
@@ -540,12 +592,14 @@ async function initialize() {
       animationState = 'solid'
       activeMode = 'solid'
       setMix(0, 1)
+      syncStageTheme?.()
       emit('mode-change', 'solid')
     }
     const beginPointCloudIntro = () => {
       if (!cloud || !cloudMaterial || !artifact || !pointCloudAvailable) return
       introComplete = false
       activeMode = 'points'
+      syncStageTheme?.()
       const fromSolid = animationState === 'solid'
       cloudMaterial.uniforms.uPulse.value = 0
       const remaining = Math.max(1 - visualMix, Math.abs(1 - cloudGather))
@@ -563,7 +617,7 @@ async function initialize() {
       }
       const geometry = new THREE.BufferGeometry()
       geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-      dust = new THREE.Points(geometry, new THREE.PointsMaterial({ color: '#dbad5d', size: .018, transparent: true, opacity: .62, depthWrite: false, sizeAttenuation: true }))
+      dust = new THREE.Points(geometry, new THREE.PointsMaterial({ color: '#ead3a2', size: .015, transparent: true, opacity: .66, depthWrite: false, sizeAttenuation: true }))
       scene.add(dust)
     }
 
@@ -580,7 +634,7 @@ async function initialize() {
         if (mesh.isMesh && mesh.visible) meshes.push(mesh)
       })
       const count = POINT_COUNTS[quality === 'fallback' ? 'mobile' : quality]
-      const positions = new Float32Array(count * 3), origins = new Float32Array(count * 3), colors = new Float32Array(count * 3), seeds = new Float32Array(count), regions = new Float32Array(count), phases = new Float32Array(count)
+      const positions = new Float32Array(count * 3), normals = new Float32Array(count * 3), origins = new Float32Array(count * 3), colors = new Float32Array(count * 3), seeds = new Float32Array(count), regions = new Float32Array(count), phases = new Float32Array(count)
       const bounds = new THREE.Box3().setFromObject(model)
       const height = Math.max(bounds.max.y - bounds.min.y, .001)
       const deterministic = (index: number, salt: number) => {
@@ -588,6 +642,7 @@ async function initialize() {
         return value - Math.floor(value)
       }
       const sampled = new THREE.Vector3()
+      const sampledNormal = new THREE.Vector3()
       const direction = new THREE.Vector3()
       let cursor = 0
       try {
@@ -609,12 +664,16 @@ async function initialize() {
           const samplingMesh = new THREE.Mesh(surface.geometry, floorMaterial)
           const sampler = new samplerModule.MeshSurfaceSampler(samplingMesh).build()
           await runInTimeSlices(allocation, () => {
-            sampler.sample(sampled)
+            sampledNormal.set(0, 1, 0)
+            sampler.sample(sampled, sampledNormal)
+            if (sampledNormal.lengthSq() > 1e-6) sampledNormal.normalize()
+            else sampledNormal.set(0, 1, 0)
             // A coprime permutation keeps lower draw ranges representative of all meshes.
             const sampleIndex = cursor * 7919 % count
             const seed = deterministic(cursor, surfaceIndex + 1), theta = seed * Math.PI * 2 + cursor * .618, travel = 1.6 + deterministic(cursor, 29) * 2.65, offset = sampleIndex * 3
             direction.set(Math.cos(theta), deterministic(cursor, 13) - .22, Math.sin(theta)).normalize()
             positions[offset] = sampled.x; positions[offset + 1] = sampled.y; positions[offset + 2] = sampled.z
+            normals[offset] = sampledNormal.x; normals[offset + 1] = sampledNormal.y; normals[offset + 2] = sampledNormal.z
             origins[offset] = sampled.x * .32 + direction.x * travel; origins[offset + 1] = sampled.y * .42 + direction.y * travel + .8; origins[offset + 2] = sampled.z * .32 + direction.z * travel
             colors[offset] = surface.color.r; colors[offset + 1] = surface.color.g; colors[offset + 2] = surface.color.b; seeds[sampleIndex] = seed
             regions[sampleIndex] = Math.min(5, Math.max(0, Math.floor(((sampled.y - bounds.min.y) / height) * 6)))
@@ -628,12 +687,12 @@ async function initialize() {
       signal.throwIfAborted()
       const geometry = new THREE.BufferGeometry()
       resources.add(() => { if (!releasedResources.has(geometry)) { releasedResources.add(geometry); geometry.dispose() } })
-      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3)); geometry.setAttribute('aOrigin', new THREE.BufferAttribute(origins, 3)); geometry.setAttribute('aColor', new THREE.BufferAttribute(colors, 3)); geometry.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1)); geometry.setAttribute('aRegion', new THREE.BufferAttribute(regions, 1)); geometry.setAttribute('aPhase', new THREE.BufferAttribute(phases, 1))
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3)); geometry.setAttribute('aNormal', new THREE.BufferAttribute(normals, 3)); geometry.setAttribute('aOrigin', new THREE.BufferAttribute(origins, 3)); geometry.setAttribute('aColor', new THREE.BufferAttribute(colors, 3)); geometry.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1)); geometry.setAttribute('aRegion', new THREE.BufferAttribute(regions, 1)); geometry.setAttribute('aPhase', new THREE.BufferAttribute(phases, 1))
       cloudMaterial = new THREE.ShaderMaterial({
         transparent: true, depthWrite: true,
-        uniforms: { uProgress: { value: 1 }, uOpacity: { value: 0 }, uTime: { value: 0 }, uPulse: { value: 0 }, uTransition: { value: 0 }, uReducedMotion: { value: reducedMotion ? 1 : 0 }, uPixelRatio: { value: Math.min(window.devicePixelRatio, quality === 'mobile' ? 1.25 : 2) }, uPointSize: { value: selectPointCloudPointSize(quality, sceneTheme) }, uJade: { value: new THREE.Vector3(...palette.jade) }, uCopper: { value: new THREE.Vector3(...palette.copper) }, uCopperBase: { value: palette.copperBase }, uCopperRange: { value: palette.copperRange }, uPointOpacity: { value: palette.opacity }, uPointer: { value: new THREE.Vector2() }, uPointerStrength: { value: 0 }, uPointerRadius: { value: .9 } },
-        vertexShader: `attribute vec3 aOrigin; attribute vec3 aColor; attribute float aSeed; attribute float aRegion; attribute float aPhase; uniform float uProgress; uniform float uTime; uniform float uReducedMotion; uniform float uPixelRatio; uniform float uPointSize; uniform vec3 uJade; uniform vec3 uCopper; uniform float uCopperBase; uniform float uCopperRange; uniform vec2 uPointer; uniform float uPointerStrength; uniform float uPointerRadius; varying vec3 vColor; varying float vSeed; void main(){float gathered=smoothstep(0.0,1.0,uProgress); float phase=aPhase+aRegion*.035; vec3 drift=vec3(sin(uTime*.85+aSeed*31.0+phase),cos(uTime*.72+aSeed*19.0+phase),sin(uTime*.64+aSeed*47.0+phase))*(1.0-gathered)*.12*(1.0-uReducedMotion); vec3 basePosition=mix(aOrigin,position,gathered)+drift; float pointerDistance=distance(basePosition.xy,uPointer); float pointerInfluence=(1.0-smoothstep(0.0,uPointerRadius,pointerDistance))*uPointerStrength*(1.0-uReducedMotion); vec2 pointerDirection=normalize(basePosition.xy-uPointer+vec2(.0001)); basePosition.xy+=pointerDirection*pointerInfluence*.022; vec4 mvPosition=modelViewMatrix*vec4(basePosition,1.0); gl_PointSize=clamp(uPointSize*uPixelRatio*(1.05+fract(aSeed*13.0))*(7.5/-mvPosition.z),1.0,8.0); gl_Position=projectionMatrix*mvPosition; vec3 sampled=clamp(aColor,vec3(.0),vec3(1.0)); float sourceTone=dot(sampled,vec3(.299,.587,.114)); vec3 aged=mix(uJade,sampled*vec3(.08,.1,.07),.08+sourceTone*.04); vColor=mix(aged,uCopper,uCopperBase+fract(aSeed*11.0)*uCopperRange); vSeed=aSeed;}`,
-        fragmentShader: `uniform float uOpacity; uniform float uTime; uniform float uPulse; uniform float uTransition; uniform float uPointOpacity; varying vec3 vColor; varying float vSeed; void main(){float radius=length(gl_PointCoord-vec2(.5)); float disc=1.0-smoothstep(.18,.5,radius); if(uOpacity<.5||vSeed>uTransition||disc<=.001)discard; float core=1.0-smoothstep(.0,.16,radius); float glint=.9+.1*sin(uTime*1.6+vSeed*20.0)*(0.35+uPulse*.65); gl_FragColor=vec4(vColor*(glint+core*.12),pow(disc,1.25)*uPointOpacity);}`,
+        uniforms: { uProgress: { value: 1 }, uOpacity: { value: 0 }, uTime: { value: 0 }, uPulse: { value: 0 }, uTransition: { value: 0 }, uReducedMotion: { value: reducedMotion ? 1 : 0 }, uPixelRatio: { value: Math.min(window.devicePixelRatio, quality === 'mobile' ? 1.25 : 2) }, uPointSize: { value: selectPointCloudPointSize(quality, sceneTheme) }, uLightTheme: { value: sceneTheme === 'light' ? 1 : 0 }, uJade: { value: new THREE.Vector3(...palette.jade) }, uCopper: { value: new THREE.Vector3(...palette.copper) }, uCopperBase: { value: palette.copperBase }, uCopperRange: { value: palette.copperRange }, uPointOpacity: { value: palette.opacity }, uPointer: { value: new THREE.Vector2() }, uPointerStrength: { value: 0 }, uPointerRadius: { value: .9 } },
+        vertexShader: `attribute vec3 aNormal; attribute vec3 aOrigin; attribute vec3 aColor; attribute float aSeed; attribute float aRegion; attribute float aPhase; uniform float uProgress; uniform float uTime; uniform float uReducedMotion; uniform float uPixelRatio; uniform float uPointSize; uniform float uLightTheme; uniform vec3 uJade; uniform vec3 uCopper; uniform float uCopperBase; uniform float uCopperRange; uniform vec2 uPointer; uniform float uPointerStrength; uniform float uPointerRadius; varying vec3 vColor; varying float vSeed; varying float vMetalSpec; void main(){float gathered=smoothstep(0.0,1.0,uProgress); float phase=aPhase+aRegion*.035; vec3 drift=vec3(sin(uTime*.85+aSeed*31.0+phase),cos(uTime*.72+aSeed*19.0+phase),sin(uTime*.64+aSeed*47.0+phase))*(1.0-gathered)*.12*(1.0-uReducedMotion); vec3 basePosition=mix(aOrigin,position,gathered)+drift; float pointerDistance=distance(basePosition.xy,uPointer); float pointerInfluence=(1.0-smoothstep(0.0,uPointerRadius,pointerDistance))*uPointerStrength*(1.0-uReducedMotion); vec2 pointerDirection=normalize(basePosition.xy-uPointer+vec2(.0001)); basePosition.xy+=pointerDirection*pointerInfluence*.026; vec4 mvPosition=modelViewMatrix*vec4(basePosition,1.0); vec3 N=normalize(normalMatrix*aNormal); vec3 V=normalize(-mvPosition.xyz); vec3 L1=normalize(vec3(.42,.74,.60)); vec3 L2=normalize(vec3(-.66,.34,-.64)); vec3 L3=normalize(vec3(.0,-.32,.94)); vec3 H1=normalize(L1+V); vec3 H2=normalize(L2+V); float ndl1=clamp(dot(N,L1),.0,1.0); float ndl2=clamp(dot(N,L2),.0,1.0); float ndl3=clamp(dot(N,L3),.0,1.0); float spec1=pow(max(dot(N,H1),.0),12.0); float spec2=pow(max(dot(N,H2),.0),9.0); float fresnel=pow(1.0-abs(dot(N,V)),2.0); float heightGrad=clamp(aRegion/5.0,.0,1.0); float microGrain=fract(aSeed*23.17); float glintSeed=step(.86,fract(aSeed*41.3)); float sizeScale=mix(.78+.34*microGrain,1.14+.26*fract(aSeed*11.7),clamp(fresnel*.65+spec1*.8+glintSeed*.4,.0,1.0))*mix(1.0,1.12,uLightTheme); gl_PointSize=clamp(uPointSize*uPixelRatio*sizeScale*(7.6/-mvPosition.z),1.15,6.8); gl_Position=projectionMatrix*mvPosition; vec3 smokedBronze=mix(uCopper*vec3(.44,.38,.32)+uJade*vec3(.18,.22,.19),vec3(.22,.18,.14),uLightTheme); vec3 antiquePatina=mix(smokedBronze,uJade,smoothstep(.12,.82,.48+microGrain*.36)); vec3 satinBronze=mix(uCopper*vec3(.82,.72,.54),uCopper,.52+ndl1*.42); vec3 roseCopperRim=mix(uCopper*vec3(1.05,.86,.64),vec3(1.0,.82,.52),uLightTheme); vec3 champagneGold=mix(mix(uCopper,vec3(1.0,.96,.85),.56),vec3(1.0,.94,.74),uLightTheme); float patinaZone=(1.0-smoothstep(.20,.76,ndl1*.52+ndl3*.28+heightGrad*.35))*.50+(1.0-uCopperBase)*.40; float metalMix=clamp(uCopperBase+uCopperRange*(ndl1*.50+ndl3*.25+heightGrad*.20+microGrain*.15)+fresnel*.46-patinaZone*.36,.0,1.0); vec3 baseMetal=mix(antiquePatina,satinBronze,smoothstep(.18,.78,metalMix)); vec3 lit=baseMetal*(mix(.78,.82,uLightTheme)+ndl1*.48+ndl2*.25+ndl3*.26+heightGrad*.10); lit=mix(lit,roseCopperRim,clamp(fresnel*.66+ndl2*.24,.0,.80)); float sheen=clamp(spec1*.95+spec2*.40+fresnel*.40*(.55+glintSeed*.45),.0,1.0); vColor=mix(lit,champagneGold,sheen*.82)+champagneGold*spec1*mix(.32,.40,uLightTheme); vSeed=aSeed; vMetalSpec=clamp(spec1*1.15+fresnel*.58+glintSeed*.26*(ndl1+ndl3+.25),.0,1.0);}`,
+        fragmentShader: `uniform float uOpacity; uniform float uTime; uniform float uPulse; uniform float uTransition; uniform float uPointOpacity; uniform float uLightTheme; varying vec3 vColor; varying float vSeed; varying float vMetalSpec; void main(){float radius=length(gl_PointCoord-vec2(.5)); float disc=1.0-smoothstep(.20,.49,radius); if(uOpacity<.5||vSeed>uTransition||disc<=.001)discard; float core=1.0-smoothstep(.0,.26,radius); float microSheen=.97+.07*sin(uTime*1.6+vSeed*22.0)*(0.4+uPulse*.6); vec3 coreTint=mix(vec3(1.0,.97,.90),vec3(1.0,.95,.78),uLightTheme); vec3 specularCore=mix(vColor,coreTint,mix(.46,.54,uLightTheme)*vMetalSpec); vec3 finalCol=vColor*microSheen+specularCore*core*(.28+vMetalSpec*.48); gl_FragColor=vec4(finalCol,pow(disc,1.12)*uPointOpacity);}`,
       })
       const createdMaterial = cloudMaterial
       resources.add(() => disposeMaterial(createdMaterial, releasedResources))
@@ -728,6 +787,7 @@ async function initialize() {
       const remaining = Math.max(visualMix, Math.abs(1 - cloudGather))
       beginModeTransition(0, 1, reducedMotion ? 220 : Math.max(420, 820 * remaining), reducedMotion ? 0 : .14 * remaining)
       activeMode = 'solid'
+      syncStageTheme?.()
       emit('mode-change', 'solid')
     }
 
@@ -761,19 +821,16 @@ async function initialize() {
             resources.add(() => disposeMaterial(next, releasedResources))
             const originalTransparent = next.transparent
             const originalDepthWrite = next.depthWrite
-            // Selected reference profile: grey-green aged bronze with soft metal
-            // reflections, visible micro relief and no emissive lift.
+            // Curated museum bronze PBR: luminous metallic patina and crisp taotie micro-relief.
             const mobileMaterial = quality === 'mobile'
-            next.envMapIntensity = mobileMaterial ? .3 : .5
-            // Preserve the v5.4 texture as the source of truth; a pale runtime
-            // color multiplier was washing out the material contrast.
-            next.color?.setRGB?.(mobileMaterial ? .55 : 1, mobileMaterial ? .62 : 1, mobileMaterial ? .42 : 1)
+            next.envMapIntensity = mobileMaterial ? .56 : .86
+            next.color?.setRGB?.(mobileMaterial ? .76 : 1, mobileMaterial ? .82 : 1, mobileMaterial ? .68 : 1)
             const emissive = (next as OpacityMaterial & { emissive?: { set?: (color: string) => void } }).emissive
             if (emissive?.set) emissive.set('#000000')
             if ('emissiveIntensity' in next) next.emissiveIntensity = 0
-            if (typeof next.roughness === 'number') next.roughness = mobileMaterial ? .76 : Math.min(Math.max(next.roughness, .58), .84)
-            if (typeof next.metalness === 'number') next.metalness = mobileMaterial ? .62 : Math.min(Math.max(next.metalness, .72), .9)
-            next.normalScale?.set?.(mobileMaterial ? .32 : .38, mobileMaterial ? .32 : .38)
+            if (typeof next.roughness === 'number') next.roughness = mobileMaterial ? .68 : Math.min(Math.max(next.roughness, .46), .72)
+            if (typeof next.metalness === 'number') next.metalness = mobileMaterial ? .66 : Math.min(Math.max(next.metalness, .74), .88)
+            next.normalScale?.set?.(mobileMaterial ? .44 : .58, mobileMaterial ? .44 : .58)
             modelMaterials.push({ material: next, opacity: next.opacity, transparent: originalTransparent, depthWrite: originalDepthWrite })
             return next
           })
@@ -865,8 +922,9 @@ async function initialize() {
       if (cameraTransition) {
         const progress = clamp((time - cameraTransition.start) / cameraTransition.duration)
         const transitionProgress = easeOut(progress)
-        const fromOffset = cameraTransition.from.clone().sub(controls.target)
-        const toOffset = cameraTransition.to.clone().sub(controls.target)
+        controls.target.lerpVectors(cameraTransition.fromTarget, cameraTransition.toTarget, transitionProgress)
+        const fromOffset = cameraTransition.from.clone().sub(cameraTransition.fromTarget)
+        const toOffset = cameraTransition.to.clone().sub(cameraTransition.toTarget)
         const orbitOffset = interpolateExhibitOrbitOffset(fromOffset, toOffset, transitionProgress)
         camera.position.set(
           controls.target.x + orbitOffset.x,
@@ -980,12 +1038,84 @@ onBeforeUnmount(() => { initializationVersion += 1; cleanup?.() })
 </template>
 
 <style scoped>
+.three-viewer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.three-canvas {
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+.three-canvas:active {
+  cursor: grabbing;
+}
+.three-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  background: oklch(10% 0.01 165 / 0.72);
+  pointer-events: none;
+}
+.exhibit-loader {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: 240px;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-md);
+  color: var(--ink-on-dark);
+}
+.exhibit-loader__copy {
+  display: grid;
+  gap: 0.35rem;
+  flex: 1 1 auto;
+  font-size: var(--text-xs);
+}
+.exhibit-loader__copy small {
+  font-size: var(--text-xs);
+  color: var(--accent-bronze);
+  letter-spacing: 0.1em;
+}
+.exhibit-loader__copy strong {
+  font-size: var(--text-sm);
+}
+.exhibit-loader__track {
+  display: block;
+  width: 100%;
+  height: 3px;
+  border-radius: 999px;
+  background: oklch(88% 0.02 85 / 0.16);
+  overflow: hidden;
+}
+.exhibit-loader__track i {
+  display: block;
+  height: 100%;
+  background: var(--accent-bronze);
+  transition: width 180ms ease;
+}
+.exhibit-loader__copy em {
+  font-style: normal;
+  font-family: var(--font-mono);
+  color: var(--ink-on-dark-muted);
+}
 .three-fallback[role="alert"] {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  place-content: center;
   grid-template-columns: minmax(0, 32rem);
   grid-template-rows: minmax(0, min(30vh, 16rem)) auto auto;
   place-items: center;
   gap: .75rem;
   padding: 4.5rem 1.25rem 8rem;
+  background: oklch(11% 0.01 165 / 0.92);
+  color: var(--ink-on-dark);
 }
 .three-fallback[role="alert"] > img {
   width: 100%;

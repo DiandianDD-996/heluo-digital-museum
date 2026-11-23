@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { defineComponent, h, onMounted } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -290,5 +292,12 @@ describe('ExhibitDetailView point-cloud mode control', () => {
     expect(wrapper.get('.dock-mode-switch').attributes('data-mode')).toBe('solid')
     await vi.waitFor(() => expect(wrapper.get('.viewer-stub').attributes('data-model-url')).toBe('/jade-bi.glb'))
     wrapper.unmount()
+  })
+
+  it('keeps dark-theme overrides out of <style scoped> :global() prefix selectors', () => {
+    const sfc = readFileSync(resolve(process.cwd(), 'src/views/ExhibitDetailView.vue'), 'utf8')
+    const scopedBlock = sfc.match(/<style\s+scoped>([\s\S]*?)<\/style>/)?.[1] ?? ''
+    expect(scopedBlock).not.toContain(':global(html[data-theme="dark"])')
+    expect(sfc).toContain('html[data-theme="dark"] .immersive-exhibit .exhibit-scene::after')
   })
 })

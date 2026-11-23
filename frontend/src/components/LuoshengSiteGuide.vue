@@ -1,801 +1,1113 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useId, watch } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { ArrowRight, Calendar, Close, Compass, Goods, Collection, Box, Promotion } from '@element-plus/icons-vue'
-import { renderSiteIntent, explainSitePage, firstVisit, siteStops, type SiteStop } from '../lib/luoshengSiteGuide'
-import { parseIntent } from '../lib/luoshengIntent'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import '../assets/luosheng-palette.css'
-import { navigateGuidePlate, recordGuideJourney, unifiedGuideEnabled, unifiedGuidePreview, unifiedGuideTurns, useLuoshengVisit } from '../stores/luoshengVisit'
-import { findGuideArtifacts, guideArtifactCover, guideArtifactReason } from '../lib/luoshengDiscovery'
-import { useLuoshengTurns } from '../lib/luoshengTurns'
-import { GUIDE_ARTIFACT, type GuideStop } from '../lib/luoshengPreview'
-import { readGuideSlots } from '../lib/luoshengSlots'
-import { clarifyOptionsFor, nextGlanceFor, suggestionsFor } from '../lib/luoshengSuggestions'
-import { apiGet } from '../lib/api'
-import ui from '../assets/guide/ui.zh-CN.json'
-import { formatGuideCopy as copy } from '../lib/luoshengCopy'
+import { GuideClientError, streamGuideChat } from '../lib/guideClient'
+import { getGuideStrings, getRoutePreset } from '../lib/guidePresets'
+import {
+  GUIDE_ARTIFACT_SLUG,
+  type GuideAction,
+  type GuideLocale,
+  type GuideMessage,
+} from '../lib/guideTypes'
+import { useLocale } from '../stores/locale'
+import { useLuoshengStore } from '../stores/luoshengStore'
 
 const route = useRoute()
 const router = useRouter()
-const expanded = ref(false)
-const visit = unifiedGuideEnabled ? useLuoshengVisit() : null
-const object = computed(() => visit?.object?.path === route.path ? visit.object : null)
-const article = computed(() => visit?.article?.path === route.path ? visit.article : null)
-const liveModel = unifiedGuideTurns || import.meta.env.VITE_GUIDE_UNIFIED_PREVIEW === 'model'
-const reviewedPreview = import.meta.env.DEV && import.meta.env.VITE_GUIDE_REVIEWED_PREVIEW === 'true'
-const input = ref<HTMLInputElement>()
-const failedCover = ref<string>()
-const plateLabels = ui.plateViewLabels
-const stopLabels = ui.site.pointNames
-const clarifySlotDate = ui.site.slotDate
-type Reply = {
-  text: string; stops?: SiteStop[]; artifact?: string; title?: string; keyword?: string
-  cover?: string
-  retrySearch?: true
-  plate?: GuideStop; observations?: GuideStop[]; sources?: string[]; generated?: boolean; readingFallback?: true
-  directPlate?: boolean
-  date?: string; resume?: true
-  clarifySlotPeople?: number
-  clarification?: boolean
-  insufficient?: boolean
-  citations?: { label: string; source?: string }[]
-}
-const scope = computed(() => visit && expanded.value ? {
-  exhibit: object.value?.exhibit ?? route.path,
-  locale: 'zh-CN',
-  lookpoint: visit.lookpoint,
-} : null)
-let contextId = ''
-const turns = useLuoshengTurns<Reply>(scope, async ({ question, lookpoint, signal, previousAnswer }) => {
-  const intent = parseIntent(question, {
-    route: routeName.value, onArtifact: !!object.value, lookpoint: visit?.lookpoint,
-    pendingSlot: !!visit?.pendingSlots, savedLookpoint: visit?.resumePoint?.stop,
-    previousPeople: previousAnswer?.clarifySlotPeople,
-  })
-  if (intent.kind === 'cancel-slot' && visit) {
-    visit.pendingSlots = null
-    return { text: ui.site.slotCancelled }
+const { locale } = useLocale()
+const store = useLuoshengStore()
+
+const guideLocale = computed<GuideLocale>(() => (locale.value === 'en-US' ? 'en-US' : 'zh-CN'))
+const strings = computed(() => getGuideStrings(guideLocale.value))
+const preset = computed(() => getRoutePreset(store.pageContext, guideLocale.value))
+
+const inputText = ref('')
+const streaming = ref(false)
+const streamError = ref('')
+const logContainer = ref<HTMLElement | null>(null)
+const inputEl = ref<HTMLTextAreaElement | null>(null)
+const fabEl = ref<HTMLButtonElement | null>(null)
+
+let activeAbort: AbortController | null = null
+
+const hasMessages = computed(() => store.messages.some(m => m.role === 'user' || m.role === 'assistant'))
+const latestAssistantId = computed(() => {
+  for (let i = store.messages.length - 1; i >= 0; i -= 1) {
+    if (store.messages[i]?.role === 'assistant') return store.messages[i]!.id
   }
-  if (intent.kind === 'slot-query') return readGuideSlots(intent.date, intent.people, signal)
-  if (intent.kind === 'slot-clarify') return { text: clarifySlotDate, clarifySlotPeople: intent.people, clarification: true }
-  if (intent.kind === 'resume-lookpoint') return { text: copy(ui.site.resumeReply, { point: stopLabels[intent.stop] }), resume: true }
-  if (intent.kind === 'discovery-clarify') return { text: ui.clarify.discovery, stops: ['explore'], clarification: true }
-  if (intent.kind === 'object-evidence') {
-    if (import.meta.env.DEV && unifiedGuidePreview && object.value?.exhibit) {
-      const requestContext = contextId ||= crypto.randomUUID()
-      const { askLuoshengHttpFixture } = await import('../lib/luoshengHttpFixture')
-      signal.throwIfAborted()
-      return askLuoshengHttpFixture(question, lookpoint, requestContext, signal, liveModel)
-    }
-    if (unifiedGuideTurns && object.value?.exhibit && visit) {
-      const request = {
-        visitId: visit.getPublicVisitId(), requestId: crypto.randomUUID(),
-        question, contextVersion: visit.revision, locale: 'zh-CN',
-        artifact: object.value.slug, exhibit: object.value.exhibit, lookpoint,
+  return ''
+})
+
+function makeId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+async function scrollToBottom() {
+  await nextTick()
+  if (logContainer.value) {
+    logContainer.value.scrollTop = logContainer.value.scrollHeight
+  }
+}
+
+watch(
+  () => store.open,
+  async (isOpen) => {
+    if (isOpen) {
+      if (store.draftQuestion) {
+        inputText.value = store.draftQuestion
+        store.draftQuestion = ''
       }
-      const { askPublicGuide } = await import('../lib/luoshengPublicTurns')
-      signal.throwIfAborted()
-      return askPublicGuide(request, signal)
+      await nextTick()
+      await scrollToBottom()
+      inputEl.value?.focus({ preventScroll: true })
+    } else {
+      const target = store.opener && store.opener.isConnected ? store.opener : fabEl.value
+      store.opener = null
+      await nextTick()
+      target?.focus({ preventScroll: true })
     }
-    return { text: `${object.value?.title}。\n${object.value?.summary}\n${ui.site.readPublicArtifact}` }
-  }
-  if (intent.kind === 'discovery-search') {
-    const deferred = intent.deferredSlot
-    const result = await findGuideArtifacts(intent.keyword, signal, intent.exclusions).catch(() => null)
-    signal.throwIfAborted()
-    if (!result) return { text: ui.errors.search, retrySearch: true }
-    const item = result.items[0]
-    if (!item) return { text: copy(ui.site.searchEmpty, { keyword: intent.keyword }), stops: ['explore'] }
-    let directPlate = item.slug === GUIDE_ARTIFACT && unifiedGuidePreview
-    if (unifiedGuideTurns && item.slug === GUIDE_ARTIFACT && !directPlate) {
-      const preset = await apiGet<{ available: boolean; entries: { cardId: string }[] }>(
-        '/guide/exhibits/heluo-bronze-ding-3d?locale=zh-CN', undefined, { signal, timeoutMs: 3000 },
-      ).catch(() => null)
-      signal.throwIfAborted()
-      directPlate = !!preset?.available && preset.entries.some(entry => entry.cardId === 'LS-DING-EARS')
+  },
+)
+
+watch(
+  () => store.draftQuestion,
+  (draft) => {
+    if (draft && store.open) {
+      inputText.value = draft
+      store.draftQuestion = ''
+      void nextTick(() => inputEl.value?.focus({ preventScroll: true }))
     }
-    if (visit && deferred) visit.pendingSlots = 'date' in deferred ? deferred : null
-    const quickLook = intent.short && directPlate
-    const recommendation = quickLook
-      ? `${item.title}。\n${ui.site.findEar}`
-      : `${item.title}。\n${guideArtifactReason(item, intent.keyword, result.keyword)}${item.summary ? '\n' + item.summary : ''}`
-    return {
-      text: deferred && 'clarifyDate' in deferred ? `${recommendation}\n${clarifySlotDate}` : recommendation,
-      clarifySlotPeople: deferred && 'clarifyDate' in deferred ? deferred.people : undefined,
-      clarification: !!deferred && 'clarifyDate' in deferred,
-      artifact: item.slug, title: item.title, directPlate,
-      cover: quickLook ? undefined : guideArtifactCover(item.coverImageUrl),
-      keyword: result.items.length > 1 && !intent.exclusions.length ? result.keyword : undefined,
+  },
+)
+
+function openPanel(event: MouseEvent) {
+  store.openGuide(event.currentTarget as HTMLElement)
+}
+
+function closePanel() {
+  store.closeGuide()
+}
+
+function stopGeneration() {
+  if (activeAbort) {
+    activeAbort.abort()
+    activeAbort = null
+  }
+}
+
+function clearHistory() {
+  stopGeneration()
+  streaming.value = false
+  streamError.value = ''
+  store.clearConversation()
+  void nextTick(() => inputEl.value?.focus({ preventScroll: true }))
+}
+
+async function sendMessage(rawQuestion?: string) {
+  const question = (rawQuestion ?? inputText.value).trim()
+  if (!question || streaming.value) return
+
+  if (!rawQuestion) inputText.value = ''
+  streamError.value = ''
+
+  const history = store.historyForApi()
+  const requestId = makeId()
+
+  store.appendMessage({
+    id: makeId(),
+    role: 'user',
+    text: question,
+    createdAt: Date.now(),
+  })
+
+  const assistantMsg: GuideMessage = {
+    id: makeId(),
+    role: 'assistant',
+    text: '',
+    streaming: true,
+    statusPhase: 'thinking',
+    citations: [],
+    actions: [],
+    followUps: [],
+    boundaryNote: '',
+    createdAt: Date.now(),
+  }
+  store.appendMessage(assistantMsg)
+  // Retrieve the reactive proxy inside Pinia state
+  const liveMsg = store.messages.find(m => m.id === assistantMsg.id)
+  if (!liveMsg) return
+
+  await scrollToBottom()
+
+  streaming.value = true
+  const abortController = new AbortController()
+  activeAbort = abortController
+
+  try {
+    const response = await streamGuideChat(
+      {
+        conversationId: store.conversationId,
+        requestId,
+        message: question,
+        locale: guideLocale.value,
+        context: {
+          route: store.pageContext.route,
+          artifactSlug: store.pageContext.artifactSlug,
+          exhibitSlug: store.pageContext.exhibitSlug,
+          articleSlug: store.pageContext.articleSlug,
+          viewerState: store.pageContext.viewerState,
+        },
+        history,
+      },
+      {
+        onStatus(phase) {
+          liveMsg.statusPhase = phase
+          void scrollToBottom()
+        },
+        onDelta(chunk) {
+          liveMsg.statusPhase = null
+          liveMsg.text += chunk
+          void scrollToBottom()
+        },
+        onReplace(replacement) {
+          liveMsg.statusPhase = null
+          liveMsg.text = replacement
+          void scrollToBottom()
+        },
+        onDone(done) {
+          liveMsg.text = done.text
+          liveMsg.citations = done.citations
+          liveMsg.actions = done.actions
+          liveMsg.followUps = done.followUps
+          liveMsg.boundaryNote = done.boundaryNote
+          liveMsg.mode = done.mode
+          liveMsg.degraded = done.degraded
+          liveMsg.streaming = false
+          liveMsg.statusPhase = null
+        },
+      },
+      abortController.signal,
+    )
+
+    if (liveMsg.streaming) {
+      liveMsg.text = response.text
+      liveMsg.citations = response.citations
+      liveMsg.actions = response.actions
+      liveMsg.followUps = response.followUps
+      liveMsg.boundaryNote = response.boundaryNote
+      liveMsg.mode = response.mode
+      liveMsg.degraded = response.degraded
+      liveMsg.streaming = false
+      liveMsg.statusPhase = null
     }
-  }
-  if (intent.kind === 'site-page' && intent.article) {
-    return article.value
-      ? { text: `《${article.value.title}》\n${article.value.summary}`, stops: ['explore'] }
-      : { text: ui.site.articleUnavailable, stops: ['explore'] }
-  }
-  return renderSiteIntent(intent)
-}, (answer, previousAnswer) => {
-  if (answer.clarification) recordGuideJourney(previousAnswer?.clarification ? 'clarification-repeated' : 'clarification-single')
-})
-watch(() => visit?.revision, () => {
-  contextId = ''
-  turns.cancel()
-}, { flush: 'sync' })
-watch(() => visit?.openRequest, async () => {
-  await setExpanded(true)
-  input.value?.focus()
-}, { flush: 'post' })
-const unifiedReply = computed(() => turns.state.value.status === 'answered' ? turns.state.value.answer : null)
-const recentHistory = computed(() => turns.history.value.slice(-5, -1))
-const replyPlate = computed(() => unifiedReply.value?.plate ?? unifiedReply.value?.observations?.[0])
-const readingTarget = computed(() => {
-  if (!visit?.lookpoint || object.value?.slug !== GUIDE_ARTIFACT) return null
-  if (!unifiedReply.value?.readingFallback && turns.state.value.status !== 'unavailable') return null
-  const { path } = object.value
-  const stop = visit.lookpoint
-  const compare = visit.arrival?.path === path && visit.arrival.stop === stop && visit.arrival.compare
-  return { path, stop, compare }
-})
-const unifiedText = computed(() => {
-  if (turns.state.value.status === 'pending') return ''
-  if (turns.state.value.status === 'unavailable') return ui.site.unavailable
-  if (unifiedReply.value) return unifiedReply.value.text
-  if (visit?.targetFailure === 'content') return ui.site.contentUnavailable
-  if (visit?.targetFailure === 'plate') return ui.site.plateUnavailable
-  if (object.value) return ui.site.objectIntro
-  if (routeName.value === 'appointment') return ui.site.slotIntro
-  if (article.value) return ui.site.articleIntro
-  if (routeName.value === 'shop') return ui.site.shopIntro
-  return ui.site.intro
-})
-
-async function showPlate(stop: GuideStop, compare: boolean) {
-  if (!visit || visit.target) return
-  const slug = compare ? object.value?.slug : unifiedReply.value?.artifact
-  if (slug !== GUIDE_ARTIFACT) return
-  await goToPlate({ path: compare ? object.value!.path : `/artifacts/${slug}`, stop, compare })
-}
-
-function readPendingSlots() {
-  const pending = visit?.pendingSlots
-  if (!visit || !pending) return
-  visit.pendingSlots = null
-  void turns.ask(copy(ui.site.pendingQuestion, pending))
-}
-
-async function goToPlate(target: NonNullable<NonNullable<typeof visit>['target']>, action: 'plate' | 'return' = 'plate') {
-  if (visit) await navigateGuidePlate(visit, router, target, action, () => { expanded.value = false })
-}
-
-function openSlotPage(event: MouseEvent) {
-  if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button !== 0) return
-  if (routeName.value === 'appointment') void setExpanded(false)
-}
-const panelId = useId()
-const headingId = useId()
-const question = ref('')
-const composingQuestion = ref(false)
-const submitted = ref('')
-const trigger = ref<HTMLButtonElement>()
-const heading = ref<HTMLHeadingElement>()
-const startButton = ref<HTMLButtonElement>()
-const tourPanel = ref<HTMLElement>()
-const touring = ref(false)
-const modelPreview = ref(false)
-const tourIndex = ref(-1)
-const nextStop = computed(() => firstVisit[tourIndex.value + 1])
-const routeName = computed(() => String(route.name ?? ''))
-const answer = computed(() => submitted.value
-  ? renderSiteIntent(parseIntent(submitted.value, { route: routeName.value, onArtifact: false }))
-  : explainSitePage(routeName.value))
-const prompts = ui.site.prompts
-const showMoreSuggestions = ref(false)
-const slowResponse = ref(false)
-let slowTimer: ReturnType<typeof setTimeout> | undefined
-
-// Suggestions are reviewed content, never generated. They lead with the visitor's
-// current part and fall back to the exhibit's global questions.
-const suggestions = computed(() => suggestionsFor({
-  exhibit: object.value?.exhibit,
-  lookpoint: visit?.lookpoint,
-  route: routeName.value,
-  mode: unifiedReply.value ? 'after-answer' : 'empty',
-}))
-const visibleSuggestions = computed(() => showMoreSuggestions.value
-  ? [...suggestions.value.primary, ...suggestions.value.more]
-  : suggestions.value.primary)
-const clarifyOptions = computed(() => unifiedReply.value?.clarification
-  ? clarifyOptionsFor(object.value?.exhibit)
-  : [] as ReturnType<typeof clarifyOptionsFor>)
-const nextGlance = computed(() => nextGlanceFor(object.value?.exhibit, visit?.lookpoint))
-
-watch(() => turns.state.value.status, status => {
-  if (slowTimer) clearTimeout(slowTimer)
-  slowTimer = undefined
-  slowResponse.value = false
-  if (status !== 'pending') return
-  // Only admit a wait that actually happens; never stage fake progress steps.
-  slowTimer = setTimeout(() => { slowResponse.value = true }, 2000)
-})
-const stopIcons = { explore: Collection, exhibits: Box, appointment: Calendar, shop: Goods, ding: Box }
-
-function destination(stop: SiteStop) {
-  if (stop === 'ding' && import.meta.env.DEV && modelPreview.value) {
-    return { path: siteStops.ding.path, query: { 'guide-turn-test': 'model' }, hash: '#luosheng-preview' }
-  }
-  return siteStops[stop].path
-}
-
-async function startTour() {
-  touring.value = true
-  tourIndex.value = route.path === siteStops[firstVisit[0]].path ? 0 : -1
-  question.value = ''
-  submitted.value = ''
-  await nextTick()
-  tourPanel.value?.focus()
-}
-
-async function endTour() {
-  touring.value = false
-  await nextTick()
-  startButton.value?.focus()
-}
-
-async function setExpanded(value: boolean) {
-  const opener = visit?.opener
-  if (!value) {
-    question.value = ''
-    composingQuestion.value = false
-    // The scope watcher aborts locally. A new version also prevents a completed
-    // server-side turn from becoming the topic after the panel is reopened.
-    if (visit && turns.state.value.status === 'pending') visit.revision++
-  }
-  expanded.value = value
-  await nextTick()
-  if (expanded.value !== value) return
-  if (value) heading.value?.focus()
-  else if (opener?.isConnected) opener.focus()
-  else trigger.value?.focus()
-}
-
-function openFromTrigger() {
-  if (visit) visit.opener = null
-  void setExpanded(true)
-}
-
-function endVisit() {
-  void setExpanded(false)
-  visit?.end()
-}
-
-function ask(value: string) {
-  const clean = value.trim()
-  if (!clean) return
-  question.value = ''
-  if (visit) {
-    if (/^(?:我先自己逛|不用讲了|结束讲解|我自己看)[。！!]?$/.test(clean)) {
-      endVisit()
-      return
+    store.persist()
+  } catch (err) {
+    liveMsg.streaming = false
+    liveMsg.statusPhase = null
+    if (abortController.signal.aborted || (err instanceof DOMException && err.name === 'AbortError')) {
+      if (!liveMsg.text.trim()) {
+        liveMsg.text = strings.value.stoppedNotice
+      }
+      store.persist()
+    } else if (err instanceof GuideClientError && err.status === 429) {
+      streamError.value = strings.value.rateLimited
+      if (!liveMsg.text.trim()) store.messages.pop()
+      store.persist()
+    } else {
+      streamError.value = strings.value.networkError
+      if (!liveMsg.text.trim()) store.messages.pop()
+      store.persist()
     }
-    void turns.ask(clean)
-  } else submitted.value = clean
-}
-
-function isQuestionComposition(event: KeyboardEvent) {
-  return composingQuestion.value || event.isComposing || event.keyCode === 229
-}
-
-function closeOnEscape(event: KeyboardEvent) {
-  if (isQuestionComposition(event)) return
-  event.stopPropagation()
-  if (expanded.value) void setExpanded(false)
-}
-
-function submitQuestion() {
-  if (!composingQuestion.value) ask(question.value)
-}
-
-function retrySearch() {
-  if (!unifiedReply.value?.retrySearch) return
-  const last = turns.history.value.at(-1)
-  if (!last?.answer.retrySearch) return
-  input.value?.focus()
-  void turns.ask(last.question)
-}
-
-function guardCompositionEnter(event: KeyboardEvent) {
-  // Some browsers end composition before reporting the confirming Enter.
-  if (!composingQuestion.value && !event.isComposing && event.keyCode === 229) event.preventDefault()
-}
-
-if (import.meta.env.DEV) {
-  watch(() => route.query['guide-turn-test'], (mode) => {
-    if (mode === 'model') modelPreview.value = true
-  }, { immediate: true })
-}
-
-watch(() => route.path, (path) => {
-  if (touring.value && nextStop.value && siteStops[nextStop.value].path === path) {
-    tourIndex.value += 1
+  } finally {
+    if (activeAbort === abortController) activeAbort = null
+    streaming.value = false
+    await scrollToBottom()
   }
-  expanded.value = false
-  submitted.value = ''
-  question.value = ''
-  composingQuestion.value = false
+}
+
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+    event.preventDefault()
+    void sendMessage()
+  }
+}
+
+async function handleAction(action: GuideAction) {
+  const isMobile = window.innerWidth < 768
+
+  if (action.type === 'viewer_focus' && action.exhibitSlug) {
+    store.queueViewerAction({
+      exhibitSlug: action.exhibitSlug,
+      part: action.part ?? null,
+      view: action.view ?? null,
+      mode: action.mode ?? null,
+      label: action.label,
+    })
+    if (isMobile) store.closeGuide()
+    const targetPath = `/exhibits/${action.exhibitSlug}`
+    if (route.path !== targetPath) {
+      await router.push(targetPath)
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    return
+  }
+
+  if (action.type === 'viewer_mode' && action.exhibitSlug && action.mode) {
+    store.queueViewerAction({
+      exhibitSlug: action.exhibitSlug,
+      mode: action.mode,
+      label: action.label,
+    })
+    if (isMobile) store.closeGuide()
+    const targetPath = `/exhibits/${action.exhibitSlug}`
+    if (route.path !== targetPath) {
+      await router.push(targetPath)
+    }
+    return
+  }
+
+  if (action.type === 'navigate' && action.path) {
+    if (isMobile) store.closeGuide()
+    await router.push({ path: action.path, query: action.query ?? undefined })
+    return
+  }
+
+  if (action.type === 'open_plate' && action.stop) {
+    store.queuePlateAction(action.stop, Boolean(action.compare))
+    if (isMobile) store.closeGuide()
+    if (route.path !== `/artifacts/${GUIDE_ARTIFACT_SLUG}` && !route.path.startsWith('/exhibits/')) {
+      await router.push(`/artifacts/${GUIDE_ARTIFACT_SLUG}`)
+      await nextTick()
+    }
+    setTimeout(() => {
+      document.getElementById('luosheng-static-plates')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 120)
+  }
+}
+
+function paragraphsOf(text: string): string[] {
+  return text.split(/\n+/).map(line => line.trim()).filter(Boolean)
+}
+
+onBeforeUnmount(() => {
+  stopGeneration()
 })
-watch(() => visit?.targetFailure, failure => {
-  if (failure) void setExpanded(true)
-}, { flush: 'post' })
 </script>
 
 <template>
-  <aside class="luosheng-site luosheng-palette" :aria-label="ui.site.region" @keydown.esc="closeOnEscape">
-    <button
-      v-show="!expanded" ref="trigger" class="site-guide-trigger" type="button"
-      :aria-expanded="expanded" :aria-controls="panelId" @click="openFromTrigger"
-    >
-      <span class="site-guide-dial" aria-hidden="true"><Compass /></span>
-      <span class="site-guide-trigger-label">{{ touring ? ui.site.resumeTour : ui.site.openTour }}</span>
-    </button>
-    <Transition name="site-guide-panel">
-    <section v-show="expanded" :id="panelId" class="site-guide-panel" :aria-labelledby="headingId" :inert="!expanded">
-      <header class="site-guide-header">
-        <span class="site-guide-mark" aria-hidden="true"><Compass /></span>
-        <div class="site-guide-title">
-          <h2 :id="headingId" ref="heading" tabindex="-1">{{ ui.site.title }}</h2>
-          <p v-if="visit">{{ object?.title ?? article?.title ?? (routeName === 'shop' ? siteStops.shop.label : ui.site.museum) }}{{ visit.lookpoint ? ' › ' + stopLabels[visit.lookpoint] : '' }}</p>
-          <p v-else>{{ ui.site.museum }}</p>
-        </div>
-        <button type="button" class="site-guide-close" :aria-label="ui.site.close" @click="setExpanded(false)">
-          <Close aria-hidden="true" />
-        </button>
-      </header>
-      <div v-if="visit" class="site-guide-body">
-        <ol v-if="recentHistory.length" class="site-guide-history" aria-label="最近对话记录">
-          <li v-for="(turn, idx) in recentHistory" :key="`${idx}-${turn.question}`" class="site-guide-history-item">
-            <p class="site-guide-history-q"><strong>问：</strong>{{ turn.question }}</p>
-            <p class="site-guide-history-a">{{ turn.answer.text }}</p>
-          </li>
-        </ol>
-        <div class="site-guide-response">
-          <img v-if="unifiedReply?.cover && unifiedReply.cover !== failedCover" :key="unifiedReply.cover"
-            :src="unifiedReply.cover" class="site-guide-cover" alt="" width="64" height="64" decoding="async"
-            @error="failedCover = unifiedReply.cover" />
-          <p class="site-guide-answer" role="status" :aria-label="ui.a11y.answerRegion" aria-live="polite" aria-atomic="true">{{ unifiedText }}</p>
-        </div>
-        <p v-if="slowResponse" class="site-guide-progress" role="status" aria-live="polite">{{ ui.progress.checking }}</p>
-        <div v-if="clarifyOptions.length > 1" class="site-guide-clarify" role="group" :aria-label="ui.a11y.clarification">
-          <p v-if="unifiedText !== ui.site.choosePoint">{{ ui.site.choosePoint }}</p>
-          <button v-for="stop in clarifyOptions" :key="stop" type="button" class="site-guide-start"
-            @click="ask(stopLabels[stop])">{{ stopLabels[stop] }}</button>
-        </div>
-        <div v-if="unifiedReply?.insufficient" class="site-guide-insufficient" role="note">
-          <p>{{ ui.site.insufficient }}</p>
-        </div>
-        <button v-if="unifiedReply?.retrySearch" type="button" class="site-guide-start" @click="retrySearch">{{ ui.site.retrySearch }}</button>
-        <RouterLink v-if="visit.targetFailure && turns.state.value.status === 'idle'" to="/explore" class="site-guide-start">{{ ui.site.explore }}</RouterLink>
-        <span v-if="unifiedReply?.generated" class="site-guide-meta">{{ ui.site.generated }}</span>
-        <button v-if="unifiedReply?.directPlate" type="button" class="site-guide-start" @click="showPlate('ear', false)">{{ ui.site.findEar }}</button>
-        <RouterLink v-else-if="unifiedReply?.artifact" class="site-guide-start" :to="`/artifacts/${unifiedReply.artifact}`">{{ copy(ui.actions.lookPlate, { point: unifiedReply.title ?? '' }) }}</RouterLink>
-        <RouterLink v-if="unifiedReply?.keyword" :to="{ path: '/explore', query: { q: unifiedReply.keyword } }">{{ ui.site.moreResults }}</RouterLink>
-        <button v-if="replyPlate && object?.exhibit" type="button" class="site-guide-start" @click="showPlate(replyPlate, true)">{{ plateLabels[replyPlate] }}</button>
-        <details v-if="unifiedReply?.sources?.length || unifiedReply?.observations?.length">
-          <summary>{{ ui.site.readEvidence }}</summary>
-          <p v-for="source in unifiedReply.sources" :key="source">
-            <a :href="source" target="_blank" rel="noopener noreferrer">{{ liveModel || reviewedPreview ? ui.actions.openSource : ui.site.syntheticSource }}</a>
-          </p>
-          <button v-for="stop in unifiedReply.observations" :key="stop" type="button" class="site-guide-start" @click="showPlate(stop, true)">{{ copy(ui.site.plate, { point: stopLabels[stop] }) }}</button>
-        </details>
-        <details v-if="unifiedReply?.citations?.length">
-          <summary>{{ ui.site.readEvidence }}</summary>
-          <ul>
-            <li v-for="citation in unifiedReply.citations" :key="citation.label">
-              <a v-if="citation.source" :href="citation.source" target="_blank" rel="noopener noreferrer">{{ citation.label }}</a>
-              <span v-else>{{ citation.label }}</span>
-            </li>
-          </ul>
-        </details>
-        <button v-if="readingTarget" type="button" class="site-guide-start" @click="goToPlate(readingTarget)">{{ ui.site.readPlate }}</button>
-        <RouterLink v-if="unifiedReply?.date" class="site-guide-start"
-          :to="{ path: '/appointment', query: { date: unifiedReply.date } }"
-          @click="openSlotPage">{{ ui.site.readSlots }}</RouterLink>
-        <button v-if="visit.resumePoint && (routeName === 'appointment' || unifiedReply?.resume)" type="button" class="site-guide-start"
-          @click="goToPlate(visit.resumePoint, 'return')">{{ copy(ui.site.resumePlate, { point: stopLabels[visit.resumePoint.stop] }) }}</button>
-        <button v-if="visit.pendingSlots && !unifiedReply?.artifact" type="button" class="site-guide-start"
-          @click="readPendingSlots">{{ copy(ui.site.pendingSlots, { date: visit.pendingSlots.date }) }}</button>
-        <nav v-if="unifiedReply?.stops?.length" :aria-label="ui.site.destinations" class="site-guide-stops">
-          <RouterLink v-for="stop in unifiedReply.stops" :key="stop" :to="destination(stop)">{{ siteStops[stop].label }} <ArrowRight aria-hidden="true" /></RouterLink>
-        </nav>
+  <div class="luosheng-root luosheng-palette">
+    <!-- Subtle mobile/3D action toast -->
+    <Transition name="luosheng-fade">
+      <div v-if="store.toastMessage" class="luosheng-toast" role="status" aria-live="polite">
+        {{ store.toastMessage }}
       </div>
-      <div v-else class="site-guide-body">
-        <section v-if="touring" ref="tourPanel" class="site-guide-tour" :aria-label="ui.site.tour" tabindex="-1">
-          <p role="status">{{ tourIndex < 0 ? ui.site.tourStart : copy(ui.site.tourProgress, { index: tourIndex + 1, total: firstVisit.length, label: siteStops[firstVisit[tourIndex]!].label }) }}</p>
-          <RouterLink v-if="nextStop" :to="destination(nextStop)">
-            {{ tourIndex < 0 ? ui.site.firstStop : ui.site.nextStop }}：{{ siteStops[nextStop].label }} <ArrowRight aria-hidden="true" />
-          </RouterLink>
-          <p v-else>{{ ui.site.tourDone }}</p>
-          <button type="button" @click="endTour">{{ ui.site.endTour }}</button>
-        </section>
-        <button v-else ref="startButton" type="button" class="site-guide-start" @click="startTour">
-          <Compass aria-hidden="true" /> {{ ui.site.startTour }} <ArrowRight aria-hidden="true" />
-        </button>
-        <p class="site-guide-answer" role="status">{{ answer.text }}</p>
-        <nav :aria-label="ui.site.destinations" class="site-guide-stops">
-          <RouterLink
-            v-for="stop in answer.stops" :key="stop" :to="destination(stop)"
-            @click="route.path === siteStops[stop].path && setExpanded(false)"
-          >
-            <component :is="stopIcons[stop]" class="site-guide-stop-icon" aria-hidden="true" />
-            <span>{{ siteStops[stop].label }}</span>
-            <ArrowRight class="site-guide-stop-arrow" aria-hidden="true" />
-          </RouterLink>
-        </nav>
-      </div>
-      <footer class="site-guide-composer">
-        <div class="site-guide-prompts" role="group" :aria-label="ui.a11y.suggestions">
-          <template v-if="visit">
-            <button v-for="prompt in visibleSuggestions" :key="prompt" type="button" @click="ask(prompt)">{{ prompt }}</button>
-            <button v-if="suggestions.more.length" type="button" :aria-expanded="showMoreSuggestions"
-              @click="showMoreSuggestions = !showMoreSuggestions">{{ showMoreSuggestions ? ui.actions.less : ui.actions.more }}</button>
-            <button v-if="nextGlance && object?.exhibit" type="button" @click="showPlate(nextGlance, false)">
-              {{ copy(ui.site.nextGlance, { point: stopLabels[nextGlance] }) }}
-            </button>
-            <button type="button" @click="endVisit">{{ ui.entry.selfTour }}</button>
-          </template>
-          <template v-else>
-            <button v-for="prompt in prompts" :key="prompt" type="button" @click="ask(prompt)">{{ prompt }}</button>
-          </template>
-        </div>
-        <form class="site-guide-form" @submit.prevent="submitQuestion">
-          <input ref="input" v-model="question" :aria-label="visit ? ui.site.ask : ui.site.askTour" :placeholder="object ? ui.site.objectPlaceholder : visit && routeName === 'appointment' ? ui.site.slotPlaceholder : ui.site.tourPlaceholder" :maxlength="visit ? 300 : 160"
-            @compositionstart="composingQuestion = true"
-            @compositionend="composingQuestion = false"
-            @change="composingQuestion = false"
-            @keydown.enter="guardCompositionEnter" />
-          <button type="submit" :disabled="composingQuestion || !question.trim()"><Promotion aria-hidden="true" /> {{ ui.input.send }}</button>
-        </form>
-        <small v-if="visit" class="site-guide-meta">{{ unifiedGuideTurns ? ui.site.privacy : liveModel ? ui.site.modelPreview : reviewedPreview ? ui.site.reviewedPreview : ui.site.syntheticPreview }}</small>
-      </footer>
-    </section>
     </Transition>
-  </aside>
+
+    <!-- Floating trigger capsule -->
+    <button
+      v-show="!store.open"
+      ref="fabEl"
+      type="button"
+      class="luosheng-fab"
+      data-testid="luosheng-fab"
+      :aria-label="strings.fabAria"
+      aria-haspopup="dialog"
+      aria-expanded="false"
+      @click="openPanel"
+    >
+      <span class="luosheng-fab__seal" aria-hidden="true">笙</span>
+      <span class="luosheng-fab__label">{{ strings.fabLabel }}</span>
+      <span v-if="hasMessages" class="luosheng-fab__dot" aria-hidden="true"></span>
+    </button>
+
+    <!-- Multi-turn streaming guide drawer -->
+    <Transition name="luosheng-drawer">
+      <section
+        v-if="store.open"
+        class="luosheng-drawer"
+        data-testid="luosheng-drawer"
+        role="dialog"
+        aria-modal="false"
+        :aria-label="strings.title"
+        @keydown.esc="closePanel"
+      >
+        <header class="luosheng-drawer__header">
+          <div class="luosheng-drawer__identity">
+            <span class="luosheng-seal" aria-hidden="true">笙</span>
+            <div>
+              <h2>{{ strings.title }}</h2>
+              <p>{{ strings.subtitle }}</p>
+            </div>
+          </div>
+          <div class="luosheng-drawer__controls">
+            <button
+              v-if="hasMessages"
+              type="button"
+              class="luosheng-header-btn"
+              data-testid="luosheng-clear"
+              :aria-label="strings.clearConfirmAria"
+              @click="clearHistory"
+            >
+              {{ strings.clear }}
+            </button>
+            <button
+              type="button"
+              class="luosheng-header-btn luosheng-header-btn--close"
+              data-testid="luosheng-close"
+              :aria-label="strings.close"
+              @click="closePanel"
+            >
+              ×
+            </button>
+          </div>
+        </header>
+
+        <div ref="logContainer" class="luosheng-log" role="log" aria-live="polite" :aria-busy="streaming">
+          <!-- Welcome & route-tailored starter pills -->
+          <div v-if="!hasMessages" class="luosheng-welcome">
+            <p class="luosheng-welcome__lead">{{ preset.welcome }}</p>
+            <div class="luosheng-starters">
+              <button
+                v-for="starter in preset.starters"
+                :key="starter"
+                type="button"
+                class="luosheng-starter-chip"
+                @click="sendMessage(starter)"
+              >
+                {{ starter }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Conversation messages -->
+          <template v-for="msg in store.messages" :key="msg.id">
+            <div v-if="msg.role === 'divider'" class="luosheng-divider" role="separator">
+              <span>{{ strings.dividerPrefix }} · {{ msg.text }}</span>
+            </div>
+
+            <article
+              v-else
+              class="luosheng-msg"
+              :class="`luosheng-msg--${msg.role}`"
+              :data-role="msg.role"
+            >
+              <div v-if="msg.role === 'assistant'" class="luosheng-msg__meta">
+                <span
+                  v-if="msg.mode"
+                  class="luosheng-mode-badge"
+                  :class="msg.mode === 'ai' ? 'is-ai' : 'is-archive'"
+                  data-testid="luosheng-mode-badge"
+                >
+                  {{ msg.mode === 'ai' ? strings.aiBadge : strings.archiveBadge }}
+                </span>
+                <span v-if="msg.degraded" class="luosheng-degraded-hint">{{ strings.degradedHint }}</span>
+              </div>
+
+              <p v-if="msg.statusPhase" class="luosheng-status" role="status">
+                <span class="luosheng-status__pulse" aria-hidden="true"></span>
+                <span>{{ strings.statusLabels[msg.statusPhase] }}</span>
+              </p>
+
+              <div class="luosheng-bubble">
+                <template v-if="msg.text">
+                  <p v-for="(para, idx) in paragraphsOf(msg.text)" :key="idx">
+                    {{ para }}<span v-if="msg.streaming && idx === paragraphsOf(msg.text).length - 1" class="luosheng-cursor" aria-hidden="true"></span>
+                  </p>
+                </template>
+                <span v-else-if="msg.streaming" class="luosheng-cursor" aria-hidden="true"></span>
+              </div>
+
+              <!-- Validated structured action capsules -->
+              <div v-if="msg.actions && msg.actions.length" class="luosheng-actions">
+                <template v-for="(action, idx) in msg.actions" :key="`${msg.id}-act-${idx}`">
+                  <a
+                    v-if="action.type === 'open_source' && action.url"
+                    class="luosheng-action-btn luosheng-action-btn--source"
+                    :href="action.url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {{ action.label }} ↗
+                  </a>
+                  <button
+                    v-else
+                    type="button"
+                    class="luosheng-action-btn"
+                    :class="{ 'luosheng-action-btn--3d': action.type === 'viewer_focus' || action.type === 'viewer_mode' }"
+                    :data-action-type="action.type"
+                    @click="handleAction(action)"
+                  >
+                    {{ action.label }}
+                  </button>
+                </template>
+              </div>
+
+              <!-- Collapsible Sources & Boundaries drawer -->
+              <details
+                v-if="!msg.streaming && ((msg.citations && msg.citations.length) || msg.boundaryNote)"
+                class="luosheng-sources"
+              >
+                <summary>{{ strings.sourcesToggle }}<span v-if="msg.citations?.length"> ({{ msg.citations.length }})</span></summary>
+                <div class="luosheng-sources__body">
+                  <ul v-if="msg.citations?.length" class="luosheng-citation-list">
+                    <li v-for="c in msg.citations" :key="c.id">
+                      <span class="luosheng-citation-id font-mono">{{ c.id }} · {{ c.revision }}</span>
+                      <strong>{{ c.title }}</strong>
+                      <div class="luosheng-citation-links">
+                        <a
+                          v-if="c.publicSourceUrl"
+                          :href="c.publicSourceUrl"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {{ guideLocale === 'en-US' ? 'Public Record ↗' : '馆方公开档案 ↗' }}
+                        </a>
+                        <button
+                          v-if="c.internalPath"
+                          type="button"
+                          class="luosheng-citation-nav"
+                          @click="handleAction({ type: 'navigate', path: c.internalPath, label: c.title })"
+                        >
+                          {{ guideLocale === 'en-US' ? 'Open Page →' : '查看站内页面 →' }}
+                        </button>
+                      </div>
+                    </li>
+                  </ul>
+                  <p v-if="msg.boundaryNote" class="luosheng-boundary">
+                    <strong>{{ strings.boundaryLabel }}：</strong>{{ msg.boundaryNote }}
+                  </p>
+                </div>
+              </details>
+
+              <!-- Follow-up suggestion pills on the latest assistant message -->
+              <div
+                v-if="!msg.streaming && msg.id === latestAssistantId && msg.followUps && msg.followUps.length"
+                class="luosheng-followups"
+              >
+                <button
+                  v-for="q in msg.followUps.slice(0, 2)"
+                  :key="q"
+                  type="button"
+                  class="luosheng-followup-chip"
+                  @click="sendMessage(q)"
+                >
+                  {{ q }}
+                </button>
+              </div>
+            </article>
+          </template>
+
+          <p v-if="streamError" class="luosheng-error" role="alert">{{ streamError }}</p>
+        </div>
+
+        <form class="luosheng-composer" @submit.prevent="sendMessage()">
+          <textarea
+            ref="inputEl"
+            v-model="inputText"
+            class="luosheng-input"
+            data-testid="luosheng-input"
+            rows="1"
+            maxlength="500"
+            :placeholder="strings.inputPlaceholder"
+            :aria-label="strings.inputPlaceholder"
+            :disabled="streaming"
+            @keydown="handleKeydown"
+          ></textarea>
+          <button
+            v-if="streaming"
+            type="button"
+            class="luosheng-send luosheng-send--stop"
+            data-testid="luosheng-stop"
+            @click="stopGeneration"
+          >
+            {{ strings.stop }}
+          </button>
+          <button
+            v-else
+            type="submit"
+            class="luosheng-send"
+            data-testid="luosheng-send"
+            :disabled="!inputText.trim()"
+          >
+            {{ strings.send }}
+          </button>
+        </form>
+      </section>
+    </Transition>
+  </div>
 </template>
 
 <style scoped>
-.luosheng-site {
+.luosheng-root {
   position: fixed;
-  z-index: 31;
-  inset: auto max(1rem, env(safe-area-inset-right)) 1.25rem auto;
-  color: var(--guide-ink);
-  font-family: var(--guide-body-font);
-  min-block-size: 52px;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: 80;
+  pointer-events: none;
 }
-.luosheng-site :where(button, a, input) { font: inherit; }
-.luosheng-site :is(button, a) { cursor: pointer; }
-.luosheng-site :focus-visible { outline: 2px solid var(--guide-signal); outline-offset: 3px; }
-.luosheng-site svg { flex: none; inline-size: 1rem; block-size: 1rem; }
-.site-guide-trigger, .site-guide-form button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: .55rem;
-  min-block-size: 44px;
-  padding-inline: 1rem;
-  border: 1px solid var(--guide-action);
-  border-radius: .75rem;
-  background: var(--guide-action);
-  color: var(--guide-action-ink);
+
+.luosheng-root > * {
+  pointer-events: auto;
+}
+
+.luosheng-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--mobile-tab-height, 64px) + var(--space-5));
+  transform: translateX(-50%);
+  z-index: 90;
+  padding: 0.6rem 1.15rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--guide-metal);
+  background: var(--guide-paper);
+  color: var(--guide-ink);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
   white-space: nowrap;
 }
-.luosheng-site .site-guide-trigger {
+
+/* ── Floating Trigger Capsule ── */
+.luosheng-fab {
   position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  gap: .65rem;
-  min-block-size: 52px;
-  padding-inline: .48rem 1rem;
-  border-color: color-mix(in oklch, var(--guide-metal) 70%, var(--guide-edge));
-  border-radius: 999px;
-  background-color: var(--guide-paper);
-  background-image: linear-gradient(160deg, color-mix(in oklch, var(--guide-metal) 12%, transparent), transparent 78%);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 48px;
+  padding: 0.45rem 1.05rem 0.45rem 0.55rem;
+  border: 1px solid var(--guide-metal);
+  border-radius: var(--radius-pill);
+  background: var(--guide-paper);
   color: var(--guide-ink);
-  box-shadow: 0 7px 24px #11161052, inset 0 1px 0 color-mix(in oklch, var(--guide-metal) 18%, transparent);
-  font-weight: 650;
-  touch-action: manipulation;
+  font-family: var(--guide-body-font);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  transition: transform var(--duration-fast) var(--ease-curatorial), border-color var(--duration-fast) var(--ease-curatorial);
 }
-.site-guide-trigger-label { position: relative; }
-.site-guide-dial {
-  position: relative;
+
+.luosheng-fab:hover {
+  transform: translateY(-2px);
+  border-color: var(--guide-signal);
+}
+
+.luosheng-fab__seal,
+.luosheng-seal {
   display: grid;
   place-items: center;
-  inline-size: 38px;
-  block-size: 38px;
-  flex: none;
-  border: 1px solid color-mix(in oklch, var(--guide-metal) 50%, transparent);
-  border-radius: 50%;
-  background: var(--guide-mount);
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 1px solid var(--guide-metal);
+  background: color-mix(in oklch, var(--guide-metal) 14%, var(--guide-paper));
   color: var(--guide-metal);
+  font-family: var(--guide-head);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  flex-shrink: 0;
 }
-.site-guide-dial svg { inline-size: 19px; block-size: 19px; }
-.site-guide-dial::after {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  background: conic-gradient(from -100deg, transparent 8%, var(--guide-signal) 23%, var(--guide-metal) 37%, transparent 54%);
-  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px), #000 97%, transparent 100%);
-  border-radius: 50%;
-  transform: rotate(-28deg);
+
+.luosheng-fab__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--guide-signal);
 }
-.site-guide-trigger::before {
-  content: '';
-  position: absolute;
-  inset: 0 auto 0 0;
-  inline-size: 50%;
-  background: linear-gradient(108deg, transparent, color-mix(in oklch, var(--guide-metal) 8%, transparent) 34%, color-mix(in oklch, var(--guide-metal) 35%, transparent) 53%, transparent 82%);
-  pointer-events: none;
-  opacity: 0;
-}
-.luosheng-site .site-guide-trigger:active {
-  background: var(--guide-field);
-  border-color: var(--guide-metal);
-}
-@media (prefers-reduced-motion: no-preference) {
-  .luosheng-site .site-guide-trigger { transition: transform 230ms cubic-bezier(.2, .85, .25, 1); }
-  .luosheng-site .site-guide-trigger:active { transform: scale(.95); transition-duration: 80ms; }
-  .site-guide-dial::after { animation: site-guide-orbit 3.6s cubic-bezier(.22, .72, .22, 1) infinite; }
-  .site-guide-trigger::before { animation: site-guide-scan 3.6s ease-out infinite; }
-}
-@keyframes site-guide-orbit {
-  0% { transform: rotate(-28deg); opacity: .65; }
-  16% { opacity: 1; }
-  32%, 100% { transform: rotate(332deg); }
-  48%, 100% { opacity: .65; }
-}
-@keyframes site-guide-scan {
-  0% { transform: translateX(-100%); opacity: 0; }
-  12%, 23% { opacity: 1; }
-  38%, 100% { transform: translateX(220%); opacity: 0; }
-}
-.site-guide-panel {
-  position: absolute;
-  inset: auto 0 0 auto;
+
+/* ── Gallery Guide Drawer ── */
+.luosheng-drawer {
+  width: min(420px, calc(100vw - 2rem));
+  max-height: min(680px, calc(100dvh - 5.5rem));
   display: flex;
   flex-direction: column;
-  transform-origin: bottom right;
-  inline-size: min(25rem, calc(100vi - 2rem));
-  max-block-size: min(38rem, calc(100dvh - 7rem - env(safe-area-inset-bottom)));
+  border: 1px solid var(--guide-edge);
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklch, var(--guide-paper) 94%, transparent);
+  color: var(--guide-ink);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   overflow: hidden;
-  border: 1px solid var(--guide-edge);
-  border-radius: 1.125rem;
-  background: var(--guide-paper);
-  box-shadow: 0 16px 54px #0d1e1a38;
 }
-.site-guide-panel[inert] { pointer-events: none; }
-.site-guide-panel-enter-active { transition: opacity 140ms ease-out; }
-.site-guide-panel-leave-active { transition: opacity 130ms ease-in; }
-.site-guide-panel-enter-from, .site-guide-panel-leave-to { opacity: 0; }
-@media (prefers-reduced-motion: no-preference) {
-  .site-guide-panel-enter-active {
-    transition: transform 280ms cubic-bezier(.18, .88, .25, 1), opacity 170ms ease-out;
-  }
-  .site-guide-panel-leave-active {
-    transition: transform 185ms cubic-bezier(.75, 0, .82, .12), opacity 150ms ease-in;
-  }
-  .site-guide-panel-enter-from, .site-guide-panel-leave-to { transform: translateY(7px) scale(.93); }
-}
-.site-guide-header {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border-block-end: 1px solid var(--guide-edge);
-}
-.site-guide-mark {
-  display: grid;
-  place-items: center;
-  inline-size: 2.5rem;
-  block-size: 2.5rem;
-  border: 1px solid var(--guide-edge);
-  border-radius: 50%;
-  background: var(--guide-mount);
-  color: var(--guide-metal);
-}
-.site-guide-mark svg { inline-size: 1.25rem; block-size: 1.25rem; }
-.site-guide-header p {
-  margin: var(--space-1) 0 0;
-  color: var(--guide-muted);
-  font-size: .8125rem;
-  line-height: 1.3;
-}
-.site-guide-header h2 { margin: 0; color: var(--guide-ink); font: 600 1.3rem/1.25 var(--guide-head); }
-.site-guide-header h2:focus { outline: none; }
-.site-guide-close {
-  display: grid;
-  place-items: center;
-  inline-size: 44px;
-  block-size: 44px;
-  border: 1px solid transparent;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--guide-muted);
-}
-.site-guide-body {
-  display: grid;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  min-block-size: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: var(--guide-edge) transparent;
-}
-.site-guide-start, .site-guide-tour a {
+
+.luosheng-drawer__header {
   display: flex;
   align-items: center;
-  gap: .55rem;
-  min-block-size: 48px;
-  padding: .45rem .85rem;
-  border: 1px solid var(--guide-action);
-  border-radius: .65rem;
-  background: var(--guide-action);
-  color: var(--guide-action-ink);
-  font-size: .9375rem;
-  font-weight: 620;
-  text-decoration: none;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border-hairline);
+  background: color-mix(in oklch, var(--guide-screen) 65%, transparent);
 }
-.site-guide-start svg:last-child, .site-guide-tour a svg { margin-inline-start: auto; }
-.site-guide-tour { display: grid; gap: .4rem; }
-.site-guide-tour p { margin: 0; color: var(--guide-muted); font-size: .875rem; line-height: 1.55; }
-.site-guide-tour button {
-  justify-self: start;
-  min-block-size: 44px;
-  padding-inline: .65rem;
-  border: 1px solid var(--guide-edge);
-  border-radius: .6rem;
+
+.luosheng-drawer__identity {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.luosheng-drawer__identity h2 {
+  margin: 0;
+  font-family: var(--guide-head);
+  font-size: var(--text-md);
+  line-height: 1.25;
+}
+
+.luosheng-drawer__identity p {
+  margin: 0.1rem 0 0;
+  font-size: var(--text-xs);
+  color: var(--guide-muted);
+}
+
+.luosheng-drawer__controls {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.luosheng-header-btn {
+  min-height: 36px;
+  padding: 0 0.7rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--guide-paper);
+  color: var(--guide-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.luosheng-header-btn:hover {
+  color: var(--guide-ink);
+  border-color: var(--guide-metal);
+}
+
+.luosheng-header-btn--close {
+  min-width: 36px;
+  padding: 0;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+/* ── Chat Log ── */
+.luosheng-log {
+  flex: 1 1 auto;
+  min-height: 220px;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.luosheng-welcome {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.luosheng-welcome__lead {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-md);
+  background: var(--guide-reply);
+  border: 1px solid var(--border-hairline);
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  color: var(--ink-secondary);
+}
+
+.luosheng-starters {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.luosheng-starter-chip {
+  text-align: left;
+  min-height: 44px;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
   background: var(--guide-field);
   color: var(--guide-ink);
-  font-size: .8125rem;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-curatorial);
 }
-.site-guide-answer {
+
+.luosheng-starter-chip:hover {
+  border-color: var(--guide-metal);
+}
+
+.luosheng-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: var(--text-xs);
+  color: var(--guide-muted);
+}
+
+.luosheng-divider::before,
+.luosheng-divider::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--border-hairline);
+}
+
+.luosheng-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.luosheng-msg--user {
+  align-items: flex-end;
+}
+
+.luosheng-msg--assistant {
+  align-items: flex-start;
+}
+
+.luosheng-msg__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.luosheng-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.55rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.luosheng-mode-badge.is-ai {
+  background: color-mix(in oklch, var(--guide-signal) 15%, var(--guide-paper));
+  color: var(--guide-signal);
+  border: 1px solid color-mix(in oklch, var(--guide-signal) 35%, transparent);
+}
+
+.luosheng-mode-badge.is-archive {
+  background: color-mix(in oklch, var(--guide-metal) 14%, var(--guide-paper));
+  color: var(--guide-metal);
+  border: 1px solid color-mix(in oklch, var(--guide-metal) 35%, transparent);
+}
+
+.luosheng-degraded-hint {
+  font-size: 0.75rem;
+  color: var(--guide-muted);
+}
+
+.luosheng-status {
   margin: 0;
-  padding: var(--space-3);
-  border-radius: .65rem;
-  background: var(--guide-reply);
-  color: var(--guide-ink);
-  font-size: .9375rem;
-  line-height: 1.7;
-  white-space: pre-line;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: var(--text-xs);
+  color: var(--guide-muted);
+}
+
+.luosheng-status__pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--guide-metal);
+  animation: luosheng-pulse 1.2s ease-in-out infinite;
+}
+
+.luosheng-bubble {
+  max-width: 92%;
+  padding: 0.7rem 0.95rem;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  line-height: 1.72;
   overflow-wrap: anywhere;
 }
-.site-guide-response {
+
+.luosheng-bubble p {
+  margin: 0;
+}
+
+.luosheng-bubble p + p {
+  margin-top: 0.5rem;
+}
+
+.luosheng-msg--user .luosheng-bubble {
+  background: var(--guide-action);
+  color: var(--guide-action-ink);
+  border-bottom-right-radius: var(--radius-xs);
+}
+
+.luosheng-msg--assistant .luosheng-bubble {
+  background: var(--guide-reply);
+  border: 1px solid var(--border-hairline);
+  color: var(--guide-ink);
+  border-bottom-left-radius: var(--radius-xs);
+}
+
+.luosheng-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  background: var(--guide-metal);
+  animation: luosheng-blink 0.9s steps(2) infinite;
+}
+
+/* ── Action Capsules ── */
+.luosheng-actions {
   display: flex;
-  align-items: flex-start;
-  gap: .55rem;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  max-width: 96%;
 }
-.site-guide-response .site-guide-answer { flex: 1; min-inline-size: 0; }
-.site-guide-progress {
-  margin: 0;
-  color: var(--guide-muted);
-  font-size: .8125rem;
-}
-.site-guide-clarify, .site-guide-insufficient {
-  display: grid;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--guide-edge);
-  border-radius: .65rem;
-}
-.site-guide-clarify > p, .site-guide-insufficient > p {
-  margin: 0;
-  color: var(--guide-ink);
-  font-size: .875rem;
-  line-height: 1.6;
-}
-.site-guide-clarify > button { justify-self: start; }
-.site-guide-cover {
-  flex: 0 0 auto;
-  object-fit: cover;
-  border-radius: .5rem;
-}
-.site-guide-meta { color: var(--guide-muted); }
-.site-guide-body summary { cursor: pointer; min-block-size: 44px; align-content: center; }
-.site-guide-body details a { color: var(--guide-signal); overflow-wrap: anywhere; }
-.site-guide-stops {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0 var(--space-2);
-}
-.site-guide-stops a {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+
+.luosheng-action-btn {
+  display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  min-block-size: 44px;
-  padding: var(--space-1) var(--space-2);
-  border-block-end: 1px solid var(--guide-edge);
+  min-height: 38px;
+  padding: 0.35rem 0.85rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--guide-paper);
   color: var(--guide-ink);
-  font-size: .875rem;
-  font-weight: 550;
+  font-size: var(--text-xs);
+  font-weight: 600;
   text-decoration: none;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-curatorial), background var(--duration-fast) var(--ease-curatorial);
 }
-.site-guide-stop-icon { color: var(--guide-metal); }
-.site-guide-stops .site-guide-stop-arrow { inline-size: .75rem; color: var(--guide-muted); }
-.site-guide-composer {
-  flex: none;
+
+.luosheng-action-btn--3d {
+  border-color: var(--guide-signal);
+  background: color-mix(in oklch, var(--guide-signal) 12%, var(--guide-paper));
+  color: var(--guide-ink);
+}
+
+.luosheng-action-btn:hover {
+  border-color: var(--guide-metal);
+}
+
+/* ── Sources & Boundary Collapsible Drawer ── */
+.luosheng-sources {
+  width: 100%;
+  max-width: 96%;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  background: var(--guide-field);
+  font-size: var(--text-xs);
+}
+
+.luosheng-sources summary {
+  padding: 0.45rem 0.75rem;
+  cursor: pointer;
+  color: var(--guide-muted);
+  font-weight: 600;
+  user-select: none;
+}
+
+.luosheng-sources__body {
+  padding: 0.5rem 0.75rem 0.75rem;
+  border-top: 1px solid var(--border-hairline);
   display: grid;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4) var(--space-4);
-  border-block-start: 1px solid var(--guide-edge);
-  background: var(--guide-screen);
+  gap: 0.6rem;
 }
-.site-guide-prompts { display: flex; flex-wrap: wrap; gap: 0 var(--space-2); }
-.site-guide-prompts button {
-  min-block-size: 44px;
-  padding-inline: var(--space-1);
-  border: 1px solid transparent;
-  border-radius: .5rem;
+
+.luosheng-citation-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.luosheng-citation-list li {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.luosheng-citation-id {
+  font-size: 0.75rem;
+  color: var(--guide-metal);
+}
+
+.luosheng-citation-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.luosheng-citation-links a,
+.luosheng-citation-nav {
+  padding: 0;
+  border: 0;
   background: transparent;
   color: var(--guide-signal);
-  font-size: .8125rem;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  cursor: pointer;
 }
-.site-guide-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; }
-.site-guide-form input {
-  min-inline-size: 0;
-  min-block-size: 44px;
-  padding-inline: .625rem;
-  border: 1px solid var(--guide-field-edge, var(--guide-edge));
-  border-radius: .65rem;
+
+.luosheng-boundary {
+  margin: 0;
+  line-height: 1.6;
+  color: var(--guide-muted);
+}
+
+/* ── Follow-up Pills ── */
+.luosheng-followups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.luosheng-followup-chip {
+  min-height: 36px;
+  padding: 0.3rem 0.75rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink-secondary);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.luosheng-followup-chip:hover {
+  border-color: var(--guide-metal);
+  color: var(--guide-ink);
+}
+
+.luosheng-error {
+  margin: 0;
+  padding: 0.6rem 0.85rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--danger, var(--guide-metal));
   background: var(--guide-field);
   color: var(--guide-ink);
-  caret-color: var(--guide-metal);
-  font-size: 1rem;
+  font-size: var(--text-xs);
 }
-.site-guide-form input::placeholder { color: var(--guide-muted); opacity: 1; }
-.site-guide-form button { padding-inline: var(--space-3); }
-.site-guide-form button:disabled {
+
+/* ── Composer ── */
+.luosheng-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 0.85rem;
+  border-top: 1px solid var(--border-hairline);
+  background: var(--guide-paper);
+}
+
+.luosheng-input {
+  flex: 1 1 auto;
+  min-height: 44px;
+  max-height: 112px;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--guide-field-edge);
+  border-radius: var(--radius-sm);
   background: var(--guide-field);
-  border-color: var(--guide-edge);
-  color: var(--guide-muted);
-  cursor: default;
-}
-.site-guide-panel :is(button:not(:disabled), a):active { filter: brightness(.91); }
-@media (hover: hover) {
-  .luosheng-site .site-guide-trigger:hover {
-    background: var(--guide-field);
-    border-color: var(--guide-metal);
-  }
-  .site-guide-panel :is(.site-guide-start, .site-guide-tour a, .site-guide-form button:not(:disabled)):hover {
-    background: color-mix(in oklch, var(--guide-action) 85%, var(--guide-action-ink));
-  }
-  .site-guide-stops a:hover, .site-guide-prompts button:hover, .site-guide-close:hover {
-    background: var(--guide-field);
-  }
-}
-@media (max-width: 880px) {
-  .luosheng-site { inset-block-end: calc(5.25rem + env(safe-area-inset-bottom)); }
-}
-@media (max-height: 500px) {
-  /* Keep the composer reachable at browser zoom without hiding questions off to the side. */
-  .site-guide-prompts { max-block-size: 22dvh; overflow-y: auto; scrollbar-width: thin; }
-}
-.site-guide-history {
-  list-style: none;
-  margin: 0;
-  padding: 0 0 .55rem;
-  display: grid;
-  gap: .45rem;
-  border-bottom: 1px solid var(--guide-edge);
-  max-block-size: 10rem;
-  overflow-y: auto;
-  font-size: .82rem;
-  color: var(--guide-muted);
-}
-.site-guide-history-item { display: grid; gap: .15rem; }
-.site-guide-history-q, .site-guide-history-a {
-  margin: 0;
+  color: var(--guide-ink);
+  font-family: var(--guide-body-font);
+  font-size: var(--text-sm);
   line-height: 1.45;
-  white-space: pre-line;
+  resize: none;
 }
-.site-guide-history-q strong { color: var(--guide-ink); }
+
+.luosheng-input:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 1px;
+}
+
+.luosheng-send {
+  min-width: 68px;
+  min-height: 44px;
+  padding: 0 1rem;
+  border: 1px solid var(--guide-action);
+  border-radius: var(--radius-sm);
+  background: var(--guide-action);
+  color: var(--guide-action-ink);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.luosheng-send:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.luosheng-send--stop {
+  border-color: var(--guide-metal);
+  background: var(--guide-paper);
+  color: var(--guide-ink);
+}
+
+@keyframes luosheng-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+@keyframes luosheng-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.luosheng-drawer-enter-active,
+.luosheng-drawer-leave-active {
+  transition: opacity 200ms var(--ease-curatorial), transform 220ms var(--ease-curatorial);
+}
+
+.luosheng-drawer-enter-from,
+.luosheng-drawer-leave-to {
+  opacity: 0;
+  transform: translateY(12px) scale(0.98);
+}
+
+.luosheng-fade-enter-active,
+.luosheng-fade-leave-active {
+  transition: opacity 200ms ease;
+}
+
+.luosheng-fade-enter-from,
+.luosheng-fade-leave-to {
+  opacity: 0;
+}
+
+/* ── Tablet / Mobile Tab-Bar Clearance (<= 960px) ── */
+@media (max-width: 960px) {
+  .luosheng-root {
+    right: var(--space-4);
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px) + var(--space-2));
+  }
+}
+
+/* ── Mobile Bottom Sheet Layout (< 768px) ── */
+@media (max-width: 767px) {
+  .luosheng-drawer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-height: 82dvh;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
 </style>

@@ -2,18 +2,19 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const css = readFileSync(resolve(process.cwd(), 'src/assets/task-pages.css'), 'utf8')
+const appointment = readFileSync(resolve(process.cwd(), 'src/views/AppointmentView.vue'), 'utf8')
 
-describe('desktop appointment visit card layout', () => {
-  it('uses a compact fixed-height information band on desktop', () => {
-    const desktop = css.slice(css.indexOf('@media (min-width: 761px)'))
-    expect(desktop).toMatch(/\.booking-page \.visit-card\s*{[\s\S]*grid-template-columns:\s*minmax\(180px, 34%\) minmax\(0, 1fr\);[\s\S]*height:\s*154px;/)
-    expect(desktop).toMatch(/\.booking-page \.visit-card > img\s*{[\s\S]*height:\s*100%;[\s\S]*object-fit:\s*cover;/)
+describe('desktop appointment electronic museum pass layout (Heluo Editorial 2.0)', () => {
+  it('renders a perforated electronic museum pass with live selection values', () => {
+    expect(appointment).toContain('class="museum-pass"')
+    expect(appointment).toContain('class="pass-perforation"')
+    expect(appointment).toContain('class="pass-perforation__notch pass-perforation__notch--left"')
+    expect(appointment).toContain('class="pass-seal"')
+    expect(appointment).toMatch(/\.appointment-venue\s*\{[^}]*aspect-ratio:\s*16 \/ 9/s)
   })
 
-  it('prevents the three Element Plus icons from stretching the card', () => {
-    const desktop = css.slice(css.indexOf('@media (min-width: 761px)'))
-    expect(desktop).toMatch(/\.visit-card :is\(p, footer\) svg\s*{[\s\S]*width:\s*16px;[\s\S]*height:\s*16px;[\s\S]*flex:\s*0 0 16px;/)
-    expect(desktop).toMatch(/\.booking-page \.visit-card footer\s*{[\s\S]*display:\s*flex;[\s\S]*flex-wrap:\s*wrap;/)
+  it('keeps icons compact and venue metadata cleanly aligned', () => {
+    expect(appointment).toMatch(/\.appointment-workbench svg\s*\{[^}]*width:\s*16px;[^}]*height:\s*16px;/s)
+    expect(appointment).toMatch(/\.appointment-layout\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) 380px/s)
   })
 })

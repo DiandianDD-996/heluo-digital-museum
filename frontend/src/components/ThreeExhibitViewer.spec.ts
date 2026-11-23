@@ -276,7 +276,7 @@ describe('ThreeExhibitViewer pointer ownership', () => {
 
     document.documentElement.dataset.theme = 'dark'
     window.dispatchEvent(new CustomEvent('heluo:theme-change', { detail: 'dark' }))
-    expect(fog.color.getHexString()).toBe('0c1815')
+    expect(fog.color.getHexString()).toBe('1c1b19')
     expect(wrapper.get('.three-canvas').attributes('data-theme-fog')).toBe('dark')
 
     threeState.compileResolvers[0]?.()
@@ -284,7 +284,7 @@ describe('ThreeExhibitViewer pointer ownership', () => {
     wrapper.unmount()
     document.documentElement.dataset.theme = 'light'
     window.dispatchEvent(new CustomEvent('heluo:theme-change', { detail: 'light' }))
-    expect(fog.color.getHexString()).toBe('0c1815')
+    expect(fog.color.getHexString()).toBe('1c1b19')
   })
 
   it('uses the lower fixed-cost renderer profile on a phone viewport', async () => {
@@ -584,21 +584,21 @@ describe('ThreeExhibitViewer pointer ownership', () => {
 
     runFrame(1900)
     const material = prewarm.pointCloud?.material as import('three').ShaderMaterial
-    expect(material.uniforms.uJade.value.toArray()).toEqual([.018, .18, .105])
-    expect(material.uniforms.uCopper.value.toArray()).toEqual([.48, .24, .055])
-    expect(material.uniforms.uPointSize.value).toBe(.92)
+    expect(material.uniforms.uJade.value.toArray()).toEqual([.30, .47, .41])
+    expect(material.uniforms.uCopper.value.toArray()).toEqual([.94, .78, .46])
+    expect(material.uniforms.uPointSize.value).toBe(1.02)
 
     document.documentElement.dataset.theme = 'dark'
     window.dispatchEvent(new CustomEvent('heluo:theme-change', { detail: 'dark' }))
-    expect(material.uniforms.uJade.value.toArray()).toEqual([.09, .58, .31])
-    expect(material.uniforms.uCopper.value.toArray()).toEqual([.92, .46, .09])
-    expect(material.uniforms.uPointOpacity.value).toBe(.94)
-    expect(material.uniforms.uPointSize.value).toBe(1.16)
+    expect(material.uniforms.uJade.value.toArray()).toEqual([.42, .58, .51])
+    expect(material.uniforms.uCopper.value.toArray()).toEqual([.94, .79, .52])
+    expect(material.uniforms.uPointOpacity.value).toBe(.95)
+    expect(material.uniforms.uPointSize.value).toBe(1.14)
 
     document.documentElement.dataset.theme = 'light'
     window.dispatchEvent(new CustomEvent('heluo:theme-change', { detail: 'light' }))
-    expect(material.uniforms.uJade.value.toArray()).toEqual([.018, .18, .105])
-    expect(material.uniforms.uPointSize.value).toBe(.92)
+    expect(material.uniforms.uJade.value.toArray()).toEqual([.30, .47, .41])
+    expect(material.uniforms.uPointSize.value).toBe(1.02)
     const gatherBeforeReverse = Number(material.uniforms.uProgress.value)
     const opacityBeforeReverse = Number(material.uniforms.uOpacity.value)
     const revealBeforeReverse = Number(material.uniforms.uTransition.value)
@@ -607,7 +607,7 @@ describe('ThreeExhibitViewer pointer ownership', () => {
     expect(opacityBeforeReverse).toBe(1)
     expect(revealBeforeReverse).toBeCloseTo(.5, 1)
     expect(material.fragmentShader).toContain('vSeed>uTransition')
-    expect(material.fragmentShader).toContain('pow(disc,1.25)*uPointOpacity')
+    expect(material.fragmentShader).toContain('pow(disc,1.12)*uPointOpacity')
     expect(material.fragmentShader).not.toContain('disc*uOpacity*uPointOpacity')
 
     now = 1900
@@ -665,6 +665,41 @@ describe('ThreeExhibitViewer pointer ownership', () => {
     runFrame(2700)
     expect(Number(material.uniforms.uProgress.value)).toBe(1)
     expect(Number(material.uniforms.uOpacity.value)).toBe(1)
+    wrapper.unmount()
+  })
+
+  it('focuses ear/feet/motif presets, emits view-change, and restores target on resetView', async () => {
+    hidden = false
+    const wrapper = mount(ThreeExhibitViewer, {
+      props: { modelUrl: '/model.glb', coverImageUrl: '/cover.png', alt: '青铜鼎', enablePointCloud: false },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    await vi.waitFor(() => expect(threeState.controls).toHaveLength(1))
+
+    const exposed = wrapper.vm as unknown as {
+      focusPart: (part: 'ear' | 'feet' | 'motif', options?: { animated?: boolean }) => void
+      resetView: () => void
+    }
+    const controls = threeState.controls[0]! as unknown as { target: { y: number } }
+    const baseTargetY = controls.target.y
+
+    exposed.focusPart('ear', { animated: false })
+    expect(wrapper.emitted('view-change')?.at(-1)).toEqual(['top'])
+    expect(controls.target.y).toBeGreaterThan(baseTargetY)
+
+    exposed.focusPart('feet', { animated: false })
+    expect(wrapper.emitted('view-change')?.at(-1)).toEqual(['back'])
+    expect(controls.target.y).toBeLessThan(baseTargetY)
+
+    exposed.focusPart('motif', { animated: false })
+    expect(wrapper.emitted('view-change')?.at(-1)).toEqual(['front'])
+
+    now = 3000
+    exposed.resetView()
+    runFrame(3600)
+    expect(wrapper.emitted('view-change')?.at(-1)).toEqual(['front'])
+    expect(controls.target.y).toBeCloseTo(baseTargetY, 2)
     wrapper.unmount()
   })
 })

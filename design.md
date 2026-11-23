@@ -1,90 +1,69 @@
-# Design — 河洛数字博物馆
+# Design — 河洛数字博物馆（Heluo Editorial 2.0）
 
-> Hallmark 锁定设计系统。全站页面必须先读取本文件；新增页面应扩展本系统，不得自行发明另一套主题。
+> 全站锁定设计系统。新增或修改任何页面前必须先读取本文件；必须扩展本系统的 `@layer` 与 OKLCH 语义令牌，禁止在页面中临时发明孤立色板、硬编码 `#hex/rgb` 或新增散装补丁 CSS。
 
-## Genre
+## Genre & Aesthetic Direction
 
-2026-09-11 视觉深化：以“馆廊远景 → 器物近观”为首页叙事，桌面标题 64px、手机 36px；主题区不用历史 `home-experiences` 布局类。共享控件采用单层轻阴影，深色语义表面使用 22/26/29/33% OKLCH 明度。探索展签辅助文字 14px，器物图完整显示；商城背景图仅 12% 存在感，商品卡单一边界。预约日期列数同时响应表单容器宽度。详见 `docs/plans/2026-09-10-premium-frontend-visual-plan.md`；上述实现不改变业务、素材来源及设备降级合同。
+- **美学定位**：`Heluo Editorial 2.0` —— 当代亚洲顶尖博物馆画册与静谧数字展厅的融合。浅色主题为**「月白宣纸 · Daylight Paper」**，深色主题为**「墨玉展厅 · Nocturne Gallery」**。
+- **核心原则**：克制、精准、呼吸感、以器物为主角。通过 1px 细线边框、清晰表面明度阶梯、非对称画册构图与微克制动效营造高级质感，严禁厚拟物投影、双层塑料边框或高饱和渐变装饰。
 
-`editorial`：以文物与河洛文明内容为主角，使用不对称编排、细线、留白和安静动效；允许受控的博物馆玻璃材质承载导航、浮层和信息看板，但禁止无节制玻璃拟态、渐变胶囊或等宽功能卡阵列。
+## CSS Architecture (`@layer`)
 
-## Macrostructure family
+全局样式严格收敛于 `frontend/src/styles/` 的 8 层有序文件 + `frontend/src/assets/luosheng-palette.css`（总计 9 个 CSS 文件）：
 
-- 首页：非对称策展封面；青铜鼎为唯一主视觉，馆藏和 3D 为首要入口。
-- 馆藏、展厅与详情：编辑索引 + 长文档叙事；分类、时代和阅读进度构成信息骨架。
-- 预约、商城、账户：策展语气下的任务工作台；步骤、摘要和主操作保持清晰。
-- 后台：紧凑运营工作台；侧栏、工具栏、编辑区和记录区形成稳定四层结构。
+```css
+@layer reset, tokens, base, surface, components, views, overrides;
+```
 
-## Theme — 河洛纸墨
+1. `00-layers.css`：声明全局层叠顺序。
+2. `01-tokens.css`：浅/深双主题 OKLCH 语义色板、字阶、间距、圆角、投影与动效曲线（含向后兼容别名）。
+3. `02-reset-base.css`：盒模型、`overflow-x: clip`、中英衬线/无衬线/等宽数字排印基线、统一表单平面化与高对比键盘焦点环。
+4. `03-surfaces.css`：纸面（`.surface-paper`）、展台（`.surface-plinth`）、三档玻璃材质（`data-glass="light|dark|compact"`）以及 `prefers-reduced-transparency` / `prefers-contrast: more` / `forced-colors` / 弱端设备降级。
+5. `04-components.css`：共享组件基元（`FluidButton`、`MuseumSearchField`、`StatusBadge`、`InlineStatus`、`LoadingSkeleton`、`BottomSheet`、`EditorialCard`、`AudioControl`、`.state-panel`）。
+6. `05-shell.css`：吸顶收缩导航栏（`72px -> 60px`）、3 栏结构化博物馆页脚与移动端底部 Tab Bar（触控热区 ≥ `48px`）。
+7. `06-motion.css`：策展缓动曲线、View Transitions、`artifact-awaken`、`PointerDotField` 克制呈现及 `prefers-reduced-motion: reduce` 兜底（全站仅此一处使用 5 条 `!important`）。
+8. `07-admin.css`：后台按需加载工作台样式（`240px` 固定侧栏、4 格 `tabular-nums` KPI、结构化内容卡及 Element Plus `ElSelect`/`ElOption` 令牌融合）。
 
-- `--color-paper`：偏冷宣纸白。
-- `--color-paper-2`：青灰次级纸面。
-- `--color-ink`：河洛墨绿，用于标题与深色表面。
-- `--color-text`：正文墨色。
-- `--color-muted`：辅助信息。
-- `--color-rule`：纸面分隔线。
-- `--color-action`：主操作青绿。
-- `--color-accent`：少量朱砂，单屏占比不超过 5%。
-- `--color-bronze`：文物与年代标注。
-- `--color-focus`：键盘焦点，必须同时对纸面和按钮可见。
+## Theme — OKLCH 语义双色板
 
-### Light / dark scene pairing
+### 浅色「月白宣纸 · Daylight Paper」
+- `--surface-canvas`: `oklch(97.8% 0.006 95)`（温润宣纸底）
+- `--surface-subtle`: `oklch(95.2% 0.009 92)`（次级锦绫浅底）
+- `--surface-elevated`: `oklch(99.5% 0.003 95)`（浮起纯净纸面）
+- `--surface-plinth`: `oklch(93.8% 0.011 90)`（器物展台）
+- `--ink-primary`: `oklch(20% 0.018 165)`（河洛松烟墨）
+- `--ink-secondary`: `oklch(38% 0.014 165)` / `--ink-muted`: `oklch(52% 0.010 160)`
+- `--accent-jade`: `oklch(34% 0.068 165)`（深青玉主操作）
+- `--accent-bronze`: `oklch(52% 0.088 72)`（古铜眉标与激活细线）
+- `--accent-seal`: `oklch(49% 0.145 27)`（朱砂印章，严格限高优先级警示与印戳）
 
-- 浅色主题表现“日间月白展厅”，深色主题表现“夜间深墨展厅”；两者共享排版、交互、业务状态和三层玻璃语义，不把深色模式做成简单反相。
-- 大幅环境图允许为双主题分别提供无文字素材；浅色图片不能只靠整体压暗冒充夜景。图片内仍保持真实文物色彩，主题融合由媒体舞台、边缘遮罩、边框和邻接表面完成。
-- 深色页面至少包含四个可辨识层级：全局画布、页面次级画布、内容表面、浮起控件。相邻层级不得使用同一明度与阴影。
-- 后台深色模式保持紧凑、任务优先；不使用纯黑背景、纯白输入框或高饱和装饰色。
-- 深色首页使用“夜间馆廊 + 中央青铜鼎”作为唯一环境主视觉；标题使用暖象牙白，年代、路径和重点操作只使用低面积古铜金，路线板使用近黑深墨玻璃。所有文字和按钮仍由 Vue DOM 承载，环境图不得包含文字、Logo 或业务信息。
-- 参考图式的近黑首屏主体只允许通过 `.corridor-home` 作用域扩展，不得把首页的高对比电影感直接覆盖到预约、商城、账户或后台工作台；公开页面顶部导航例外，深色主题统一使用首页的近黑、暖象牙与低面积古铜金共享配色。
+### 深色「乌金石墨 · Obsidian Silk」
+- `--surface-canvas`: `oklch(13.5% 0.004 82)`（纯净暖乌金炭黑，彻底去偏绿发闷，绝非纯黑）
+- `--surface-subtle`: `oklch(17.5% 0.004 82)` / `--surface-elevated`: `oklch(21.5% 0.005 82)` / `--surface-plinth`: `oklch(16% 0.004 82)`
+- `--ink-primary`: `oklch(96% 0.006 86)`（纯净暖象牙白） / `--ink-secondary`: `oklch(81% 0.006 84)`
+- `--accent-jade`: `oklch(75% 0.088 76)`（高定香槟古铜金主操作，配 `--accent-jade-ink: oklch(14% 0.006 76)`）
+- 玻璃材质附加顶部微光高光 `--glass-highlight` 与 `saturate(140%)`；3D 展厅在浅色模式呈现日间实景建筑展厅，在深色模式呈现乌金暖光景深展厅与「天青月白 × 香槟鎏金」星尘点云。
 
-### Museum glass contract
+## Typography & Accessibility
 
-所有毛玻璃表面必须通过 `data-glass="light|dark|compact"` 选择既定材质，不得在页面规则中自行声明透明背景、模糊、边框或阴影。
+- **零外部字体下载**：全站保持 `woff2Files === 0`，依托系统高质感衬线/无衬线字栈（`--font-display` / `--font-body` / `--font-mono`）。
+- **最小字号硬红线**：全站可见文字一律 `>= 12px`（`--text-xs: 0.75rem`，并在 reset 层统一 `small { font-size: var(--text-xs); }`），彻底消除历史微缩字。
+- **长文阅读行宽**：详情正文锁定 `--reading-max: 68ch`，行高 `1.9`，配顶部 `2px` 古铜阅读进度线与 Sticky 目录。
+- **数字排版**：日期、价格、馆藏编号、KPI 指标统一 `.font-mono` / `font-variant-numeric: tabular-nums`。
+- **触控与焦点**：全部交互控件最小热区 `44px × 44px`（移动端底栏 `>= 48px`）；`:focus-visible` 使用 `2px` 清晰外环。
 
-- `light`：通透月白青玉，用于导航、浅色看板、预约、商城和后台浅色工作面；底色保持近中性，仅保留极轻青玉色相。
-- `dark`：通透深墨玉，用于路线、图片信息叠层、3D 信息板、账户和后台侧栏；使用低彩度墨绿色与中性高光，不允许厚重纯绿底板。
-- `compact`：紧凑月白，用于输入、筛选、标签、次级按钮和小型状态控件；继承 light 色相并使用更轻的阴影。
+## Macrostructure Across Routes
 
-三个层级共享同一低彩度青绿色相、细边框、中性高光方向、8px/6px 圆角比例和无弹跳交互；只有表面明度与信息密度可以变化。正常模式必须让背景环境可感知，高彩度绿色和高不透明度底板均视为材质漂移。减少透明度、高对比度和强制颜色模式必须使用对应的低彩度实色令牌降级。
+- **首页（`/`）**：双层自然光影全出血封面 → 5:7 非对称“一鼎之间”器物精读（含 3 观察切入点）→ `1.35fr : 1fr : 1fr` 三脉画廊 → 河洛水波纹预约邀请函 → 3 栏博物馆页脚。
+- **探索馆藏（`/explore`）**：策展检索头 + 热门检索词 → 底部细线分类栏 → 跨 2 列主卡 + 3 列呼吸感器物墙 → 主题导览 → 期刊风延伸阅读列表。
+- **文物/文章详情（`/artifacts/:slug`、`/articles/:slug`）**：60/40 展台与实体铭牌头图 → `68ch` 长文 + Sticky TOC → 关联 3D 展项与预约双收束卡。
+- **3D 展厅（`/exhibits`、`/exhibits/:slug`）**：1–2 件展项自动采用大片级 Feature Exhibition Showcase；3D 详情采用常驻深邃暗房（Studio Darkroom），浮层收敛为无框顶条 + 底部灵动悬浮坞 + 可折叠铭牌抽屉，彻底移除墙面遮挡浮字。
+- **河洛文创（`/shop`）**：1280px 买手店两栏架构（4:5 高清摄影卡 + 360px 自适应吸顶购物袋，移除杂乱底图与 `motion-v`）。
+- **预约与个人中心（`/appointment`、`/login`、`/profile`）**：水平 4 步轨道 + 14 天双行日历 + 右侧实时联动电子入馆票根（半圆缺口与虚线撕口）；登录页 55:45 全高双栏；个人中心采用“数字参观档案夹”与票根/账簿卡片。
+- **管理后台（`/admin`、`/admin/operations`）**：`240px` 固定侧栏 + 4 格 KPI 条 + 两行结构化内容记录卡 + Element Plus 令牌融合。
+- **洛笙 AI 向导（`LuoshengSiteGuide.vue` / `LuoshengPreset.vue`）**：100% 绑定 Heluo Editorial 2.0 语义令牌；在 3D 暗房页自动切换暗房玻璃材质并于移动端避让底部控制坞。
 
-所有颜色和字体声明引用命名令牌；禁止在页面局部临时添加 hex、rgb 或独立字体。
+## Motion & Fallback
 
-## Typography
-
-- 当前交付使用 `main.css` 中的系统字库，不下载字体文件；此前的 Noto 可变字体方案已被移动性能改造替代。设计与验收以实际系统字体的字重、宽度和换行为准。
-- Display：`--font-display`（STSong / Songti SC / SimSun / serif），用于策展标题和重点器物名，始终为正体；系统宋体不保证连续可变字重。
-- Body：`--font-body`（Microsoft YaHei / PingFang SC / Hiragino Sans GB / Arial / sans-serif），用于正文、任务标题、次级展签与控件。
-- 探索与预约页面共享 1200px 内容版心、36px / 500 桌面任务标题和 28px 手机标题；重点器物名保留衬线对比，页面文字不随视口宽度连续缩放，字间距为 0。
-- Data：正文无衬线字体配合等宽数字特性。
-- 标题允许自然断行并设置 `overflow-wrap: anywhere`；交互标签始终单行。
-
-## Spacing
-
-4px 基准：`--space-1` 至 `--space-24`。页面只使用命名间距；紧凑后台仍遵循同一尺度。
-
-## Motion
-
-- 页面进入：单次透明度 + 8px 位移，220–360ms。
-- 按压：最多 1px 位移或 0.98 缩放；不使用弹跳装饰。
-- `prefers-reduced-motion: reduce`：取消位移和连续动画，时长不超过 150ms。
-- 3D 相机动效保持可中断；页面离开时继续释放 Three.js 资源。
-- 桌面探索与预约标题区使用共享 `PointerDotField` 的 `heading` 呈现：青玉/金色采样点、横向渐隐、静止低对比、靠近时局部响应；不添加背景光斑。全站光标使用 4px 中心点与 30px 细环，跟随时间常数 58ms、拉伸上限 6%，输入框保留原生文本光标。
-- 触屏、减少动态、高对比与强制颜色不绘制点阵；减少透明度使用已有静态降级。动效不拦截操作，不为每个页面重复创建运行时。
-
-## Controls and states
-
-- 输入框与按钮高度至少 44px，边框宽度在所有状态保持 1px。
-- 默认、hover、focus、active、disabled、loading、error、success 均有视觉或语义反馈。
-- 错误状态说明原因和下一步；空状态提供可执行入口；列表加载优先骨架。
-- 主按钮为青绿实底直角小圆角；次按钮为纸面描边；危险操作使用朱砂但不依赖颜色单独传意。
-
-## Responsive
-
-- 基准宽度：320、375、414、768、1440px。
-- `html` 和 `body` 使用 `overflow-x: clip`；禁止 `100vw`。
-- 图片网格轨道使用 `minmax(0, 1fr)`；移动端标题可在长词内部换行。
-- 移动端保留五项底部导航；任务摘要使用 Bottom Sheet；后台表格转为记录卡。
-
-## Hallmark stamp
-
-`/* Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V5 · genre: editorial · macrostructure: museum editorial system · design-system: design.md · designed-as-app */`
+- 保留全局精密指针光标（`PointerCursor`，4px 中心点 + 30px 古铜高光磁吸细环）与桌面点阵波纹（`PointerDotField`）联动，输入框、3D 画布自动还原原生指针，触屏、高对比与减少动态模式自动关闭。
+- 页面切换与入场动效克制在 `220–360ms`，遵循 `prefers-reduced-motion: reduce` 立即收敛；3D 场景离开页面时释放全部 WebGL 资源。

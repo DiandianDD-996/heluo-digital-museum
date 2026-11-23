@@ -4,12 +4,17 @@ import { usePointerCapabilities } from '../composables/usePointerCapabilities'
 import { usePointerMotion } from '../composables/usePointerMotion'
 import { subscribeMotionFrame } from '../lib/motionFrame'
 import { POINTER_TIER_EVENT, resolveCursorIntent, type MotionTier } from '../lib/pointerMotion'
+import { useLightPreset } from '../stores/lightPreset'
 
 const props = withDefaults(defineProps<{ disabled?: boolean }>(), { disabled: false })
 const dot = ref<HTMLSpanElement | null>(null)
 const halo = ref<HTMLSpanElement | null>(null)
+const pulse = ref<HTMLSpanElement | null>(null)
+const trailA = ref<HTMLSpanElement | null>(null)
+const trailB = ref<HTMLSpanElement | null>(null)
 const keyboardMode = ref(false)
 const directInputTier = ref<MotionTier | null>(null)
+const { preset } = useLightPreset()
 const { tier, reducedTransparency, downgradeForFps } = usePointerCapabilities()
 const { pointer, position, updatePosition, setVisible, setPressed, setIntent, setTier } = usePointerMotion()
 const enabled = computed(() => !props.disabled && !keyboardMode.value && directInputTier.value === null && tier.value !== 'static')
@@ -26,7 +31,12 @@ let lastIntentTarget: EventTarget | null = null
 let mounted = false
 let haloX = 0
 let haloY = 0
+let trailAX = 0
+let trailAY = 0
+let trailBX = 0
+let trailBY = 0
 let haloReady = false
+let pulseTimer: ReturnType<typeof setTimeout> | undefined
 
 function updateCapabilityClass() {
   const root = document.documentElement
@@ -57,6 +67,19 @@ function hidePointer(resetPosition = true) {
   }
 }
 
+function triggerClickPulse(x: number, y: number) {
+  const el = pulse.value
+  if (!el || !enabled.value) return
+  el.style.setProperty('transform', `translate3d(${x}px, ${y}px, 0)`)
+  el.classList.remove('is-pulsing')
+  void el.offsetWidth
+  el.classList.add('is-pulsing')
+  if (pulseTimer) clearTimeout(pulseTimer)
+  pulseTimer = setTimeout(() => {
+    pulse.value?.classList.remove('is-pulsing')
+  }, 560)
+}
+
 function ensureFrame() {
   if (!mounted || stopFrame || !enabled.value || !pointer.visible) return
   stopFrame = subscribeMotionFrame((_time, deltaMs) => {
@@ -64,12 +87,26 @@ function ensureFrame() {
     if (!haloReady) {
       haloX = position.clientX
       haloY = position.clientY
+      trailAX = position.clientX
+      trailAY = position.clientY
+      trailBX = position.clientX
+      trailBY = position.clientY
       haloReady = true
     }
 
-    const followAlpha = 1 - Math.exp(-Math.min(deltaMs, 64) / 58)
+    const clampedDt = Math.min(deltaMs, 64)
+    const followAlpha = 1 - Math.exp(-clampedDt / 58)
     haloX += (position.clientX - haloX) * followAlpha
     haloY += (position.clientY - haloY) * followAlpha
+
+    const trailAAlpha = 1 - Math.exp(-clampedDt / 92)
+    trailAX += (haloX - trailAX) * trailAAlpha
+    trailAY += (haloY - trailAY) * trailAAlpha
+
+    const trailBAlpha = 1 - Math.exp(-clampedDt / 138)
+    trailBX += (trailAX - trailBX) * trailBAlpha
+    trailBY += (trailAY - trailBY) * trailBAlpha
+
     const lagX = position.clientX - haloX
     const lagY = position.clientY - haloY
     const lagDistance = Math.hypot(lagX, lagY)
@@ -80,6 +117,9 @@ function ensureFrame() {
       `translate3d(${haloX}px, ${haloY}px, 0) rotate(${pullAngle}rad) scaleX(${pullScale}) scaleY(${1 / pullScale})`,
     )
     halo.value?.setAttribute('data-pulling', String(lagDistance > .75))
+
+    trailA.value?.style.setProperty('transform', `translate3d(${trailAX}px, ${trailAY}px, 0)`)
+    trailB.value?.style.setProperty('transform', `translate3d(${trailBX}px, ${trailBY}px, 0)`)
 
     sampledTime += deltaMs
     sampledFrames += 1
@@ -133,6 +173,10 @@ function onPointerMove(event: PointerEvent) {
   if (!haloReady) {
     haloX = event.clientX
     haloY = event.clientY
+    trailAX = event.clientX
+    trailAY = event.clientY
+    trailBX = event.clientX
+    trailBY = event.clientY
     haloReady = true
   }
   updatePosition(event.clientX, event.clientY, velocityX, velocityY)
@@ -148,7 +192,9 @@ function onPointerMove(event: PointerEvent) {
 }
 
 function onPointerDown(event: PointerEvent) {
-  if (!useSystemPointerFor(event)) setPressed(true)
+  if (useSystemPointerFor(event)) return
+  setPressed(true)
+  triggerClickPulse(event.clientX, event.clientY)
 }
 function onPointerUp() { setPressed(false) }
 function onPointerLeave(event: PointerEvent) {
@@ -183,6 +229,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   mounted = false
   frameCheckQueued = false
+  if (pulseTimer) clearTimeout(pulseTimer)
   window.removeEventListener('pointermove', onPointerMove)
   window.removeEventListener('pointerdown', onPointerDown)
   window.removeEventListener('pointerup', onPointerUp)
@@ -204,9 +251,13 @@ onBeforeUnmount(() => {
     class="pointer-cursor"
     :class="{ 'is-visible': pointer.visible && enabled, 'is-pressed': pointer.pressed }"
     :data-intent="pointer.intent"
+    :data-preset="preset"
     aria-hidden="true"
   >
-    <span ref="dot" class="pointer-cursor__dot"></span>
+    <span ref="trailB" class="pointer-cursor__trail pointer-cursor__trail--far"></span>
+    <span ref="trailA" class="pointer-cursor__trail pointer-cursor__trail--near"></span>
     <span ref="halo" class="pointer-cursor__halo" data-pulling="false"></span>
+    <span ref="dot" class="pointer-cursor__dot"></span>
+    <span ref="pulse" class="pointer-cursor__pulse"></span>
   </div>
 </template>

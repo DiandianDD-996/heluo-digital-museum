@@ -28,7 +28,7 @@ public class SecurityConfiguration {
                 .headers(headers -> headers.cacheControl(cache -> cache.disable()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                        .dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.ASYNC).permitAll()
                         .requestMatchers("/api/v1/health", "/api/v1/ready", "/actuator/health").permitAll()
                         .requestMatchers(HttpMethod.GET, "/robots.txt", "/sitemap.xml").permitAll()
                         .requestMatchers(HttpMethod.HEAD, "/robots.txt", "/sitemap.xml").permitAll()
@@ -36,7 +36,7 @@ public class SecurityConfiguration {
                                 "/api/v1/auth/register", "/api/v1/auth/login",
                                 "/api/v1/auth/password-reset/request",
                                 "/api/v1/auth/password-reset/confirm",
-                                "/api/v1/guide/turns", "/api/v1/guide/journey").permitAll()
+                                "/api/v1/guide/chat", "/api/v1/guide/chat/stream").permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/", "/index.html", "/favicon.ico", "/favicon.svg", "/assets/**", "/media/**",
                                 "/explore", "/artifacts/*", "/articles/*", "/exhibits", "/exhibits/*",

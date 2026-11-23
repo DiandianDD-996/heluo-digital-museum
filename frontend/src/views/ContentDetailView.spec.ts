@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 describe('ContentDetailView progressive reveal contract', () => {
   it('animates reading progress with a compositor transform instead of layout width', () => {
-    const source = readFileSync('src/assets/main.css', 'utf8')
+    const source = readFileSync('src/views/ContentDetailView.vue', 'utf8')
 
     expect(source).toContain('.reading-progress::before')
     expect(source).toContain('transform: scaleX(var(--progress, 0))')

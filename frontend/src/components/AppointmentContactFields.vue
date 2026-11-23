@@ -32,8 +32,56 @@ const copy = computed(() => locale.value === 'zh-CN' ? {
       <small v-if="errors.contactEmail" :id="`${id}-email-error`" class="appointment-field-error">{{ errors.contactEmail }}</small>
     </label>
     <label class="appointment-field appointment-field--wide">
-      <span>{{ t.booking.notes }} <small>{{ notes.length }}/500</small></span>
+      <span>{{ t.booking.notes }} <small class="font-mono">{{ notes.length }}/500</small></span>
       <textarea v-model.trim="notes" :disabled="locked" maxlength="500" rows="3" :placeholder="copy.notes" />
     </label>
   </div>
 </template>
+
+<style scoped>
+.appointment-contact-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.appointment-field {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.appointment-field--wide {
+  grid-column: 1 / -1;
+}
+
+.appointment-field > span {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--ink-primary);
+}
+
+.appointment-field > span small {
+  font-size: var(--text-xs);
+  font-weight: 400;
+  color: var(--ink-muted);
+}
+
+.appointment-field input,
+.appointment-field textarea {
+  width: 100%;
+}
+
+.appointment-field-error {
+  font-size: var(--text-xs);
+  color: var(--status-negative);
+}
+
+@media (max-width: 640px) {
+  .appointment-contact-fields {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

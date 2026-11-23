@@ -1,0 +1,270 @@
+/* Heluo Editorial 2.0 — Single Source of Truth Design Tokens
+ * Palette: Daylight Paper (Light) & Nocturne Gallery (Dark)
+ * All colors use OKLCH; no hex/rgb literals outside this token layer.
+ */
+@layer tokens {
+  :root {
+    color-scheme: light;
+
+    /* ── Typography (System font refinement, 0 WOFF2) ── */
+    --font-display: "Source Han Serif CN", "Noto Serif CJK SC", "Songti SC", "STSong", "FangSong", Georgia, serif;
+    --font-body: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+    /* Aliases for compatibility */
+    --serif: var(--font-display);
+    --sans: var(--font-body);
+
+    /* Type scale (minimum visible text floor >= 12px / 0.75rem) */
+    --text-xs: 0.75rem;      /* 12px */
+    --text-sm: 0.875rem;     /* 14px */
+    --text-base: 0.9375rem;  /* 15px */
+    --text-md: 1rem;         /* 16px */
+    --text-lg: 1.125rem;     /* 18px */
+    --text-xl: 1.375rem;     /* 22px */
+    --text-2xl: 1.75rem;     /* 28px */
+    --text-3xl: 2.25rem;     /* 36px */
+    --text-4xl: 3rem;        /* 48px */
+
+    /* ── Spacing scale (4px baseline) ── */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.25rem;
+    --space-6: 1.5rem;
+    --space-8: 2rem;
+    --space-10: 2.5rem;
+    --space-12: 3rem;
+    --space-16: 4rem;
+    --space-20: 5rem;
+    --space-24: 6rem;
+
+    /* ── Radii ── */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-pill: 999px;
+
+    /* ── Motion ── */
+    --ease-curatorial: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-out: var(--ease-curatorial);
+    --duration-fast: 150ms;
+    --duration-ui: 180ms;
+    --duration-enter: 320ms;
+    --motion-ui-duration: var(--duration-ui);
+    --theme-motion-duration: var(--duration-ui);
+
+    /* ── Shell geometry ── */
+    --header-height: 72px;
+    --header-height-scrolled: 60px;
+    --container-max: 1240px;
+    --container-wide: 1280px;
+    --reading-max: 68ch;
+    --control-min: 44px;
+
+    /* ── Light Theme: Daylight Paper (日间宣纸月白展厅) ── */
+    --surface-canvas: oklch(98.2% 0.003 90);
+    --surface-subtle: oklch(95.4% 0.005 90);
+    --surface-elevated: oklch(99.8% 0.001 90);
+    --surface-plinth: oklch(95.8% 0.005 90);
+    --surface-spotlight: radial-gradient(ellipse at 50% 0%, oklch(92% 0.012 86 / 0.42), transparent 72%);
+    --surface-darkroom: oklch(13.5% 0.004 82);
+    --exhibit-stage-bg-color: var(--surface-plinth);
+    --exhibit-stage-bg-image:
+      radial-gradient(ellipse 68% 58% at 50% 24%, oklch(99% 0.006 90 / 0.32) 0%, transparent 66%),
+      linear-gradient(180deg, oklch(97% 0.005 90 / 0.22) 0%, transparent 24%, transparent 78%, oklch(95% 0.006 90 / 0.30) 100%),
+      url('/media/editorial/digital-gallery-hall.webp');
+
+    --ink-primary: oklch(19% 0.012 165);
+    --ink-secondary: oklch(38% 0.010 165);
+    --ink-muted: oklch(52% 0.008 160);
+    --ink-on-dark: oklch(96% 0.006 86);
+    --ink-on-dark-muted: oklch(78% 0.006 84);
+
+    --border-hairline: oklch(22% 0.010 165 / 0.09);
+    --border-strong: oklch(22% 0.010 165 / 0.20);
+
+    --accent-jade: oklch(35% 0.068 166);
+    --accent-jade-hover: oklch(29% 0.064 166);
+    --accent-jade-ink: oklch(98.5% 0.003 90);
+    --accent-bronze: oklch(55% 0.085 74);
+    --accent-bronze-soft: oklch(55% 0.085 74 / 0.13);
+    --accent-seal: oklch(53% 0.145 29);
+    --accent-seal-hover: oklch(46% 0.145 29);
+    --accent-seal-ink: oklch(98.5% 0.003 90);
+
+    /* Semantic statuses */
+    --status-positive: oklch(42% 0.092 160);
+    --status-positive-bg: oklch(42% 0.092 160 / 0.09);
+    --status-warning: oklch(56% 0.105 74);
+    --status-warning-bg: oklch(56% 0.105 74 / 0.10);
+    --status-negative: var(--accent-seal);
+    --status-negative-bg: oklch(53% 0.145 29 / 0.09);
+    --status-info: var(--accent-jade);
+    --status-info-bg: oklch(35% 0.068 166 / 0.08);
+
+    /* Focus */
+    --focus-color: var(--accent-jade);
+    --focus-ring: 0 0 0 3px oklch(35% 0.068 166 / 0.22);
+
+    /* Surfaces: Glass tiers (light / dark / compact) */
+    --glass-light-bg: oklch(99.4% 0.002 90 / 0.80);
+    --glass-light-bg-solid: var(--surface-elevated);
+    --glass-light-border: var(--border-hairline);
+    --glass-dark-bg: oklch(15% 0.004 82 / 0.78);
+    --glass-dark-bg-solid: oklch(16.5% 0.004 82);
+    --glass-dark-border: oklch(98% 0.004 85 / 0.14);
+    --glass-compact-bg: oklch(99.2% 0.002 90 / 0.84);
+    --glass-compact-bg-solid: var(--surface-elevated);
+    --glass-compact-border: var(--border-hairline);
+    --glass-blur: blur(20px) saturate(140%);
+    --glass-blur-compact: blur(14px) saturate(130%);
+    --glass-highlight: inset 0 1px 0 oklch(100% 0 0 / 0.08);
+
+    /* Shadows — restrained, diffuse, never heavy plastic */
+    --shadow-xs: 0 1px 2px oklch(18% 0.008 85 / 0.04);
+    --shadow-sm: 0 4px 14px oklch(18% 0.008 85 / 0.06);
+    --shadow-md: 0 12px 32px oklch(18% 0.008 85 / 0.08);
+    --shadow-lg: 0 20px 52px oklch(18% 0.008 85 / 0.12);
+
+    /* ── Backwards-compatible token aliases for gradual migration ── */
+    --color-paper: var(--surface-canvas);
+    --color-paper-2: var(--surface-subtle);
+    --color-surface: var(--surface-elevated);
+    --color-ink: var(--ink-primary);
+    --color-text: var(--ink-secondary);
+    --color-muted: var(--ink-muted);
+    --color-rule: var(--border-hairline);
+    --color-rule-strong: var(--border-strong);
+    --color-action: var(--accent-jade);
+    --color-action-strong: var(--accent-jade-hover);
+    --color-action-ink: var(--accent-jade-ink);
+    --color-accent: var(--accent-seal);
+    --color-bronze: var(--accent-bronze);
+    --color-focus: var(--focus-color);
+    --color-danger: var(--status-negative);
+    --color-success: var(--status-positive);
+    --color-warning: var(--status-warning);
+
+    --theme-canvas: var(--surface-canvas);
+    --theme-canvas-raised: var(--surface-subtle);
+    --theme-surface: var(--surface-elevated);
+    --theme-surface-raised: var(--surface-elevated);
+    --theme-surface-canvas: var(--surface-canvas);
+    --theme-surface-section: var(--surface-subtle);
+    --theme-surface-content: var(--surface-elevated);
+    --theme-surface-control: var(--surface-elevated);
+    --theme-surface-control-hover: oklch(95.5% 0.008 115);
+    --theme-surface-control-active: oklch(93% 0.012 135);
+    --theme-text: var(--ink-secondary);
+    --theme-text-strong: var(--ink-primary);
+    --theme-text-muted: var(--ink-muted);
+    --theme-border: var(--border-hairline);
+    --theme-border-strong: var(--border-strong);
+    --theme-action: var(--accent-jade);
+    --theme-action-strong: var(--accent-jade-hover);
+    --theme-action-ink: var(--accent-jade-ink);
+    --theme-primary-surface: var(--accent-jade);
+    --theme-primary-surface-hover: var(--accent-jade-hover);
+    --theme-primary-text: var(--accent-jade-ink);
+    --theme-secondary-surface: transparent;
+    --theme-secondary-surface-hover: var(--surface-subtle);
+    --theme-secondary-text: var(--ink-primary);
+    --theme-accent: var(--accent-bronze);
+    --theme-focus: var(--focus-color);
+    --theme-focus-ring: var(--focus-ring);
+    --theme-control-min: var(--control-min);
+    --theme-control-radius: var(--radius-sm);
+    --theme-card-radius: var(--radius-md);
+    --theme-shadow-surface: var(--shadow-sm);
+    --theme-shadow-float: var(--shadow-lg);
+    --theme-danger: var(--status-negative);
+    --theme-danger-surface: var(--status-negative-bg);
+    --theme-danger-surface-hover: oklch(53% 0.145 29 / 0.14);
+    --theme-success: var(--status-positive);
+    --theme-success-surface: var(--status-positive-bg);
+    --theme-warning: var(--status-warning);
+    --theme-warning-surface: var(--status-warning-bg);
+    --theme-info: var(--status-info);
+    --theme-info-surface: var(--status-info-bg);
+    --theme-disabled-opacity: 0.52;
+  }
+
+  /* ── Dark Theme: Obsidian Silk Gallery (夜间乌金展厅 — 纯净通透零脏绿) ── */
+  html[data-theme="dark"] {
+    color-scheme: dark;
+
+    --surface-canvas: oklch(13.5% 0.004 82);
+    --surface-subtle: oklch(17.5% 0.004 82);
+    --surface-elevated: oklch(21.5% 0.005 82);
+    --surface-plinth: oklch(16% 0.004 82);
+    --surface-spotlight: radial-gradient(ellipse at 50% 0%, oklch(36% 0.032 78 / 0.28), transparent 72%);
+    --surface-darkroom: oklch(12.5% 0.004 82);
+    --exhibit-stage-bg-color: oklch(18% 0.005 80);
+    --exhibit-stage-bg-image:
+      radial-gradient(ellipse 60% 54% at 50% 24%, oklch(56% 0.062 76 / 0.34) 0%, oklch(28% 0.014 78 / 0.20) 48%, transparent 78%),
+      radial-gradient(ellipse 64% 40% at 50% 80%, oklch(34% 0.018 78 / 0.30) 0%, transparent 74%),
+      linear-gradient(180deg, oklch(16% 0.005 80 / 0.78) 0%, oklch(21% 0.006 80 / 0.66) 50%, oklch(15% 0.005 80 / 0.86) 100%),
+      url('/media/editorial/digital-gallery-hall.webp');
+
+    --ink-primary: oklch(96% 0.006 86);
+    --ink-secondary: oklch(81% 0.006 84);
+    --ink-muted: oklch(64% 0.006 82);
+
+    --border-hairline: oklch(98% 0.003 85 / 0.09);
+    --border-strong: oklch(98% 0.004 85 / 0.18);
+
+    /* Primary action elevates to silk champagne bronze gold in dark gallery */
+    --accent-jade: oklch(75% 0.088 76);
+    --accent-jade-hover: oklch(81% 0.092 76);
+    --accent-jade-ink: oklch(14% 0.006 76);
+    --accent-bronze: oklch(77% 0.084 76);
+    --accent-bronze-soft: oklch(77% 0.084 76 / 0.15);
+    --accent-seal: oklch(65% 0.140 28);
+    --accent-seal-hover: oklch(71% 0.142 28);
+    --accent-seal-ink: oklch(14% 0.006 76);
+
+    --status-positive: oklch(73% 0.095 162);
+    --status-positive-bg: oklch(73% 0.095 162 / 0.13);
+    --status-warning: oklch(77% 0.100 76);
+    --status-warning-bg: oklch(77% 0.100 76 / 0.13);
+    --status-negative: oklch(69% 0.142 28);
+    --status-negative-bg: oklch(69% 0.142 28 / 0.14);
+    --status-info: var(--accent-bronze);
+    --status-info-bg: oklch(77% 0.084 76 / 0.13);
+
+    --focus-color: oklch(81% 0.092 76);
+    --focus-ring: 0 0 0 3px oklch(81% 0.092 76 / 0.28);
+
+    --glass-light-bg: oklch(16.5% 0.004 82 / 0.78);
+    --glass-light-bg-solid: var(--surface-subtle);
+    --glass-light-border: oklch(98% 0.004 85 / 0.11);
+    --glass-dark-bg: oklch(14.5% 0.004 82 / 0.80);
+    --glass-dark-bg-solid: oklch(16% 0.004 82);
+    --glass-dark-border: oklch(98% 0.004 85 / 0.13);
+    --glass-compact-bg: oklch(21% 0.005 82 / 0.80);
+    --glass-compact-bg-solid: var(--surface-elevated);
+    --glass-compact-border: oklch(98% 0.004 85 / 0.12);
+
+    --shadow-xs: 0 1px 2px oklch(0% 0 0 / 0.24);
+    --shadow-sm: 0 6px 18px oklch(0% 0 0 / 0.32);
+    --shadow-md: 0 14px 36px oklch(0% 0 0 / 0.42);
+    --shadow-lg: 0 24px 60px oklch(0% 0 0 / 0.54);
+
+    --theme-surface-control-hover: oklch(25% 0.006 82);
+    --theme-surface-control-active: oklch(28.5% 0.007 82);
+    --theme-danger-surface-hover: oklch(69% 0.142 28 / 0.20);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :root {
+      --duration-fast: 0ms;
+      --duration-ui: 0ms;
+      --duration-enter: 120ms;
+      --theme-motion-duration: 0ms;
+    }
+  }
+}

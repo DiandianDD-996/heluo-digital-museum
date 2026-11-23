@@ -91,10 +91,10 @@ export class ParticleSystem {
     return Math.random() * (max - min) + min
   }
 
-  private createParticle(): Particle {
+  private createParticle(originX?: number, originY?: number): Particle {
     const rect = this.canvas.getBoundingClientRect()
-    const centerX = rect.width / 2
-    const centerY = rect.height / 2
+    const centerX = originX ?? rect.width / 2
+    const centerY = originY ?? rect.height / 2
 
     // Random position within emission radius (circular distribution)
     const angle = Math.random() * Math.PI * 2
@@ -127,11 +127,11 @@ export class ParticleSystem {
     }
   }
 
-  emit(count?: number): void {
+  emit(count?: number, originX?: number, originY?: number): void {
     const particleCount = count ?? this.options.particleCount
 
     for (let i = 0; i < particleCount; i++) {
-      this.particles.push(this.createParticle())
+      this.particles.push(this.createParticle(originX, originY))
     }
 
     if (!this.isActive) {

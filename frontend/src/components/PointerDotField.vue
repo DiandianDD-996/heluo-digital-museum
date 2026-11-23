@@ -4,7 +4,15 @@ import { usePointerCapabilities } from '../composables/usePointerCapabilities'
 import { usePointerMotion, type PointerPositionSubscriber } from '../composables/usePointerMotion'
 import { subscribeMotionFrame } from '../lib/motionFrame'
 import {
-  DOT_FIELD_CONFIG,
+  createFlowMotes,
+  pushTrailSample,
+  renderLightField,
+  spawnRipplePulse,
+  stepLightFieldEffects,
+  type LightFieldRuntime,
+  type LightFieldVariant,
+} from '../lib/lightFieldRenderers'
+import {
   createDotFieldPoints,
   resetDotFieldTargets,
   resolveDotFieldRadius,
@@ -12,19 +20,29 @@ import {
   settleDotFieldPoints,
   type DotFieldPoint,
 } from '../lib/pointerDotField'
+import {
+  createHeroDotFieldState,
+  createHeroGridNodes,
+  renderHeroDotField,
+  spawnHeroWave,
+  stepHeroDotField,
+} from '../lib/heroDotFieldRenderers'
 import { POINTER_TIER_EVENT, type MotionTier } from '../lib/pointerMotion'
+import { LIGHT_PRESET_EVENT, useLightPreset, type LightPresetId } from '../stores/lightPreset'
 
 type DotFieldState = 'idle' | 'active' | 'settling' | 'static' | 'disabled'
-type DotFieldVariant = 'image' | 'paper' | 'heading'
 
-const props = withDefaults(defineProps<{ variant?: DotFieldVariant }>(), { variant: 'paper' })
+const props = withDefaults(defineProps<{ variant?: LightFieldVariant }>(), { variant: 'paper' })
+const isHeroMatrix = () => props.variant === 'image'
 const canvas = ref<HTMLCanvasElement | null>(null)
 const state = ref<DotFieldState>('disabled')
 const intersecting = ref(true)
 const darkTheme = ref(false)
 const applicationTier = ref<MotionTier>('full')
+const { preset } = useLightPreset()
 const { tier, reducedTransparency, downgradeForFps } = usePointerCapabilities()
 const { pointer, subscribePosition } = usePointerMotion()
+
 let host: HTMLElement | null = null
 let context: CanvasRenderingContext2D | null = null
 let points: DotFieldPoint[] = []
@@ -42,6 +60,27 @@ let sampledFrames = 0
 let sampledTime = 0
 let mounted = false
 
+const runtime: LightFieldRuntime = {
+  preset: preset.value,
+  variant: props.variant,
+  dark: false,
+  width: 0,
+  height: 0,
+  radius: 170,
+  timeMs: 0,
+  pointerInside: false,
+  pointerX: 0,
+  pointerY: 0,
+  smoothX: 0,
+  smoothY: 0,
+  pointerSpeed: 0,
+  presence: 0,
+  points: [],
+  trail: [],
+  ripples: [],
+  motes: [],
+}
+
 // A temporary application downgrade must not remove the already-static
 // transparency fallback. Capability-level static modes still take priority.
 const hasStaticOpaqueField = () => mounted
@@ -56,80 +95,35 @@ const canRenderCanvas = () => mounted
   && intersecting.value
   && supportsCanvasMode()
 
+const heroState = createHeroDotFieldState()
+
+function syncRuntimeMeta() {
+  runtime.preset = preset.value
+  runtime.variant = props.variant
+  runtime.dark = darkTheme.value
+  runtime.width = width
+  runtime.height = height
+  runtime.radius = radius
+  runtime.pointerInside = pointerInside
+  runtime.pointerX = pointerLocalX
+  runtime.pointerY = pointerLocalY
+  runtime.points = points
+
+  if (isHeroMatrix()) {
+    heroState.dark = darkTheme.value
+    heroState.width = width
+    heroState.height = height
+    heroState.pointerInside = pointerInside
+    heroState.pointerX = pointerLocalX
+    heroState.pointerY = pointerLocalY
+  }
+}
+
 function drawPoints() {
   if (!context || !canRenderCanvas()) return
-  context.clearRect(0, 0, width, height)
-  const dark = darkTheme.value
-  const heading = props.variant === 'heading'
-  const palette = dark
-    ? [
-        'rgba(75, 153, 133, .34)', 'rgba(245, 190, 39, .68)',
-        'rgba(91, 207, 170, .88)', 'rgba(255, 202, 37, .98)',
-        'rgba(72, 196, 158, .34)', 'rgba(255, 180, 28, .48)',
-      ]
-    : props.variant === 'image'
-      ? [
-          'rgba(8, 117, 87, .4)', 'rgba(239, 188, 37, .58)',
-          'rgba(14, 160, 116, .98)', 'rgba(255, 220, 56, 1)',
-          'rgba(32, 201, 149, .56)', 'rgba(255, 226, 78, .6)',
-        ]
-      : [
-          'rgba(7, 124, 92, .34)', 'rgba(230, 176, 17, .52)',
-          'rgba(6, 153, 111, .96)', 'rgba(255, 204, 20, .99)',
-          'rgba(24, 188, 137, .48)', 'rgba(255, 215, 48, .54)',
-        ]
-
-  // Bright architecture needs local contrast, not a page-wide veil. The field
-  // is fully feathered and exists only while the pointer is inside the surface.
-  if (pointerInside && !dark && !heading) {
-    const contrastRadius = Math.min(radius * .7, 120)
-    const contrast = context.createRadialGradient(
-      pointerLocalX, pointerLocalY, 0,
-      pointerLocalX, pointerLocalY, contrastRadius,
-    )
-    contrast.addColorStop(0, 'rgba(7, 54, 45, .075)')
-    contrast.addColorStop(.46, 'rgba(7, 54, 45, .036)')
-    contrast.addColorStop(1, 'rgba(7, 54, 45, 0)')
-    context.beginPath()
-    context.arc(pointerLocalX, pointerLocalY, contrastRadius, 0, Math.PI * 2)
-    context.fillStyle = contrast
-    context.fill()
-  }
-
-  // Quiet jade and digital-gold sampling grid: the page remains the subject until the pointer arrives.
-  context.globalAlpha = heading ? .36 : 1
-  ;([false, true] as const).forEach((bronze) => {
-    context!.beginPath()
-    points.forEach((point) => {
-      if (point.bronze !== bronze) return
-      const baseRadius = bronze ? DOT_FIELD_CONFIG.bronzeRadius : DOT_FIELD_CONFIG.jadeRadius
-      context!.moveTo(point.x + baseRadius, point.y)
-      context!.arc(point.x, point.y, baseRadius, 0, Math.PI * 2)
-    })
-    context!.fillStyle = palette[bronze ? 1 : 0]!
-    context!.fill()
-  })
-
-  // Nearby samples only brighten and breathe radially; they never connect into a mesh.
-  context.globalAlpha = heading ? .8 : 1
-  ;([false, true] as const).forEach((bronze) => {
-    context!.beginPath()
-    points.forEach((point) => {
-      if (point.bronze !== bronze || point.activity < .035) return
-      const baseRadius = bronze ? DOT_FIELD_CONFIG.bronzeRadius : DOT_FIELD_CONFIG.jadeRadius
-      const activeRadius = baseRadius * point.scale * (.68 + point.activity * .32)
-      context!.moveTo(point.x + activeRadius, point.y)
-      context!.arc(point.x, point.y, activeRadius, 0, Math.PI * 2)
-    })
-    context!.shadowColor = palette[bronze ? 5 : 4]!
-    context!.shadowBlur = bronze ? 3 : 7
-    context!.fillStyle = palette[bronze ? 3 : 2]!
-    context!.fill()
-    context!.shadowBlur = 0
-    context!.shadowColor = 'transparent'
-  })
-
-  context.globalAlpha = 1
+  syncRuntimeMeta()
+  if (isHeroMatrix()) renderHeroDotField(context, heroState)
+  else renderLightField(context, runtime)
 }
 
 function resizeField() {
@@ -145,7 +139,7 @@ function resizeField() {
     releaseCanvasField('disabled')
     return
   }
-  const dpr = Math.min(window.devicePixelRatio || 1, DOT_FIELD_CONFIG.maxDpr)
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.5)
   canvas.value.width = Math.round(width * dpr)
   canvas.value.height = Math.round(height * dpr)
   context = canvas.value.getContext('2d')
@@ -156,6 +150,17 @@ function resizeField() {
   context.setTransform(dpr, 0, 0, dpr, 0, 0)
   points = createDotFieldPoints(width, height)
   radius = resolveDotFieldRadius(width, height)
+  runtime.motes = createFlowMotes(width, height, props.variant)
+  runtime.trail = []
+  runtime.ripples = []
+  runtime.presence = 0
+  if (isHeroMatrix()) {
+    heroState.width = width
+    heroState.height = height
+    heroState.nodes = createHeroGridNodes(width, height)
+    heroState.waves = []
+    heroState.presence = 0
+  }
   pointerInside = false
   state.value = 'idle'
   drawPoints()
@@ -172,6 +177,14 @@ function releaseCanvasField(nextState: Extract<DotFieldState, 'static' | 'disabl
   sampledFrames = 0
   sampledTime = 0
   points = []
+  runtime.points = []
+  runtime.motes = []
+  runtime.trail = []
+  runtime.ripples = []
+  runtime.presence = 0
+  heroState.nodes = []
+  heroState.waves = []
+  heroState.presence = 0
   context = null
   width = 0
   height = 0
@@ -182,9 +195,26 @@ function releaseCanvasField(nextState: Extract<DotFieldState, 'static' | 'disabl
   state.value = nextState
 }
 
+function onHostPointerDown(event: PointerEvent) {
+  if (!canRenderCanvas() || !host || (event.pointerType && event.pointerType !== 'mouse')) return
+  const bounds = host.getBoundingClientRect()
+  const localX = event.clientX - bounds.left
+  const localY = event.clientY - bounds.top
+  if (localX < 0 || localX > bounds.width || localY < 0 || localY > bounds.height) return
+  pointerInside = true
+  pointerLocalX = localX
+  pointerLocalY = localY
+  syncRuntimeMeta()
+  if (isHeroMatrix()) spawnHeroWave(heroState, localX, localY)
+  else spawnRipplePulse(runtime, localX, localY, true)
+  state.value = 'active'
+  ensureFrame()
+}
+
 function startFieldRuntime() {
   if (!host) return
   if (!stopPosition) stopPosition = subscribePosition(handlePointerPosition)
+  window.addEventListener('pointerdown', onHostPointerDown, { passive: true })
   if (!resizeObserver) {
     resizeObserver = new ResizeObserver(resizeField)
     resizeObserver.observe(host)
@@ -200,6 +230,7 @@ function startFieldRuntime() {
 function stopFieldRuntime() {
   stopPosition?.()
   stopPosition = undefined
+  window.removeEventListener('pointerdown', onHostPointerDown)
   resizeObserver?.disconnect()
   resizeObserver = undefined
   intersectionObserver?.disconnect()
@@ -221,8 +252,17 @@ function refreshFieldMode() {
 function ensureFrame() {
   if (!mounted || stopFrame || !canRenderCanvas() || !points.length || !context) return
   stopFrame = subscribeMotionFrame((_time, deltaMs) => {
-    const settled = settleDotFieldPoints(points, deltaMs, pointerInside)
-    drawPoints()
+    syncRuntimeMeta()
+    let allSettled = false
+    if (isHeroMatrix()) {
+      allSettled = stepHeroDotField(heroState, deltaMs)
+      renderHeroDotField(context!, heroState)
+    } else {
+      const gridSettled = settleDotFieldPoints(points, deltaMs, pointerInside)
+      const effectsSettled = stepLightFieldEffects(runtime, deltaMs)
+      renderLightField(context!, runtime)
+      allSettled = gridSettled && effectsSettled
+    }
 
     sampledFrames += 1
     sampledTime += deltaMs
@@ -232,7 +272,7 @@ function ensureFrame() {
       sampledTime = 0
     }
 
-    if (settled) {
+    if (allSettled) {
       stopMotion()
       state.value = pointerInside ? 'active' : 'idle'
     }
@@ -247,6 +287,8 @@ function leaveField() {
   ensureFrame()
 }
 
+let lastSweepRippleAt = 0
+
 const handlePointerPosition: PointerPositionSubscriber = (position) => {
   if (!canRenderCanvas() || !host || !points.length) return
   const bounds = host.getBoundingClientRect()
@@ -258,10 +300,31 @@ const handlePointerPosition: PointerPositionSubscriber = (position) => {
     return
   }
 
+  const entering = !pointerInside
   pointerInside = true
   pointerLocalX = localX
   pointerLocalY = localY
-  setDotFieldPointerTarget(points, localX, localY, Math.hypot(position.velocityX, position.velocityY), radius)
+  const speed = Math.hypot(position.velocityX, position.velocityY)
+  if (entering) {
+    runtime.smoothX = localX
+    runtime.smoothY = localY
+    heroState.smoothX = localX
+    heroState.smoothY = localY
+  }
+  runtime.pointerSpeed = Math.max(runtime.pointerSpeed, speed)
+  syncRuntimeMeta()
+  pushTrailSample(runtime, localX, localY, speed)
+
+  // Spawn delicate ripple when sweeping swiftly in Luo River mode
+  if (runtime.preset === 'luoshui' && speed > 620) {
+    const now = performance.now()
+    if (now - lastSweepRippleAt > 260) {
+      lastSweepRippleAt = now
+      spawnRipplePulse(runtime, localX, localY, false)
+    }
+  }
+
+  setDotFieldPointerTarget(points, localX, localY, speed, radius)
   state.value = 'active'
   ensureFrame()
 }
@@ -275,8 +338,23 @@ function onThemeChange(event: Event) {
   darkTheme.value = (event as CustomEvent<'light' | 'dark'>).detail === 'dark'
 }
 
+function onPresetChange(event: Event) {
+  const next = (event as CustomEvent<LightPresetId>).detail
+  if (next) runtime.preset = next
+  if (canRenderCanvas()) {
+    runtime.trail = []
+    drawPoints()
+    if (pointerInside) ensureFrame()
+  }
+}
+
 watch([intersecting, tier, applicationTier, reducedTransparency], refreshFieldMode)
-watch(darkTheme, () => { if (canRenderCanvas()) drawPoints() })
+watch([darkTheme, preset], () => {
+  if (canRenderCanvas()) {
+    drawPoints()
+    if (pointerInside) ensureFrame()
+  }
+})
 watch(() => pointer.visible, (visible) => { if (!visible) leaveField() })
 
 onMounted(() => {
@@ -287,6 +365,7 @@ onMounted(() => {
   if (rootTier === 'full' || rootTier === 'restrained' || rootTier === 'static') applicationTier.value = rootTier
   document.documentElement.addEventListener(POINTER_TIER_EVENT, onTierChange)
   window.addEventListener('heluo:theme-change', onThemeChange)
+  window.addEventListener(LIGHT_PRESET_EVENT, onPresetChange)
   refreshFieldMode()
 })
 
@@ -296,6 +375,7 @@ onBeforeUnmount(() => {
   stopFieldRuntime()
   document.documentElement.removeEventListener(POINTER_TIER_EVENT, onTierChange)
   window.removeEventListener('heluo:theme-change', onThemeChange)
+  window.removeEventListener(LIGHT_PRESET_EVENT, onPresetChange)
   releaseCanvasField('disabled')
 })
 </script>
@@ -309,6 +389,7 @@ onBeforeUnmount(() => {
     :data-state="state"
     :data-renderer="state === 'static' ? 'css' : state === 'disabled' ? 'none' : 'canvas'"
     :data-variant="variant"
+    :data-preset="preset"
     :data-palette="reducedTransparency ? 'opaque' : variant"
     :data-wave="pointerInside ? 'tracking' : 'idle'"
     data-effect="luminous-point-wave"

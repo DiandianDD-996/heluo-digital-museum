@@ -1,0 +1,587 @@
+/* Heluo Editorial 2.0 — Curatorial Motion & Multi-Surface Interactive Lighting Layer */
+@layer overrides {
+  :root {
+    --ink-x: 50%;
+    --ink-y: 50%;
+    --pointer-perspective: 1100px;
+  }
+
+  /* Clean subtle View Transitions (no blurry heavy flash) */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 280ms;
+    animation-timing-function: var(--ease-curatorial);
+    mix-blend-mode: normal;
+  }
+
+  /* ── Surface 1: Artifact Awaken (Home curation & Explore cards) ── */
+  .artifact-awaken-surface {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    --awaken-glow: var(--accent-bronze);
+    --awaken-x: 50%;
+    --awaken-y: 50%;
+  }
+
+  .artifact-awaken-surface.is-awakened img {
+    will-change: transform;
+  }
+
+  .artifact-awaken-particles {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 4;
+    opacity: 0.78;
+  }
+
+  /* Real-time cursor-tracked museum vitrine spotlight + crisp 1px metallic rim */
+  .artifact-awaken-surface::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    border-radius: inherit;
+    opacity: 0;
+    background:
+      radial-gradient(
+        260px circle at var(--awaken-x) var(--awaken-y),
+        color-mix(in oklch, var(--awaken-glow) 22%, white 18%) 0%,
+        color-mix(in oklch, var(--awaken-glow) 8%, transparent) 46%,
+        transparent 76%
+      );
+    transition: opacity 280ms var(--ease-curatorial);
+  }
+
+  .artifact-awaken-surface.is-awakened::before {
+    opacity: 1;
+  }
+
+  .artifact-awaken-surface.is-awakened {
+    box-shadow:
+      inset 0 0 0 1px color-mix(in oklch, var(--awaken-glow) 46%, transparent),
+      0 14px 34px -18px color-mix(in oklch, var(--awaken-glow) 34%, transparent);
+    transition: box-shadow 320ms var(--ease-curatorial);
+  }
+
+  .artifact-awaken-surface::after {
+    content: '';
+    position: absolute;
+    inset: -20% -60%;
+    z-index: 3;
+    pointer-events: none;
+    background: linear-gradient(
+      75deg,
+      transparent 44%,
+      color-mix(in oklch, var(--awaken-glow) 42%, white 24%) 50%,
+      transparent 56%
+    );
+    opacity: 0;
+    transform: translateX(-60%);
+  }
+
+  .artifact-awaken-surface.is-sweeping::after {
+    animation: artifact-awaken-sweep 760ms var(--ease-curatorial) forwards;
+  }
+
+  @keyframes artifact-awaken-sweep {
+    0% { opacity: 0; transform: translateX(-60%); }
+    20% { opacity: 0.22; }
+    100% { opacity: 0; transform: translateX(60%); }
+  }
+
+  /* Preset-calibrated card spotlight tones */
+  html[data-light-preset="luoshui"] .artifact-awaken-surface::before {
+    background:
+      radial-gradient(
+        290px circle at var(--awaken-x) var(--awaken-y),
+        oklch(96% 0.022 86 / 0.24) 0%,
+        oklch(82% 0.062 80 / 0.16) 32%,
+        oklch(72% 0.044 182 / 0.11) 58%,
+        transparent 78%
+      );
+  }
+
+  html[data-light-preset="spotlight"] .artifact-awaken-surface::before {
+    background:
+      radial-gradient(
+        210px circle at var(--awaken-x) var(--awaken-y),
+        oklch(96% 0.045 84 / 0.30) 0%,
+        color-mix(in oklch, var(--awaken-glow) 10%, transparent) 44%,
+        transparent 72%
+      );
+  }
+
+  html[data-light-preset="kintsugi"] .artifact-awaken-surface::before {
+    background:
+      radial-gradient(
+        250px circle at var(--awaken-x) var(--awaken-y),
+        oklch(86% 0.11 82 / 0.28) 0%,
+        oklch(72% 0.09 76 / 0.11) 42%,
+        transparent 72%
+      );
+  }
+
+  /* ── Surface 2: Interactive Pointer Surface (Exhibits 3D showcase & Shop cards) ── */
+  [data-pointer-surface] {
+    position: relative;
+    isolation: isolate;
+    --pointer-x: 50%;
+    --pointer-y: 50%;
+    --pointer-light: 0;
+  }
+
+  /* Masked 1px specular metal rim following cursor (Apple / Linear museum frame craft) */
+  [data-pointer-surface][data-pointer-spotlight="true"]::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    border-radius: inherit;
+    padding: 1px;
+    pointer-events: none;
+    background: radial-gradient(
+      340px circle at var(--pointer-x) var(--pointer-y),
+      oklch(82% 0.105 80 / 0.92) 0%,
+      oklch(64% 0.078 166 / 0.42) 38%,
+      transparent 72%
+    );
+    opacity: var(--pointer-light);
+    -webkit-mask: linear-gradient(oklch(0% 0 0) 0 0) content-box, linear-gradient(oklch(0% 0 0) 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(oklch(0% 0 0) 0 0) content-box, linear-gradient(oklch(0% 0 0) 0 0);
+    mask-composite: exclude;
+    transition: opacity 220ms var(--ease-curatorial);
+  }
+
+  /* Soft gallery vitrine surface reflection following cursor */
+  [data-pointer-surface][data-pointer-spotlight="true"]::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    border-radius: inherit;
+    pointer-events: none;
+    background: radial-gradient(
+      320px circle at var(--pointer-x) var(--pointer-y),
+      oklch(90% 0.055 82 / 0.16) 0%,
+      oklch(74% 0.065 80 / 0.06) 44%,
+      transparent 74%
+    );
+    opacity: var(--pointer-light);
+    transition: opacity 220ms var(--ease-curatorial);
+  }
+
+  html[data-theme="dark"] [data-pointer-surface][data-pointer-spotlight="true"]::after {
+    background: radial-gradient(
+      340px circle at var(--pointer-x) var(--pointer-y),
+      oklch(86% 0.088 80 / 0.18) 0%,
+      oklch(68% 0.068 166 / 0.07) 44%,
+      transparent 74%
+    );
+  }
+
+  html[data-light-preset="luoshui"] [data-pointer-surface][data-pointer-spotlight="true"]::before {
+    background: radial-gradient(
+      360px circle at var(--pointer-x) var(--pointer-y),
+      oklch(94% 0.032 85 / 0.90) 0%,
+      oklch(82% 0.068 80 / 0.78) 28%,
+      oklch(72% 0.046 182 / 0.56) 54%,
+      transparent 78%
+    );
+  }
+
+  html[data-light-preset="luoshui"] [data-pointer-surface][data-pointer-spotlight="true"]::after {
+    background: radial-gradient(
+      320px circle at var(--pointer-x) var(--pointer-y),
+      oklch(96% 0.022 86 / 0.20) 0%,
+      oklch(82% 0.058 80 / 0.09) 38%,
+      oklch(72% 0.042 182 / 0.05) 60%,
+      transparent 78%
+    );
+  }
+
+  html[data-light-preset="spotlight"] [data-pointer-surface][data-pointer-spotlight="true"]::after {
+    background: radial-gradient(
+      260px circle at var(--pointer-x) var(--pointer-y),
+      oklch(96% 0.042 84 / 0.24) 0%,
+      oklch(78% 0.075 78 / 0.08) 40%,
+      transparent 70%
+    );
+  }
+
+  html[data-light-preset="kintsugi"] [data-pointer-surface][data-pointer-spotlight="true"]::before {
+    background: radial-gradient(
+      320px circle at var(--pointer-x) var(--pointer-y),
+      oklch(88% 0.12 82 / 0.98) 0%,
+      oklch(74% 0.10 74 / 0.56) 36%,
+      transparent 70%
+    );
+  }
+
+  /* ── Surface 3: Interactive PointerDotField (Home hero, Exhibits & Appointment headers) ── */
+  .pointer-dot-field {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    opacity: 1;
+    overflow: hidden;
+  }
+
+  .pointer-dot-field[data-state="disabled"] {
+    opacity: 0;
+  }
+
+  .pointer-dot-field[data-variant="heading"] {
+    mask-image: linear-gradient(90deg, transparent 8%, oklch(0% 0 0) 45%, oklch(0% 0 0) 85%, transparent);
+    transition: opacity 200ms var(--ease-curatorial);
+  }
+
+  .pointer-dot-field[data-variant="heading"][data-state="idle"] {
+    opacity: 0.55;
+  }
+
+  /* ── Surface 4: Precision Museum PointerCursor (4 presets + click ripple + trails) ── */
+  :root {
+    --cursor-dot-size: 4px;
+    --cursor-halo-size: 32px;
+    --cursor-dot-pressed-scale: 0.72;
+    --cursor-dot-color: var(--accent-jade);
+    --cursor-dot-danger: var(--accent-seal);
+    --cursor-halo-rim: color-mix(in oklch, var(--accent-jade) 58%, transparent);
+    --cursor-halo-rim-pulling: oklch(52% 0.082 171 / 0.92);
+    --cursor-halo-glint: oklch(80% 0.125 84 / 0.98);
+    --cursor-halo-fill: transparent;
+    --motion-pointer-state: 120ms;
+    --ease-pointer: cubic-bezier(0.16, 1, 0.3, 1);
+    --z-cursor: 130;
+  }
+
+  html[data-theme="dark"] {
+    --cursor-halo-rim: color-mix(in oklch, var(--accent-bronze) 68%, transparent);
+    --cursor-halo-rim-pulling: oklch(94% 0.04 84 / 0.96);
+    --cursor-halo-glint: oklch(86% 0.115 84 / 1);
+  }
+
+  .pointer-cursor {
+    position: fixed;
+    z-index: var(--z-cursor);
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 100ms var(--ease-pointer);
+  }
+
+  .pointer-cursor.is-visible {
+    opacity: 1;
+  }
+
+  .pointer-cursor__dot {
+    --cursor-press-scale: 1;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--cursor-dot-size);
+    height: var(--cursor-dot-size);
+    translate: -50% -50%;
+    transform-origin: center;
+    border-radius: 50%;
+    pointer-events: none;
+    will-change: transform;
+  }
+
+  .pointer-cursor__dot::before {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    content: '';
+    background: var(--cursor-dot-color);
+    box-shadow: 0 0 0 1px color-mix(in oklch, var(--cursor-dot-color) 18%, transparent);
+    transform: scale(var(--cursor-press-scale));
+    transition: transform var(--motion-pointer-state) var(--ease-pointer),
+                background-color var(--motion-pointer-state) var(--ease-pointer),
+                box-shadow var(--motion-pointer-state) var(--ease-pointer);
+    will-change: transform;
+  }
+
+  .pointer-cursor[data-intent="link"] .pointer-cursor__dot::before {
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--cursor-dot-color) 14%, transparent);
+  }
+
+  .pointer-cursor[data-intent="action"] .pointer-cursor__dot::before {
+    box-shadow: 0 0 0 4px color-mix(in oklch, var(--cursor-dot-color) 16%, transparent);
+  }
+
+  .pointer-cursor[data-intent="danger"] .pointer-cursor__dot::before {
+    background: var(--cursor-dot-danger);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--cursor-dot-danger) 15%, transparent);
+  }
+
+  .pointer-cursor__halo {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--cursor-halo-size);
+    height: var(--cursor-halo-size);
+    translate: -50% -50%;
+    border: 1px solid transparent;
+    border-radius: 50%;
+    background: none;
+    opacity: 0;
+    pointer-events: none;
+    transform-origin: center;
+    transition: opacity 140ms var(--ease-pointer),
+                width 180ms var(--ease-pointer),
+                height 180ms var(--ease-pointer),
+                border-color 180ms var(--ease-pointer),
+                background 180ms var(--ease-pointer);
+    will-change: transform, opacity;
+  }
+
+  .pointer-cursor__halo::after {
+    position: absolute;
+    inset: -1px;
+    padding: 1px;
+    border-radius: inherit;
+    background: conic-gradient(from 18deg, transparent 0deg 310deg, var(--cursor-halo-glint) 334deg 358deg, transparent 360deg);
+    content: '';
+    opacity: 0.92;
+    pointer-events: none;
+    -webkit-mask: linear-gradient(oklch(0% 0 0) 0 0) content-box, linear-gradient(oklch(0% 0 0) 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(oklch(0% 0 0) 0 0) content-box, linear-gradient(oklch(0% 0 0) 0 0);
+    mask-composite: exclude;
+  }
+
+  /* Click pulse ring */
+  .pointer-cursor__pulse {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 44px;
+    height: 44px;
+    margin: -22px 0 0 -22px;
+    border-radius: 50%;
+    border: 1px solid var(--cursor-halo-glint);
+    opacity: 0;
+    pointer-events: none;
+    will-change: transform, opacity;
+  }
+
+  .pointer-cursor__pulse::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    border: 1px solid var(--cursor-halo-glint);
+    transform: scale(0.28);
+    opacity: 0;
+  }
+
+  .pointer-cursor__pulse.is-pulsing {
+    opacity: 1;
+    border-color: transparent;
+  }
+
+  .pointer-cursor__pulse.is-pulsing::after {
+    animation: cursor-ripple-bloom 520ms var(--ease-curatorial) forwards;
+  }
+
+  @keyframes cursor-ripple-bloom {
+    0% { transform: scale(0.25); opacity: 0.85; }
+    100% { transform: scale(1.42); opacity: 0; }
+  }
+
+  /* Subtle inertia trail beads (active in luoshui & kintsugi presets) */
+  .pointer-cursor__trail {
+    position: fixed;
+    top: 0;
+    left: 0;
+    border-radius: 50%;
+    translate: -50% -50%;
+    pointer-events: none;
+    opacity: 0;
+    will-change: transform, opacity;
+    transition: opacity 180ms var(--ease-pointer);
+  }
+
+  .pointer-cursor__trail--near {
+    width: 6px;
+    height: 6px;
+    background: radial-gradient(circle, var(--cursor-halo-glint) 0%, transparent 72%);
+  }
+
+  .pointer-cursor__trail--far {
+    width: 10px;
+    height: 10px;
+    background: radial-gradient(circle, color-mix(in oklch, var(--cursor-halo-glint) 55%, transparent) 0%, transparent 72%);
+  }
+
+  .pointer-cursor.is-visible[data-preset="kintsugi"] .pointer-cursor__trail--near,
+  .pointer-cursor.is-visible[data-preset="luoshui"] .pointer-cursor__trail--near {
+    opacity: 0.82;
+  }
+
+  .pointer-cursor.is-visible[data-preset="kintsugi"] .pointer-cursor__trail--far,
+  .pointer-cursor.is-visible[data-preset="luoshui"] .pointer-cursor__trail--far {
+    opacity: 0.48;
+  }
+
+  /* Preset-specific cursor halo personalities */
+  .pointer-cursor[data-preset="luoshui"] .pointer-cursor__halo {
+    --cursor-halo-size: 36px;
+    border-color: oklch(86% 0.048 82 / 0.34);
+    background: radial-gradient(circle, oklch(96% 0.020 86 / 0.14) 0%, oklch(84% 0.052 80 / 0.07) 42%, oklch(74% 0.040 182 / 0.04) 68%, transparent 82%);
+    box-shadow: 0 0 18px -6px oklch(86% 0.056 80 / 0.32);
+  }
+
+  .pointer-cursor[data-preset="luoshui"] .pointer-cursor__halo::after {
+    background: conic-gradient(from 24deg, transparent 0deg 260deg, oklch(94% 0.032 84 / 0.85) 310deg 345deg, transparent 360deg);
+    opacity: 0.78;
+  }
+
+  .pointer-cursor[data-preset="luoshui"] .pointer-cursor__trail--near {
+    background: radial-gradient(circle, oklch(95% 0.028 85 / 0.92) 0%, oklch(82% 0.062 80 / 0.45) 50%, transparent 76%);
+  }
+
+  .pointer-cursor[data-preset="luoshui"] .pointer-cursor__trail--far {
+    background: radial-gradient(circle, oklch(76% 0.046 182 / 0.68) 0%, transparent 74%);
+  }
+
+  .pointer-cursor[data-preset="spotlight"] .pointer-cursor__halo {
+    --cursor-halo-size: 40px;
+    border-style: dashed;
+  }
+
+  .pointer-cursor[data-preset="spotlight"]:is([data-intent="link"], [data-intent="action"]) .pointer-cursor__halo {
+    --cursor-halo-size: 28px;
+    border-style: solid;
+    background: radial-gradient(circle, oklch(86% 0.09 82 / 0.14) 0%, transparent 72%);
+  }
+
+  .pointer-cursor[data-preset="kintsugi"] .pointer-cursor__halo {
+    --cursor-halo-size: 34px;
+    box-shadow: 0 0 14px -4px oklch(82% 0.11 82 / 0.42);
+  }
+
+  html.pointer-motion-enabled:not([data-theme="dark"]):has(.pointer-dot-field[data-state="active"]) .pointer-cursor:not([data-intent="danger"]) {
+    --cursor-halo-rim: oklch(58% 0.082 76 / 0.56);
+    --cursor-halo-rim-pulling: oklch(52% 0.088 76 / 0.82);
+  }
+
+  html.pointer-motion-enabled:not([data-theme="dark"]):has(.pointer-dot-field[data-state="active"]) .pointer-cursor:not([data-intent="danger"]) .pointer-cursor__dot::before {
+    background: oklch(35% 0.068 166);
+    box-shadow: 0 0 0 1.25px oklch(68% 0.095 76 / 0.85);
+  }
+
+  html.pointer-motion-enabled[data-theme="dark"]:has(.pointer-dot-field[data-state="active"]) .pointer-cursor:not([data-intent="danger"]) .pointer-cursor__dot::before {
+    background: oklch(95% 0.045 84);
+    box-shadow: 0 0 0 1px oklch(78% 0.10 82 / 0.45);
+  }
+
+  html.pointer-motion-enabled:has(.pointer-dot-field[data-state="active"]) .pointer-cursor.is-visible .pointer-cursor__halo,
+  .pointer-cursor:is([data-intent="link"], [data-intent="action"]) .pointer-cursor__halo {
+    border-color: var(--cursor-halo-rim);
+    background: var(--cursor-halo-fill);
+    opacity: 1;
+  }
+
+  html.pointer-motion-enabled:has(.pointer-dot-field[data-state="active"]) .pointer-cursor.is-visible .pointer-cursor__halo[data-pulling="true"] {
+    border-color: var(--cursor-halo-rim-pulling);
+  }
+
+  .pointer-cursor[data-intent="native"],
+  .pointer-cursor[data-intent="media"] {
+    opacity: 0;
+  }
+
+  .pointer-cursor.is-pressed .pointer-cursor__dot {
+    --cursor-press-scale: var(--cursor-dot-pressed-scale);
+  }
+
+  .pointer-cursor.is-pressed .pointer-cursor__dot::before {
+    transition-duration: 80ms;
+  }
+
+  html.pointer-motion-enabled .app-shell {
+    cursor: none;
+  }
+
+  html.pointer-motion-enabled .app-shell :where(p, h1, h2, h3, h4, h5, h6, li, dt, dd, blockquote, pre, code) {
+    cursor: text;
+  }
+
+  html.pointer-motion-enabled .app-shell :where(a, button, [role="button"], [data-cursor]),
+  html.pointer-motion-enabled .app-shell :where(a, button, [role="button"], [data-cursor]) * {
+    cursor: none;
+  }
+
+  html.pointer-motion-enabled .app-shell :where(input, textarea, select, [contenteditable="true"], [data-cursor="native"], [data-cursor="native"] *, [data-cursor="media"], [data-cursor="media"] *, .three-viewer, .three-viewer *) {
+    cursor: revert;
+  }
+
+  html.pointer-motion-enabled .three-canvas canvas {
+    cursor: grab;
+  }
+
+  html.pointer-motion-enabled .three-canvas canvas:active {
+    cursor: grabbing;
+  }
+
+  @media (pointer: coarse), (hover: none), (prefers-contrast: more), (forced-colors: active) {
+    .pointer-cursor,
+    .pointer-dot-field {
+      display: none;
+    }
+  }
+
+  /* Entrance utility */
+  @keyframes curatorial-fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .curatorial-enter {
+    animation: curatorial-fade-up var(--duration-enter) var(--ease-curatorial) both;
+  }
+
+  /* Content-visibility performance hint for below-fold editorial blocks */
+  .defer-below-fold {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 420px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+      animation: none;
+    }
+
+    .pointer-cursor,
+    .pointer-dot-field {
+      display: none;
+    }
+  }
+}

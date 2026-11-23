@@ -2,16 +2,19 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const css = readFileSync(resolve(process.cwd(), 'src/assets/route-exhibit-detail-legacy.css'), 'utf8')
+const exhibit = readFileSync(resolve(process.cwd(), 'src/views/ExhibitDetailView.vue'), 'utf8')
 
-describe('mobile exhibit view layout', () => {
-  it('fits all five view thumbnails in common mobile widths', () => {
-    expect(css).toMatch(/@media \(min-width: 391px\) and \(max-width: 760px\)[\s\S]*\.immersive-exhibit \.view-switcher > div\s*{[\s\S]*gap:\s*\.5rem;[\s\S]*padding-inline:\s*1px;[\s\S]*overflow-x:\s*hidden;/)
-    expect(css).toMatch(/@media \(min-width: 391px\) and \(max-width: 760px\)[\s\S]*\.immersive-exhibit \.view-switcher button\s*{[\s\S]*flex:\s*1 1 0;[\s\S]*min-width:\s*0;[\s\S]*width:\s*auto;/)
+describe('mobile exhibit view layout (Heluo Editorial 2.0 Studio Darkroom)', () => {
+  it('keeps viewpoints reachable on mobile without horizontal page overflow', () => {
+    const mobile = exhibit.slice(exhibit.indexOf('@media (max-width: 760px)'))
+    expect(mobile).toMatch(/\.view-switcher\s*\{[^}]*overflow-x:\s*auto;/s)
+    expect(exhibit).not.toContain('exhibit-wall-copy')
+    expect(exhibit).not.toContain('route-exhibit-detail-legacy.css')
   })
 
-  it('keeps a minimum touch target and horizontal reach on narrow phones', () => {
-    expect(css).toMatch(/@media \(max-width: 390px\)[\s\S]*\.immersive-exhibit \.view-switcher button\s*{[\s\S]*flex-basis:\s*68px;[\s\S]*width:\s*68px;/)
-    expect(css).toMatch(/@media \(max-width: 760px\)[\s\S]*\.immersive-exhibit \.view-switcher > div\s*{[\s\S]*overflow-x:\s*auto;/)
+  it('keeps the 3D scene uncluttered with darkroom spotlight and 3 compact control modules', () => {
+    expect(exhibit).toContain('class="darkroom-topbar"')
+    expect(exhibit).toContain('class="exhibit-dock"')
+    expect(exhibit).toContain('class="exhibit-panel exhibit-panel-desktop"')
   })
 })

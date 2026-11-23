@@ -19,7 +19,7 @@ describe('HomeView', () => {
     })
 
     expect(wrapper.text()).toContain('从一件器物，走进河洛文明')
-    expect(wrapper.text()).toContain('年轻文化探索者')
+    expect(wrapper.text()).toContain('先在线近看一件青铜')
     expect(wrapper.text()).toContain('策展手记')
     expect(wrapper.text()).toContain('沿着河流阅读文明')
     expect(wrapper.find('.home-themes').exists()).toBe(true)

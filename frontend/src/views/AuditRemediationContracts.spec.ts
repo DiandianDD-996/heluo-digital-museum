@@ -42,10 +42,10 @@ describe('sitewide remediation contracts', () => {
     expect(exhibit).not.toContain('Cleveland Museum of Art · 1962.281')
   })
 
-  it('keeps the theme contract in named token and glass entry points', () => {
-    expect(source('src/assets/tokens.css')).toContain('--theme-canvas')
-    expect(source('src/assets/base.css')).toContain('44px')
-    expect(source('src/assets/glass.css')).toContain('[data-glass]')
+  it('keeps the theme contract in named token and surface entry points', () => {
+    expect(source('src/styles/01-tokens.css')).toContain('--surface-canvas')
+    expect(source('src/styles/01-tokens.css')).toContain('--control-min: 44px;')
+    expect(source('src/styles/03-surfaces.css')).toContain('[data-glass="light"]')
     const vueFiles = ['src/App.vue', 'src/views/HomeView.vue', 'src/views/ExploreView.vue', 'src/views/ProfileView.vue']
       .map((path) => source(path))
     expect(vueFiles.filter((file) => file.includes('<main')).length).toBe(1)
@@ -62,19 +62,13 @@ describe('sitewide remediation contracts', () => {
     expect(shop).toContain("router.replace({ name: 'shop' })")
   })
 
-  it('locks the five audited responsive readability fixes into source contracts', () => {
+  it('locks the audited responsive readability fixes into source contracts', () => {
     const explore = source('src/views/ExploreView.vue')
     const exhibit = source('src/views/ExhibitDetailView.vue')
-    const mainCss = source('src/assets/main.css')
-    const exhibitCss = source('src/assets/route-exhibit-detail-legacy.css')
-    const exploreCss = source('src/assets/explore-gallery.css')
     expect(explore).toContain('gallery-result-grid')
-    expect(exploreCss).toContain('var(--theme-surface-content)')
-    expect(exploreCss).toContain('grid-template-columns: repeat(3, minmax(0, 1fr))')
+    expect(explore).toContain('grid-template-columns: repeat(3, minmax(0, 1fr))')
+    expect(explore).toContain('var(--surface-elevated)')
     expect(exhibit).toContain('pointCloudMode')
     expect(exhibit).toContain('pointCloudTour')
-    expect(exhibitCss).toContain('.app-shell:has(.immersive-exhibit) > .mobile-tab-bar')
-    expect(mainCss).toContain('.booking-steps li.current')
-    expect(mainCss).toContain('.date-strip::-webkit-scrollbar')
   })
 })

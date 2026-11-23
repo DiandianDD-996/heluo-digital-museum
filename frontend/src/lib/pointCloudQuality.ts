@@ -22,28 +22,39 @@ export interface PointCloudCapabilities {
   memoryGiB?: number
 }
 
-const DEEP_JADE_POINT_CLOUD_PALETTE: PointCloudPalette = {
-  jade: [.008, .07, .045],
-  copper: [.32, .12, .02],
-  copperBase: .08,
-  copperRange: .1,
-  opacity: .9,
+// Refined museum-metallurgy palettes:
+// Light mode: Burnished antique bronze-gold + subtle celadon patina + luminous 22K champagne highlights (paired with architectural gallery dimming).
+// Dark mode: Smoked obsidian bronze + muted antique celadon patina + brushed champagne gold.
+const LIGHT_DESKTOP_POINT_CLOUD_PALETTE: PointCloudPalette = {
+  jade: [.34, .52, .45],
+  copper: [.97, .81, .49],
+  copperBase: .50,
+  copperRange: .34,
+  opacity: 1,
+}
+
+const DARK_DESKTOP_POINT_CLOUD_PALETTE: PointCloudPalette = {
+  jade: [.46, .62, .55],
+  copper: [.96, .82, .56],
+  copperBase: .42,
+  copperRange: .34,
+  opacity: .97,
 }
 
 const MOBILE_JADE_POINT_CLOUD_PALETTE: PointCloudPalette = {
-  jade: [.018, .18, .105],
-  copper: [.48, .24, .055],
-  copperBase: .07,
-  copperRange: .08,
-  opacity: .78,
+  jade: [.30, .47, .41],
+  copper: [.94, .78, .46],
+  copperBase: .48,
+  copperRange: .32,
+  opacity: .94,
 }
 
 const MOBILE_DARK_POINT_CLOUD_PALETTE: PointCloudPalette = {
-  jade: [.09, .58, .31],
-  copper: [.92, .46, .09],
-  copperBase: .16,
-  copperRange: .18,
-  opacity: .94,
+  jade: [.42, .58, .51],
+  copper: [.94, .79, .52],
+  copperBase: .40,
+  copperRange: .30,
+  opacity: .95,
 }
 
 export function selectPointCloudQuality(capabilities: PointCloudCapabilities): PointCloudQuality {
@@ -96,13 +107,15 @@ export function createPointCloudPerformanceMonitor() {
 }
 
 export function selectPointCloudPalette(quality: PointCloudQuality, theme: PointCloudTheme = 'light'): PointCloudPalette {
-  if (quality !== 'mobile' && quality !== 'fallback') return DEEP_JADE_POINT_CLOUD_PALETTE
+  if (quality !== 'mobile' && quality !== 'fallback') {
+    return theme === 'dark' ? DARK_DESKTOP_POINT_CLOUD_PALETTE : LIGHT_DESKTOP_POINT_CLOUD_PALETTE
+  }
   return theme === 'dark' ? MOBILE_DARK_POINT_CLOUD_PALETTE : MOBILE_JADE_POINT_CLOUD_PALETTE
 }
 
 export function selectPointCloudPointSize(quality: PointCloudQuality, theme: PointCloudTheme = 'light'): number {
-  if (quality !== 'mobile' && quality !== 'fallback') return 1.25
-  return theme === 'dark' ? 1.16 : .92
+  if (quality !== 'mobile' && quality !== 'fallback') return theme === 'dark' ? 1.34 : 1.26
+  return theme === 'dark' ? 1.14 : 1.02
 }
 
 export function qualityLabel(quality: PointCloudQuality): string {

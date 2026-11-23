@@ -1,0 +1,4 @@
+/* Heluo Editorial 2.0 — CSS Cascade Layers
+ * Strict cascade order prevents specificity wars and eliminates !important bloat.
+ */
+@layer reset, tokens, base, surface, components, views, overrides;

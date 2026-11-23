@@ -4,11 +4,8 @@ let cartQueue = Promise.resolve()
 </script>
 
 <script setup lang="ts">
-import '../assets/control-surface-polish.css'
-import '../assets/public-responsive-polish.css'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { motion } from 'motion-v'
 import { gsap } from 'gsap'
 import { ShoppingBag } from '@element-plus/icons-vue'
 import { apiGet, apiRequest } from '../lib/api'
@@ -23,9 +20,35 @@ import CartPanelContent from '../components/CartPanelContent.vue'
 import FluidButton from '../components/FluidButton.vue'
 import InlineStatus from '../components/InlineStatus.vue'
 
-interface Product { id:number; slug:string; name:string; summary:string; price:string; availableStock:number; coverImageUrl:string }
-interface CartItem { id:number; productId:number; quantity:number; name:string; slug?:string; price:string; availableStock:number; coverImageUrl:string }
-interface Order { id:number; orderNo:string; payableAmount:string; status?: string; expiresAt?: string }
+interface Product {
+  id: number
+  slug: string
+  name: string
+  summary: string
+  price: string
+  availableStock: number
+  coverImageUrl: string
+}
+
+interface CartItem {
+  id: number
+  productId: number
+  quantity: number
+  name: string
+  slug?: string
+  price: string
+  availableStock: number
+  coverImageUrl: string
+}
+
+interface Order {
+  id: number
+  orderNo: string
+  payableAmount: string
+  status?: string
+  expiresAt?: string
+}
+
 interface PendingCheckout {
   userId: number
   cartItemIds: number[]
@@ -59,6 +82,7 @@ const pendingCheckout = ref<PendingCheckout | null>(null)
 const pendingAddResumeHandled = ref(false)
 const pendingCartActions = ref<number[]>([])
 let cartMutationFailed = false
+
 const cartBusy = computed(() => pendingCartActions.value.length > 0 || addingProductId.value !== null)
 const total = computed(() => cart.value.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0).toFixed(2))
 const itemCount = computed(() => cart.value.reduce((sum, item) => sum + item.quantity, 0))
@@ -66,12 +90,44 @@ const pendingOrder = computed(() => pendingCheckout.value?.order ?? null)
 const hasPendingCheckout = computed(() => pendingCheckout.value !== null)
 const cartPanelError = computed(() => actionError.value || cartError.value)
 const { t, locale } = useLocale()
-const shopTitle = computed(() => locale.value === 'zh-CN' ? '器物的纹样，\n进入每天的生活。' : 'Bring the patterns of objects into everyday life.')
+
+const shopTitle = computed(() => locale.value === 'zh-CN' ? '器物的纹样，进入每天的生活。' : 'Bring the patterns of objects into everyday life.')
 const shopCopy = computed(() => locale.value === 'en-US' ? {
-  categories: 'Product categories', all: 'All objects', category: 'Objects for daily life', apparel: 'Wearable textiles', paper: 'River-map stationery', unavailable: 'No products in this category yet', loadFailed: 'The collection could not be loaded', retryProducts: 'Try again', adding: 'Adding', pending: 'Finish pending order', openCart: 'Open cart', bag: 'Shopping bag', selection: 'YOUR SELECTION', unit: 'items'
+  eyebrow: 'HELUO DESIGN STORE',
+  categories: 'Product categories',
+  all: 'All objects',
+  category: 'Objects for daily life',
+  apparel: 'Wearable textiles',
+  paper: 'River-map stationery',
+  unavailable: 'No products in this category yet',
+  loadFailed: 'The collection could not be loaded',
+  retryProducts: 'Try again',
+  adding: 'Adding…',
+  pending: 'Finish pending order',
+  openCart: 'Open bag',
+  bag: 'Shopping Bag',
+  unit: 'items',
+  soldOut: 'Sold out',
+  lowStock: 'Limited',
 } : {
-  categories: '商品分类', all: '全部文创', category: '器物日用', apparel: '穿戴织物', paper: '纸上河图', unavailable: '当前版本暂无该分类商品', loadFailed: '文创商品暂时无法加载', retryProducts: '重新加载', adding: '正在加入', pending: '待支付订单未完成', openCart: '打开购物车', bag: '购物袋', selection: 'YOUR SELECTION', unit: '件'
+  eyebrow: '河洛文创商店',
+  categories: '商品分类',
+  all: '全部文创',
+  category: '器物日用',
+  apparel: '穿戴织物',
+  paper: '纸上河图',
+  unavailable: '当前分类暂无在售文创',
+  loadFailed: '文创商品暂时无法加载',
+  retryProducts: '重新加载',
+  adding: '正在加入…',
+  pending: '待支付订单未完成',
+  openCart: '打开购物袋',
+  bag: '购物袋',
+  unit: '件',
+  soldOut: '暂缺',
+  lowStock: '余量紧张',
 })
+
 const productImageNotes = computed<Record<string, string>>(() => locale.value === 'en-US' ? {
   'river-line-teacup-set': 'Follow the river into a quieter tea ritual.',
   'heluo-silk-scarf': 'Flowing rivers translated into deep-jade textiles.',
@@ -81,27 +137,27 @@ const productImageNotes = computed<Record<string, string>>(() => locale.value ==
   'heluo-silk-scarf': '以河流的流线和深墨绿为灵感的原创概念丝巾。',
   'river-map-notebook': '把河洛图纹带进每天的记录与灵感。',
 })
+
 const productEnglish: Record<string, { name: string; summary: string }> = {
   'river-line-teacup-set': { name: 'River-pattern Teacup Set', summary: 'Keep a sense of the river in the everyday ritual of tea.' },
   'heluo-silk-scarf': { name: 'Heluo River-system Scarf', summary: 'An original concept scarf inspired by flowing rivers and deep jade green.' },
   'river-map-notebook': { name: 'River-map Pattern Notebook', summary: 'Bring Heluo patterns into everyday notes and ideas.' },
 }
+
 const displayProduct = (product: Product) => {
   const normalized = resolveProductPresentation(product)
   return locale.value === 'en-US' && productEnglish[product.slug] ? { ...normalized, ...productEnglish[product.slug] } : normalized
 }
+
 function useFallbackProductImage(event: Event, product: Product) {
   const image = event.currentTarget as HTMLImageElement
   const fallback = resolveProductPresentation({ slug: product.slug, name: product.name }).coverImageUrl
   if (fallback && image.src !== new URL(fallback, window.location.href).href) image.src = fallback
 }
+
 const stockUnit = (stock: number) => locale.value === 'en-US' && stock === 1 ? 'item' : t.value.shopText.items
 
 let productRequestId = 0
-// The storefront announces itself once per mounted page, not once per
-// request: `loadProducts` also runs from the retry button and the category
-// filter re-renders the same grid, so an unguarded cue would strike again on
-// a retry that changed nothing the visitor had not already seen.
 let storefrontCued = false
 
 async function loadProducts() {
@@ -111,12 +167,6 @@ async function loadProducts() {
   try {
     const result = await apiGet<Product[]>('/products')
     if (requestId === productRequestId) products.value = result
-    // 'discovery' rather than 'opening': nothing has begun here — the hall is
-    // already open and the visitor is browsing. What this moment marks is
-    // stock appearing where there was a skeleton, and discovery is the voice
-    // the system reserves for that (it is the same cue the 3D viewer uses on
-    // its first compiled frame). 'opening' would claim an arrival that has
-    // already happened.
     if (requestId === productRequestId && result.length && !storefrontCued) {
       storefrontCued = true
       void audioSystem.playNarrative('discovery', { volume: 0.22 })
@@ -127,12 +177,15 @@ async function loadProducts() {
     if (requestId === productRequestId) loading.value = false
   }
 }
+
 async function retryProducts() { await loadProducts() }
+
 async function closeCartForBrowsing() {
   mobileCartOpen.value = false
   await nextTick()
   document.getElementById('shop-products')?.focus({ preventScroll: true })
 }
+
 async function loadCart() {
   if (!auth.loggedIn) { cartLoading.value = false; return }
   cartLoading.value = true
@@ -189,6 +242,7 @@ function clearPendingCheckout() {
   if (userId) localStorage.removeItem(pendingCheckoutStorageKey(userId))
   pendingCheckout.value = null
 }
+
 async function add(product: Product) {
   await auth.initialize()
   if (!auth.loggedIn) {
@@ -219,6 +273,7 @@ async function add(product: Product) {
     addingProductId.value = null
   }
 }
+
 async function resumePendingAdd() {
   if (pendingAddResumeHandled.value || !auth.loggedIn || route?.query?.intent !== 'add-to-cart') return
   const productId = String(route?.query?.productId ?? '')
@@ -229,6 +284,7 @@ async function resumePendingAdd() {
   await add(product)
   await router.replace({ name: 'shop' })
 }
+
 async function change(item: CartItem, quantity: number) {
   if (pendingCheckout.value || checkoutState.value === 'loading' || pendingCartActions.value.includes(item.id)) return
   if (!cartBusy.value) cartMutationFailed = false
@@ -239,9 +295,14 @@ async function change(item: CartItem, quantity: number) {
       cart.value = await apiRequest<CartItem[]>(`/cart/items/${item.id}`, 'PATCH', { quantity }, auth.token)
     })
     cartError.value = ''
-  } catch (reason) { cartMutationFailed = true; actionError.value = reason instanceof Error ? reason.message : '数量更新失败。' }
-  finally { pendingCartActions.value = pendingCartActions.value.filter((id) => id !== item.id) }
+  } catch (reason) {
+    cartMutationFailed = true
+    actionError.value = reason instanceof Error ? reason.message : '数量更新失败。'
+  } finally {
+    pendingCartActions.value = pendingCartActions.value.filter((id) => id !== item.id)
+  }
 }
+
 async function remove(item: CartItem) {
   if (pendingCheckout.value || checkoutState.value === 'loading' || pendingCartActions.value.includes(item.id)) return
   if (!cartBusy.value) cartMutationFailed = false
@@ -253,9 +314,14 @@ async function remove(item: CartItem) {
     })
     cartError.value = ''
     message.value = locale.value === 'en-US' ? 'The item was removed.' : `已移除“${item.name}”。`
-  } catch (reason) { cartMutationFailed = true; actionError.value = reason instanceof Error ? reason.message : '移除商品失败。' }
-  finally { pendingCartActions.value = pendingCartActions.value.filter((id) => id !== item.id) }
+  } catch (reason) {
+    cartMutationFailed = true
+    actionError.value = reason instanceof Error ? reason.message : '移除商品失败。'
+  } finally {
+    pendingCartActions.value = pendingCartActions.value.filter((id) => id !== item.id)
+  }
 }
+
 async function checkout() {
   if (!auth.user || checkoutState.value === 'loading') return
   checkoutState.value = 'loading'
@@ -292,7 +358,9 @@ async function checkout() {
     await apiRequest(`/orders/${order.id}/mock-payment`, 'POST', undefined, auth.token, { 'Idempotency-Key': attempt.paymentKey })
     clearPendingCheckout()
     cartError.value = ''
-    message.value = locale.value === 'en-US' ? `Mock payment completed. Order: ${order.orderNo}` : `模拟支付成功，订单号：${order.orderNo}`; checkoutState.value = 'success'; mobileCartSnapPoint.value = 'medium'
+    message.value = locale.value === 'en-US' ? `Mock payment completed. Order: ${order.orderNo}` : `模拟支付成功，订单号：${order.orderNo}`
+    checkoutState.value = 'success'
+    mobileCartSnapPoint.value = 'medium'
   } catch (reason) {
     if (attempt?.order) {
       try {
@@ -311,35 +379,28 @@ async function checkout() {
           attempt = { ...attempt, order: serverOrder }
           persistPendingCheckout(attempt)
         }
-      } catch { /* keep the recovery key when the reconciliation request also fails */ }
+      } catch { /* keep the recovery key when reconciliation also fails */ }
     }
     const nonRetryable = reason instanceof Error && 'status' in reason
       && typeof (reason as { status?: unknown }).status === 'number'
       && (reason as { status: number }).status >= 400 && (reason as { status: number }).status < 500
       && ![401, 403, 408, 429].includes((reason as { status: number }).status)
     if (nonRetryable) clearPendingCheckout()
-    else if (attempt?.order) {
-      cart.value = []
-    }
-    actionError.value = reason instanceof Error ? reason.message : '下单或支付失败。'; checkoutState.value = 'error'
+    else if (attempt?.order) cart.value = []
+    actionError.value = reason instanceof Error ? reason.message : '下单或支付失败。'
+    checkoutState.value = 'error'
   }
 }
+
 const root = ref<HTMLElement | null>(null)
 let gsapContext: ReturnType<typeof createGsapContext>
 
-/**
- * The storefront's entrance is the shop's own voice: the intro sets the
- * room, then the objects arrive, then the bag states its terms on the
- * right. The product cards are already carried by `motion-v` — they fade
- * and lift themselves on mount — so this deliberately does not animate
- * them again, which would put two systems on the same properties.
- */
 function setupEntrance() {
   if (!shouldRunGsapReveal() || !root.value) return
   gsapContext?.revert()
   gsapContext = createGsapContext(root.value, () => {
-    revealSequence('[data-motion="shop-intro"] > *', { stagger: 0.07 })
-    revealSequence('[data-motion="shop-panel"] > *', { stagger: 0.06, delay: 0.18 })
+    revealSequence('[data-motion="shop-intro"] > *', { stagger: 0.06 })
+    revealSequence('[data-motion="shop-panel"] > *', { stagger: 0.05, delay: 0.14 })
   })
 }
 
@@ -351,23 +412,6 @@ onMounted(async () => {
   await resumePendingAdd()
 })
 
-/**
- * A placed order is the storefront's one irreversible moment, so it gets a
- * taller entrance than anything else on the page. `checkoutState` rather
- * than the message text drives it: the state machine already knows whether
- * this was a success or a failure, and the two cases should not look alike.
- */
-/**
- * A placed order is the storefront's one irreversible moment, so it gets a
- * taller entrance than anything else on the page. `checkoutState` rather
- * than the message text drives it: the state machine already knows whether
- * this was a success or a failure, and the two cases should not look alike.
- *
- * Deliberately no audio cue here. Both outcomes already ring: the message
- * below renders an `InlineStatus`, which carries `data-state` regardless of
- * whether it is announced, and the delegated layer listens for exactly that
- * attribute. A cue added here would be a second bell on the same event.
- */
 watch(checkoutState, async (state) => {
   if (state === 'idle' || !shouldRunGsapReveal()) return
   await nextTick()
@@ -384,40 +428,130 @@ onBeforeUnmount(() => gsapContext?.revert())
 
 <template>
   <section ref="root" class="shop-page" data-motion-page="shop">
-    <section class="shop-content">
-      <div
-        v-pointer-surface="{ kind: 'product', maxTilt: 0, lift: 0 }"
-        class="shop-object-studio-surface"
-        aria-hidden="true"
-      ></div>
-      <header class="shop-intro" data-motion="shop-intro" data-glass="light">
-        <p class="eyebrow">HELUO CULTURAL STORE</p>
+    <!-- Editorial Store Banner -->
+    <header class="shop-intro" data-motion="shop-intro">
+      <div class="shop-intro__head">
+        <p class="eyebrow">{{ shopCopy.eyebrow }}</p>
         <h1>{{ shopTitle }}</h1>
-        <div class="shop-category-nav" data-galaxy-segmented data-glass="compact" role="group" :aria-label="shopCopy.categories"><button type="button" :class="{ active: activeCategory === 'all' }" :aria-pressed="activeCategory === 'all'" @click="activeCategory = 'all'">{{ shopCopy.all }}</button><button type="button" :class="{ active: activeCategory === 'objects' }" :aria-pressed="activeCategory === 'objects'" @click="activeCategory = 'objects'">{{ shopCopy.category }}</button><button type="button" :class="{ active: activeCategory === 'textiles' }" :aria-pressed="activeCategory === 'textiles'" @click="activeCategory = 'textiles'">{{ shopCopy.apparel }}</button><button type="button" :class="{ active: activeCategory === 'paper' }" :aria-pressed="activeCategory === 'paper'" @click="activeCategory = 'paper'">{{ shopCopy.paper }}</button></div>
-        <p>{{ t.shopText.intro }}</p>
-      </header>
-
-      <svg class="shop-river" viewBox="0 0 1320 150" preserveAspectRatio="none" aria-hidden="true"><path d="M0 77c112 1 160 1 251 2 84 1 97 48 181 32 86-17 143 8 215-17 90-31 116-86 209-43 90 42 123-33 221-8 98 25 132-3 243-25"/><path d="M0 80c112 1 160 1 251 2 84 1 98 43 181 29 86-14 143 6 215-18 89-29 117-78 209-39 90 39 124-31 221-7 99 23 132-3 243-25"/><circle cx="1269" cy="29" r="7"/><circle cx="1269" cy="29" r="13"/></svg>
-
-      <InlineStatus v-if="message" kind="success" :message="message" :announce="!mobileCartOpen" />
-      <InlineStatus v-else-if="cartPanelError" kind="error" :message="cartPanelError" :announce="!mobileCartOpen" />
-      <div v-if="loading" class="state-panel">{{ t.shopText.loading }}</div>
-      <section v-else-if="productError" class="state-panel state-panel--action shop-products-state"><h2>{{ shopCopy.loadFailed }}</h2><p>{{ productError }}</p><button type="button" @click="retryProducts">{{ shopCopy.retryProducts }}</button></section>
-      <section v-else-if="visibleProducts.length === 0" class="state-panel state-panel--action shop-products-state"><h2>{{ shopCopy.unavailable }}</h2></section>
-      <div v-else id="shop-products" class="product-grid" tabindex="-1" :class="{ 'product-grid--single': visibleProducts.length === 1 }">
-        <motion.article v-for="(product,index) in visibleProducts" :key="product.id" :class="{ featured: index === 0 }" :initial="{ opacity: 0, y: 10 }" :animate="{ opacity: 1, y: 0 }" :transition="{ duration: 0.28, delay: index * 0.04 }">
-          <div v-pointer-surface="{ kind: 'product', maxTilt: 0.8 }" class="product-image"><img :src="displayProduct(product).coverImageUrl" :srcset="mediaSrcset(displayProduct(product).coverImageUrl)" :sizes="mediaSizes" :alt="displayProduct(product).name" :loading="index === 0 ? 'eager' : 'lazy'" :fetchpriority="index === 0 ? 'high' : 'auto'" decoding="async" @error="useFallbackProductImage($event, product)" /><p>{{ productImageNotes[product.slug] }}</p></div>
-        <div class="product-copy" data-glass="light" data-galaxy-card data-tactile-card data-glass-interactive><span class="product-number">0{{ index + 1 }}</span><h2>{{ displayProduct(product).name }}</h2><p>{{ displayProduct(product).summary }}</p><div class="product-meta"><small>{{ t.shopText.remaining }} {{ product.availableStock }} {{ stockUnit(product.availableStock) }}</small><strong>¥ {{ product.price }}</strong></div><FluidButton block :disabled="product.availableStock === 0 || pendingCheckout !== null || (addingProductId !== null && addingProductId !== product.id)" :loading="addingProductId === product.id" @click="add(product)">{{ addingProductId === product.id ? shopCopy.adding : pendingCheckout ? shopCopy.pending : t.shopText.add }}</FluidButton></div>
-        </motion.article>
+        <p class="shop-intro__lead">{{ t.shopText.intro }}</p>
       </div>
-    </section>
+      <div class="shop-category-nav" role="group" :aria-label="shopCopy.categories">
+        <button type="button" :class="{ active: activeCategory === 'all' }" :aria-pressed="activeCategory === 'all'" @click="activeCategory = 'all'">{{ shopCopy.all }}</button>
+        <button type="button" :class="{ active: activeCategory === 'objects' }" :aria-pressed="activeCategory === 'objects'" @click="activeCategory = 'objects'">{{ shopCopy.category }}</button>
+        <button type="button" :class="{ active: activeCategory === 'textiles' }" :aria-pressed="activeCategory === 'textiles'" @click="activeCategory = 'textiles'">{{ shopCopy.apparel }}</button>
+        <button type="button" :class="{ active: activeCategory === 'paper' }" :aria-pressed="activeCategory === 'paper'" @click="activeCategory = 'paper'">{{ shopCopy.paper }}</button>
+      </div>
+    </header>
 
-    <motion.button class="mobile-cart-trigger" type="button" :aria-label="`${shopCopy.openCart}, ${itemCount} ${shopCopy.unit}`" :while-press="{ scale: 0.96 }" :transition="{ type: 'spring', stiffness: 500, damping: 42 }" @click="mobileCartOpen = true">
-      <ShoppingBag aria-hidden="true" /><span>{{ shopCopy.bag }}</span><motion.sup :key="itemCount" :initial="{ scale: 0.75 }" :animate="{ scale: 1 }">{{ itemCount }}</motion.sup>
-    </motion.button>
+    <!-- Two-Column Boutique Grid: 1fr Product Showcase + 360px Sticky Bag -->
+    <div class="shop-layout">
+      <section class="shop-content">
+        <InlineStatus v-if="message" kind="success" :message="message" :announce="!mobileCartOpen" />
+        <InlineStatus v-else-if="cartPanelError" kind="error" :message="cartPanelError" :announce="!mobileCartOpen" />
 
-    <aside class="cart-panel" data-motion="shop-panel" data-glass="light" data-glass-controls :aria-label="shopCopy.bag">
-      <header class="cart-heading"><span class="cart-heading__icon" aria-hidden="true"><ShoppingBag /></span><div><p>{{ shopCopy.selection }}</p><h2>{{ shopCopy.bag }}</h2></div><motion.span :key="itemCount" class="cart-count" :initial="{ scale: 0.78 }" :animate="{ scale: 1 }">{{ itemCount }} {{ shopCopy.unit }}</motion.span></header>
+        <div v-if="loading" class="state-panel">{{ t.shopText.loading }}</div>
+        <section v-else-if="productError" class="state-panel state-panel--action shop-products-state">
+          <h2>{{ shopCopy.loadFailed }}</h2>
+          <p>{{ productError }}</p>
+          <button class="fluid-button fluid-button--secondary" type="button" @click="retryProducts">{{ shopCopy.retryProducts }}</button>
+        </section>
+        <section v-else-if="visibleProducts.length === 0" class="state-panel state-panel--action shop-products-state">
+          <h2>{{ shopCopy.unavailable }}</h2>
+        </section>
+
+        <div v-else id="shop-products" class="product-grid" tabindex="-1">
+          <article v-for="(product, index) in visibleProducts" :key="product.id" class="product-card">
+            <div v-pointer-surface="{ kind: 'product', maxTilt: 0.6 }" class="product-image">
+              <img
+                :src="displayProduct(product).coverImageUrl"
+                :srcset="mediaSrcset(displayProduct(product).coverImageUrl)"
+                :sizes="mediaSizes"
+                :alt="displayProduct(product).name"
+                :loading="index === 0 ? 'eager' : 'lazy'"
+                :fetchpriority="index === 0 ? 'high' : 'auto'"
+                decoding="async"
+                @error="useFallbackProductImage($event, product)"
+              />
+              <span class="product-number font-mono" data-glass="compact">0{{ index + 1 }}</span>
+              <span v-if="product.availableStock === 0" class="product-stock-badge product-stock-badge--out">{{ shopCopy.soldOut }}</span>
+              <span v-else-if="product.availableStock <= 5" class="product-stock-badge">{{ shopCopy.lowStock }}</span>
+              <p v-if="productImageNotes[product.slug]" class="product-image__note">{{ productImageNotes[product.slug] }}</p>
+            </div>
+
+            <div class="product-copy">
+              <h2>{{ displayProduct(product).name }}</h2>
+              <p class="product-copy__summary">{{ displayProduct(product).summary }}</p>
+              <div class="product-meta">
+                <strong class="product-price font-mono">¥ {{ product.price }}</strong>
+                <small>{{ t.shopText.remaining }} {{ product.availableStock }} {{ stockUnit(product.availableStock) }}</small>
+              </div>
+              <FluidButton
+                block
+                :disabled="product.availableStock === 0 || pendingCheckout !== null || (addingProductId !== null && addingProductId !== product.id)"
+                :loading="addingProductId === product.id"
+                @click="add(product)"
+              >
+                {{ addingProductId === product.id ? shopCopy.adding : pendingCheckout ? shopCopy.pending : t.shopText.add }}
+              </FluidButton>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- Self-Sizing Sticky Shopping Bag (No giant empty white void) -->
+      <aside class="cart-panel" data-motion="shop-panel" :aria-label="shopCopy.bag">
+        <header class="cart-heading">
+          <div class="cart-heading__title">
+            <ShoppingBag class="cart-heading__icon" aria-hidden="true" />
+            <h2>{{ shopCopy.bag }}</h2>
+          </div>
+          <span class="cart-count font-mono">{{ itemCount }} {{ shopCopy.unit }}</span>
+        </header>
+        <CartPanelContent
+          :logged-in="auth.loggedIn"
+          :items="cart"
+          :item-count="itemCount"
+          :total="total"
+          :email="email"
+          :checkout-state="checkoutState"
+          :pending-order="pendingOrder"
+          :pending-checkout="hasPendingCheckout"
+          :message="message"
+          :error="cartPanelError"
+          input-id="cart-notification-email-desktop"
+          :announce-feedback="!mobileCartOpen"
+          :cart-loading="cartLoading"
+          :cart-load-error="cartError"
+          :pending-item-ids="pendingCartActions"
+          :mutating="cartBusy"
+          @reload="loadCart"
+          @update:email="email = $event"
+          @change="change"
+          @remove="remove"
+          @checkout="checkout"
+        />
+      </aside>
+    </div>
+
+    <!-- Mobile / Tablet Floating Bag Trigger Bar -->
+    <button
+      class="mobile-cart-trigger"
+      type="button"
+      :aria-label="`${shopCopy.openCart}, ${itemCount} ${shopCopy.unit}`"
+      @click="mobileCartOpen = true"
+    >
+      <ShoppingBag aria-hidden="true" />
+      <span>{{ shopCopy.bag }}</span>
+      <span class="mobile-cart-trigger__badge font-mono">{{ itemCount }}</span>
+    </button>
+
+    <BottomSheet
+      :open="mobileCartOpen"
+      :title="`${shopCopy.bag} · ${itemCount} ${shopCopy.unit}`"
+      :snap-point="mobileCartSnapPoint"
+      @close="mobileCartOpen = false"
+      @update:snap-point="mobileCartSnapPoint = $event"
+    >
       <CartPanelContent
         :logged-in="auth.loggedIn"
         :items="cart"
@@ -428,41 +562,15 @@ onBeforeUnmount(() => gsapContext?.revert())
         :pending-order="pendingOrder"
         :pending-checkout="hasPendingCheckout"
         :message="message"
-         :error="cartPanelError"
-         input-id="cart-notification-email-desktop"
-        :announce-feedback="!mobileCartOpen"
-        :cart-loading="cartLoading"
-        :cart-load-error="cartError"
-        @reload="loadCart"
-         :pending-item-ids="pendingCartActions"
-        :mutating="cartBusy"
-        @update:email="email = $event"
-        @change="change"
-        @remove="remove"
-        @checkout="checkout"
-      />
-    </aside>
-
-    <BottomSheet :open="mobileCartOpen" :title="`${shopCopy.bag} · ${itemCount} ${shopCopy.unit}`" :snap-point="mobileCartSnapPoint" @close="mobileCartOpen = false" @update:snap-point="mobileCartSnapPoint = $event">
-      <CartPanelContent
-        :logged-in="auth.loggedIn"
-        :items="cart"
-        :item-count="itemCount"
-        :total="total"
-        :email="email"
-        :checkout-state="checkoutState"
-        :pending-order="pendingOrder"
-        :pending-checkout="hasPendingCheckout"
-        :message="message"
-         :error="cartPanelError"
-         input-id="cart-notification-email-mobile"
-        @browse="closeCartForBrowsing"
+        :error="cartPanelError"
+        input-id="cart-notification-email-mobile"
         :cart-loading="cartLoading"
         :cart-load-error="cartError"
         :announce-feedback="true"
-        @reload="loadCart"
-         :pending-item-ids="pendingCartActions"
+        :pending-item-ids="pendingCartActions"
         :mutating="cartBusy"
+        @browse="closeCartForBrowsing"
+        @reload="loadCart"
         @update:email="email = $event"
         @change="change"
         @remove="remove"
@@ -471,3 +579,370 @@ onBeforeUnmount(() => gsapContext?.revert())
     </BottomSheet>
   </section>
 </template>
+
+<style scoped>
+.shop-page {
+  width: min(calc(100% - 4rem), var(--container-wide));
+  margin: 0 auto;
+  padding: clamp(2.5rem, 5vw, 4rem) 0 clamp(4rem, 7vw, 6rem);
+  color: var(--ink-secondary);
+}
+
+/* ── Editorial Store Banner ── */
+.shop-intro {
+  display: grid;
+  gap: var(--space-6);
+  margin-bottom: var(--space-8);
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.shop-intro__head h1 {
+  margin: var(--space-2) 0 var(--space-3);
+  font-size: clamp(2.125rem, 3.4vw, 2.85rem);
+  line-height: 1.18;
+}
+
+.shop-intro__lead {
+  max-width: 58ch;
+  font-size: var(--text-sm);
+  line-height: 1.75;
+  color: var(--ink-muted);
+}
+
+.shop-category-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-6);
+}
+
+.shop-category-nav button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-min);
+  padding: 0 0.125rem;
+  border: 0;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--duration-ui) var(--ease-curatorial);
+}
+
+.shop-category-nav button::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--accent-bronze);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--duration-ui) var(--ease-curatorial);
+}
+
+.shop-category-nav button:hover {
+  color: var(--ink-primary);
+}
+
+.shop-category-nav button.active {
+  color: var(--ink-primary);
+  font-weight: 600;
+}
+
+.shop-category-nav button.active::after {
+  transform: scaleX(1);
+}
+
+/* ── Two-Column Layout (1fr Products + 360px Sticky Bag) ── */
+.shop-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  align-items: start;
+  gap: clamp(1.75rem, 3vw, 2.5rem);
+}
+
+.shop-content {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+/* ── Boutique Photography Product Cards ── */
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+
+.product-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
+  overflow: hidden;
+  transition: border-color var(--duration-ui) var(--ease-curatorial),
+              box-shadow var(--duration-ui) var(--ease-curatorial);
+}
+
+.product-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.product-image {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  background: var(--surface-spotlight), var(--surface-plinth);
+  overflow: hidden;
+}
+
+.product-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 460ms var(--ease-curatorial);
+}
+
+.product-card:hover .product-image img {
+  transform: scale(1.03);
+}
+
+.product-number {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-xs);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--ink-primary);
+}
+
+.product-stock-badge {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-pill);
+  background: var(--status-warning-bg);
+  color: var(--status-warning);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.product-stock-badge--out {
+  background: var(--status-negative-bg);
+  color: var(--status-negative);
+}
+
+.product-image__note {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: var(--space-5) var(--space-4) var(--space-3);
+  background: linear-gradient(180deg, transparent, oklch(10% 0.01 165 / 0.78));
+  color: var(--ink-on-dark);
+  font-size: var(--text-xs);
+  line-height: 1.55;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity var(--duration-ui) var(--ease-curatorial),
+              transform var(--duration-ui) var(--ease-curatorial);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .product-card:hover .product-image__note {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.product-copy {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-4) var(--space-5);
+}
+
+.product-copy h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink-primary);
+}
+
+.product-copy__summary {
+  font-size: var(--text-xs);
+  line-height: 1.65;
+  color: var(--ink-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.product-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: auto;
+  padding: var(--space-3) 0 var(--space-2);
+}
+
+.product-price {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--ink-primary);
+}
+
+.product-meta small {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}
+
+/* ── Sticky Self-Sizing Bag Panel ── */
+.cart-panel {
+  position: sticky;
+  top: calc(var(--header-height) + var(--space-5));
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-xs);
+}
+
+.cart-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.cart-heading__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cart-heading__icon {
+  width: 18px;
+  height: 18px;
+  color: var(--accent-bronze);
+}
+
+.cart-heading h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  color: var(--ink-primary);
+}
+
+.cart-count {
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--ink-secondary);
+}
+
+/* ── Mobile Bag Trigger ── */
+.mobile-cart-trigger {
+  display: none;
+}
+
+/* ── Responsive ── */
+@media (max-width: 1200px) {
+  .product-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1024px) {
+  .shop-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .cart-panel {
+    display: none;
+  }
+
+  .mobile-cart-trigger {
+    position: fixed;
+    left: var(--space-4);
+    bottom: calc(74px + env(safe-area-inset-bottom, 0px));
+    z-index: 45;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 46px;
+    padding: 0 1.125rem;
+    border: 1px solid var(--accent-jade);
+    border-radius: var(--radius-pill);
+    background: var(--accent-jade);
+    color: var(--accent-jade-ink);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    box-shadow: var(--shadow-md);
+    cursor: pointer;
+  }
+
+  .mobile-cart-trigger svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .mobile-cart-trigger__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: var(--radius-pill);
+    background: color-mix(in oklch, var(--accent-jade-ink) 20%, transparent);
+    font-size: var(--text-xs);
+  }
+}
+
+@media (max-width: 760px) {
+  .shop-page {
+    width: calc(100% - 2rem);
+    padding-top: var(--space-6);
+  }
+
+  .shop-category-nav {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0;
+  }
+
+  .shop-category-nav button {
+    justify-content: center;
+    font-size: var(--text-xs);
+    padding-inline: 2px;
+  }
+
+  .product-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-5);
+  }
+
+  .product-image {
+    aspect-ratio: 4 / 3;
+  }
+}
+</style>

@@ -1,90 +1,73 @@
-# 洛笙 · AI 向导（唯一事实入口）
+# 洛笙 · AI 向导 v2（唯一事实入口）
 
-> 本文件是洛笙的唯一活文档。决策见 [ADR-009](../decisions/ADR-009-luosheng-v1-convergence.md)，执行计划见 [评审与收敛方案](../plans/2026-11-22-luosheng-review-and-reset.md)。历史方案已归档至 `docs/archive/luosheng/`，只读不改。
+> 本文件是洛笙的唯一活文档。决策见 [ADR-010](../decisions/ADR-010-luosheng-v2-museum-agent.md)（取代 [ADR-009](../decisions/ADR-009-luosheng-v1-convergence.md) 部分条款，保留 [ADR-006](../decisions/ADR-006-luosheng-structured-evidence-conflict.md) 冲突拦截），架构改造方案见 [2026-11-23-luosheng-v2-architecture.md](../plans/2026-11-23-luosheng-v2-architecture.md)。
 
-## 1. 定位
+## 1. 定位与核心原则
 
-**洛笙陪你看懂眼前这件鼎：听得懂你的大白话，指给你一处能亲眼核对的细节，说的每个事实都能点开出处。**
+**全馆实时知识 Grounded 的策展讲解员 + 3D 展柜交互副驾**——支持中英双语（D1）、SSE 真流式多轮对话（D2）、3D 展柜局部平滑聚焦联动，以及诚实的确定性馆藏直出降级。
 
-不变的原则（来自原始方案）：
+不变的 5 条博物馆产品原则：
 
-- 游客可以从头到尾不理它；拒绝、关声音、离开不算失败。
-- 程序管同意与执行，内容负责人管知识，模型管语言。
-- 镜头不等于注视：转动 3D 不推断游客在看哪里，只有点击才算。
-- 同意听讲不是同意录音：不申请麦克风。
-- 没有依据就说缺什么，不借上一轮的出处。
+1. **控制权永远归游客**：绝不替游客自动旋转 3D、自动跳转页面、自动预约或下单；所有动作以明确标注意图的可点击按钮呈现，点击才执行；游客可随时无压力收起或清空对话。
+2. **所有馆内事实可追溯**：回答基于数据库实时公开数据、青铜鼎 8 张已签核 Tier-1 证据卡（保留 SHA-256 指纹、最低版本防回滚与 ADR-006 冲突检测）与只读工具返回值；每条回答均附折叠「依据与边界」抽屉核对来源。
+3. **先讲人话，边界分层**：主气泡优先给出清晰、可立刻对照观察的策展讲解；常规回答将边界收进折叠抽屉，问到边界问题时自然坦诚说明。
+4. **镜头不等于注视**：被动读取 3D `viewerState (active / mode / view)` 仅用于避免重复提示，绝不臆测用户自由拖动镜头时正在盯哪处细节。
+5. **零重依赖、可运营、低成本**：前后端零新增第三方 AI 框架；保留每日额度（`200` 次/天）、并发上限（`4`）、运维暂停文件、同源校验与无状态限流。
 
-## 2. v1 范围
+## 2. v2 能力范围（已拍板 D1–D4）
 
-| 项 | 范围 |
+| 项 | v2 范围 |
 | --- | --- |
-| 展品 | 青铜鼎：藏品 `heluo-bronze-ding`，3D 展项 `heluo-bronze-ding-3d` |
-| 看点 | `ear`（鼎耳）/ `feet`（三足）/ `motif`（纹样） |
-| 知识 | 8 张卡：SOURCE、EARS、FEET、MOTIF、RECORD-02、MODEL-02、PERIOD、SIZE |
-| 界面 | 全站问答面板 `LuoshengSiteGuide` + 展签只读讲解 `LuoshengPreset` |
-| 模型 | 接话 + 选卡（M3 后）；关闭时为确定性检索 |
-| 语言 | 仅 `zh-CN`；英文界面不显示洛笙 |
+| **覆盖范围** | 全馆已发布公开内容：全部藏品（6 件）+ 文化专题（3 篇）+ 3D 展项（青铜鼎）+ 文创商城（3 件）+ 未来 14 天公开预约时段 |
+| **双语支持（D1）** | 中英双语自适应（`zh-CN` / `en-US` 均开放洛笙，跟随前端 `locale`） |
+| **通信协议（D2）** | `POST /api/v1/guide/chat/stream`（SSE 真流式，`status`/`delta`/`replace`/`done`）+ `POST /api/v1/guide/chat`（JSON 自动兜底与评测入口） |
+| **静态图版（D3）** | `LuoshengPreset.vue` 精简为青铜鼎只读 3 看点静态图版卡 +「向洛笙追问」+「3D 定位」（兼作无 WebGL 降级） |
+| **模型与额度（D4）** | DeepSeek（`deepseek-chat`，OpenAI Chat Completions 兼容协议）；日上限 `200` 次/天、最大并发 `4` |
+| **只读工具（3 个）** | `get_museum_item_detail`、`search_museum_catalog`、`query_appointment_slots`（单轮最多 2 次往返，绝不写库） |
 
-**不做（v1）**：第二件展品、看点扩展、意图分类器、语音、跨设备、个性化路线、多展品对比、新的审签工具。
-
-## 3. 架构
+## 3. 系统架构与核心文件
 
 ```mermaid
 flowchart LR
-    Q["游客输入或点选"] --> I["前端意图解析<br/>luoshengIntent.ts + lexicon"]
-    I -->|导航 / 找物 / 时段| N["站内路由与公开接口"]
-    I -->|当前展品取证| T["POST /api/v1/guide/turns"]
-    T --> R["后端取证<br/>GuideFollowUpRetrieval + 档案"]
-    R --> E["证据读取与可见性<br/>指纹 / 最低版本 / 撤回 / 冲突"]
-    E --> G["生成器<br/>接话 + 选卡（模型可关）"]
-    G --> V["校验：原文照录 + 黑名单"]
-    V --> A["回答 + 一个动作 + 出处"]
-    V -->|失败| F["确定性回答 / 缺证说明"]
+    UI["LuoshengSiteGuide.vue<br/>多轮流式抽屉 + sessionStorage"] -->|"SSE / JSON"| Ctrl["GuideChatController<br/>同源校验 + 无状态限流 + 幂等"]
+    Ctrl --> Orch["GuideOrchestrator<br/>暂停文件 / 日限额 / 并发池"]
+    Orch --> KB["GuideKnowledgeService<br/>MySQL 60s 缓存 + SHA256 8 卡"]
+    Orch --> Prompt["GuidePromptBuilder"]
+    Prompt --> LLM["GuideLlmClient<br/>JDK17 HttpClient + Tools"]
+    LLM <--> Tools["GuideToolExecutor<br/>3 只读工具"]
+    LLM --> Parser["GuideStreamParser<br/>24 字符前置缓冲"]
+    Parser --> Val["GuideResponseValidator<br/>引用/动作白名单 + 红线"]
+    Val -->|"降级/红线 replace"| FB["GuideDeterministicFallback<br/>馆藏资料直出"]
+    UI <--> Store["luoshengStore.ts<br/>pendingViewerAction"]
+    Store <--> Viewer["ExhibitDetailView + ThreeExhibitViewer<br/>focusPart(ear/feet/motif)"]
 ```
 
-| 层 | 主要文件 |
+| 层 | 核心文件 |
 | --- | --- |
-| 前端意图与词表 | `frontend/src/lib/luoshengIntent.ts`、`luoshengLexicon.ts`、`frontend/src/assets/guide/lexicon.zh-CN.json` |
-| 前端参观状态 | `frontend/src/stores/luoshengVisit.ts` |
-| 前端界面 | `frontend/src/components/LuoshengSiteGuide.vue`、`LuoshengPreset.vue`、`LuoshengApprovedFigure.vue` |
-| 后端接口 | `GuideTurnController`（问答）、`GuideExhibitController`（已审讲解） |
-| 后端取证与证据 | `GuideFollowUpRetrieval`、`GuideRetrievalSession`、`GuideEvidenceReader`、`GuideEvidenceFileSource`、`GuideEvidenceVisibility`、`GuideProfile` |
-| 后端生成与交付 | `GuideStructuredGenerator`（提示词 v6，M3 升为 v7）、`GuideAnswerDelivery`、`GuideVoice`、`GuideChatCompletionModel` |
-| 文案源包 | `docs/plans/luosheng-copy/`（voice、ui、建议问题、提示词）；运行时副本须与源包哈希一致 |
+| 后端配置与安全内核 | `GuideProperties`、`GuideEvidenceFileSource`、`GuideEvidenceVisibility`、`GuideEvidenceReader`、`GuideDailyGenerationLimit`、`GuideRateLimiter` |
+| 后端知识与工具 | `GuideKnowledgeService`、`GuideToolExecutor` |
+| 后端编排、流式与护栏 | `GuideModels`、`GuidePromptBuilder`、`GuideLlmClient`、`GuideStreamParser`、`GuideResponseValidator`、`GuideDeterministicFallback`、`GuideOrchestrator`、`GuideChatController`、`GuideExhibitController` |
+| 网关与安全配置 | `SecurityConfiguration.java`（`DispatcherType.ASYNC` + 新路由）、`frontend/nginx.conf`（`/api/v1/guide/chat/stream` 关闭 `proxy_buffering`） |
+| 前端核心模块 | `guideTypes.ts`、`guideClient.ts`、`guidePresets.ts`、`luoshengStore.ts`、`LuoshengSiteGuide.vue`、`LuoshengPreset.vue`、`LuoshengApprovedFigure.vue`、`ThreeExhibitViewer.vue` |
+| 单一路径评测与 E2E | `scripts/luosheng-eval.mjs` + `docs/luosheng/eval/v2-questions.json`；`frontend/scripts/luosheng-e2e.mjs`、`luosheng-isolation.mjs` |
 
-## 4. 开关（现状 → M4 目标）
+## 4. 开关与部署配置（2 个核心开关）
 
-| 现状 | 作用 | M4 后 |
+| 变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `VITE_GUIDE_SITE_ENABLED` + `VITE_GUIDE_TURNS_ENABLED` | 全站面板与问答 | `VITE_GUIDE_ENABLED` |
-| `VITE_GUIDE_PRESET_ENABLED` | 展签只读讲解 | 并入 `VITE_GUIDE_ENABLED` |
-| `DEV` / `VITE_GUIDE_UNIFIED_PREVIEW` | 开发预览组件 | 删除 |
-| `museum.guide.turns-enabled` / `preset-enabled` | 后端接口注册 | `museum.guide.enabled` |
-| — | 模型接话 | `museum.guide.model-enabled` |
-| `museum.guide.pause-path` | 运维暂停文件 | 保留 |
-| `museum.guide.daily-turn-limit` | 每日生成上限 | 保留，已定为 `200` 次/天 |
-| `museum.guide.max-concurrent-generations` | 并发生成上限（M3 新增） | 有界线程池，默认 `4` |
+| `VITE_GUIDE_ENABLED` | `false` | 前端唯一构建期开关；为 `false` 时零 UI、零 `/api/v1/guide/` 请求 |
+| `MUSEUM_GUIDE_ENABLED` | `false` | 后端唯一功能开关，控制 `GuideChatController` 与 `GuideExhibitController` 注册 |
+| `MUSEUM_GUIDE_MODEL_ENABLED` | `true` | 为 `false` 时直接走确定性馆藏直出（诚实标注 `馆藏资料直出`） |
+| `MUSEUM_GUIDE_MODEL_ENDPOINT` / `MODEL_NAME` / `MODEL_KEY` | DeepSeek 默认 | `MODEL_KEY` 留空时自动回退读取 `DEEPSEEK_API_KEY` |
+| `MUSEUM_GUIDE_PACK_PATH` / `MINIMUM_VERSION_PATH` / `APPROVED_DIGEST_PATH` | 空（可选） | 配置后启用青铜鼎 Tier-1 签名证据卡（SHA-256 + 防回滚 + ADR-006） |
+| `MUSEUM_GUIDE_DAILY_TURN_LIMIT` / `MAX_CONCURRENT_GENERATIONS` / `RATE_LIMIT_PER_MINUTE` | `200` / `4` / `12` | 运营额度、并发池与无状态限频 |
+| `MUSEUM_GUIDE_PAUSE_PATH` | 空 | 文件存在时立即进入运维暂停提示，不影响 3D 与其余页面 |
 
-部署细节见 [deploy/README.md](../../deploy/README.md#洛笙全站导览)。
+## 5. 当前状态（2026-11-23）
 
-## 5. 内容与签核（ADR-009）
-
-- 内容负责人：用户本人。审阅 → 提交 → 打 tag 即发布。
-- 运行时校验保留：卡包指纹、最低版本、可见性、撤回、ADR-006 冲突拦截。
-- M2 起卡片使用 schema v3：`spoken`（念给游客）、`boundary`（问到才说）、`systemConstraints`（代码执行，不展示）。
-- 缺来源的问题进入缺口清单，回答"现有资料不足以确认，缺的是……"，不用模型常识补。
-
-## 6. 门禁
-
-| 档位 | 必须通过 |
-| --- | --- |
-| PR 级 | 前端 `typecheck` + 相关单测 + `build`；后端相关测试类 |
-| 里程碑级 | 全量前后端测试；v1 题集；2 个浏览器脚本 × 390 深色 / 1440 浅色 |
-| 发布级 | 8 卡已签并打 tag；红队 10/10；选卡 ≥85%；50 条接话含事实 = 0；5 人中 ≥4 人完成北极星任务；真机一次；暂停与关闭演练；生产隔离通过 |
-
-## 7. 当前状态（≤10 行，只写现在）
-
-- 2026-11-22：Phase 0–4 全部工程与真实 DeepSeek v7 评测已完成（JSON 服从 100%、红队 100%、选卡 88.5%、P95 517ms）。
-- 已交付：`content/luosheng/ding.zh-CN.json`（Schema v3）、`luosheng-structured-v7`、4 并发有界线程池、每日额度 200、大白话通道、`LuoshengPreview` 移除与 5 轮轻量对话流。
-- 剩余放行项（须作者本人完成）：审定 `v3-card-diff.md` 打 tag、抽查 `v7-leads.md`、5 人真人试用 + 真机走查（`trial-v1.md`）、演示站开启与安全阀演练。
-- 下一步：审查 diff 提交后，完成上述人工验收项即可在演示站公开开启。
+- **Phase 0–5 改造与全量验收已全部通过**：
+  - 后端 `mvn test`：`92 / 92` 通过（含全馆知识、3 工具边界、SHA-256 防篡改/防回滚、ADR-006 冲突、24 字符流式缓冲、回环 Mock OpenAI SSE/工具调用/红线 `replace`/真降级）。
+  - 前端 `vue-tsc -b` 0 错误、`vitest run` `74` 文件 / `444` 用例全绿、`vite build` 与包体预算门禁全绿（首屏 JS gzip `77,202 B` / 预算 `81,638 B`，首屏 CSS gzip `9,253 B` / 预算 `80,000 B`）。
+  - 真实 DeepSeek 36 题单一路径评测（直连 `/api/v1/guide/chat`，详见 [v2-eval.md](./eval/v2-eval.md)）：总计 `35/36`（`97.2%`），非红队 `29/30`（**96.7%** ≥ 90%），红队 `6/6`（**100%**），动作合法率 `36/36`（**100%**），真 AI 模式 `36/36`，P50 `2,545 ms` / P95 `4,385 ms`。
+  - Playwright 浏览器实测（`390×844` 深色 + `1440×900` 浅色）：`luosheng-e2e.mjs` 与 `luosheng-isolation.mjs` 全通过，零控制台报错、零横向溢出、关闭态零 UI 与零 `/api/v1/guide/` 请求。
+- 下一步：等待用户审查 `git diff` 确认提交，并在目标部署环境按需开启 `VITE_GUIDE_ENABLED=true` 与 `MUSEUM_GUIDE_ENABLED=true`。

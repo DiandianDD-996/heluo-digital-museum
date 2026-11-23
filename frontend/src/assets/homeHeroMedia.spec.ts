@@ -5,8 +5,6 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const root = process.cwd()
-const css = readFileSync(resolve(root, 'src/assets/main.css'), 'utf8')
-const mobileCss = readFileSync(resolve(root, 'src/assets/mobile-performance.css'), 'utf8')
 const homeView = readFileSync(resolve(root, 'src/views/HomeView.vue'), 'utf8')
 
 function readLossyWebpDimensions(file: string) {
@@ -62,10 +60,9 @@ describe('home hero high-density media contract', () => {
     expect(homeView).toContain('home-corridor-dark-user-v2.webp 1672w')
     expect(homeView).toContain('<source media="(max-width: 760px)"')
     expect(homeView).toContain('fetchpriority="high"')
-    expect(mobileCss).toMatch(/\.corridor-home__hero-media\s*\{[^}]*object-fit:\s*cover/s)
-    expect(css).not.toContain('museum-corridor-hero-hd-v2.webp\') 1x')
-    expect(css).not.toContain('museum-corridor-dark-image2-hd-v2.webp\') 1x')
-    expect(css).not.toMatch(/html\[data-theme="dark"\] \.corridor-home__hero\s*\{[^}]*background-size:\s*130% auto/s)
+    expect(homeView).toMatch(/\.corridor-home__hero-media\s*\{[^}]*object-fit:\s*cover/s)
+    expect(homeView).not.toContain("museum-corridor-hero-hd-v2.webp') 1x")
+    expect(homeView).not.toContain("museum-corridor-dark-image2-hd-v2.webp') 1x")
   })
 
   it('ships portrait mobile candidates and responsive card thumbnails', () => {

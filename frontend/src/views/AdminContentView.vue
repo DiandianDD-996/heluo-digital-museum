@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import '../assets/route-admin-legacy.css'
-import '../assets/task-pages.css'
-import '../assets/control-surface-polish.css'
+import '../styles/07-admin.css'
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { ElOption, ElSelect } from 'element-plus'

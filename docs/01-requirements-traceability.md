@@ -34,12 +34,12 @@
 | N-05 | P1 | Docker Compose 部署、Flyway 迁移、备份与隔离恢复 | 已完成（公网正式化另行立项） |
 | N-06 | P1 | 类型检查、前后端单测、构建与文档可维护性 | 已完成 |
 
-## 3. 可选扩展：洛笙 AI 向导（ADR-009 收敛 v1）
+## 3. 可选扩展：洛笙 AI 向导 v2（ADR-010）
 
-> 唯一活文档：[docs/luosheng/README.md](luosheng/README.md)；执行方案：[2026-11-22-luosheng-review-and-reset.md](plans/2026-11-22-luosheng-review-and-reset.md)。
+> 唯一活文档：[docs/luosheng/README.md](luosheng/README.md)；架构决策：[ADR-010](decisions/ADR-010-luosheng-v2-museum-agent.md)；改造方案：[2026-11-23-luosheng-v2-architecture.md](plans/2026-11-23-luosheng-v2-architecture.md)；真模型评测报告：[v2-eval.md](luosheng/eval/v2-eval.md)。
 
-| ID | 需求范围 | 当前状态 | 剩余门禁（v1 发布级） |
+| ID | 需求范围 | 当前状态 | 验收结果 |
 | --- | --- | --- | --- |
-| LS-01～LS-04 | 入口克制、青铜鼎看点定位、口语追问与零幻觉证据安全 | 工程已完成（Phase 1–3 通过 DeepSeek 实测与单测） | 作者审定 `v3-card-diff.md` 打 tag + 抽查 `v7-leads.md` 52 条接话 |
-| LS-05～LS-06 | 权限边界、单界面合一、5 轮对话流与无障碍降级 | 工程已完成（Phase 4 删 Preview、开关 7 合 3、5 轮对话流） | 5 人真人试用（≥4/5 达标）与手机真机走查（`trial-v1.md`） |
-| LS-07～LS-08 | 并发安全（4 并发池）、每日额度（200/天）、暂停文件与关闭态隔离 | 工程已完成（`GuideV7ConvergenceTests` 4 并发通过） | 演示站开启配置与暂停/关闭演练各 1 次 |
+| LS-01～LS-04 | 全馆实时知识 Grounding（6 藏品 + 3 专题 + 3D + 文创 + 14 天预约）、3 只读工具、Tier-1 SHA-256/防回滚/ADR-006 安全内核与三层护栏 | **已完成** | 后端 `mvn test` 92/92 通过；真实 DeepSeek 36 题单一路径评测非红队 29/30（96.7%）、红队 6/6（100%）、动作合法率 36/36（100%） |
+| LS-05～LS-06 | 中英双语自适应（D1）、SSE 真流式 + JSON 兜底（D2）、多轮 `sessionStorage` 持久化、3D 展柜局部聚焦联动与只读 3 看点静态图版降级（D3） | **已完成** | 前端 `vue-tsc` 0 错误、`vitest` 74 文件/444 用例全绿、`vite build` 包体预算通过；Playwright `luosheng-e2e.mjs` 在 390 深色 & 1440 浅色全通过 |
+| LS-07～LS-08 | 并发池（4）、每日额度（200/天）、无状态限流、热暂停文件、Nginx SSE 关缓冲与关闭态严格隔离 | **已完成** | `GuideV2IntegrationTests` 覆盖降级/限流/暂停/幂等；Playwright `luosheng-isolation.mjs` 验证 `VITE_GUIDE_ENABLED=false` 下零 UI 与零 `/api/v1/guide/` 请求（Docker 实机部署后抽检一次 Nginx 流式） |

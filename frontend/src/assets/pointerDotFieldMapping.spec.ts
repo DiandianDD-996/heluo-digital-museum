@@ -24,18 +24,16 @@ describe('pointer dot field page mapping', () => {
     expect(readView('ExploreView')).not.toContain('PointerDotField')
   })
 
-  it('retains the jade and gold identity without extra heat cores or outlines', () => {
-    const source = readFileSync(resolve(process.cwd(), 'src/components/PointerDotField.vue'), 'utf8')
+  it('routes PointerDotField through the curated multi-preset light renderer with clean shadow reset', () => {
+    const componentSource = readFileSync(resolve(process.cwd(), 'src/components/PointerDotField.vue'), 'utf8')
+    const rendererSource = readFileSync(resolve(process.cwd(), 'src/lib/lightFieldRenderers.ts'), 'utf8')
 
-    expect(source).toContain("'rgba(8, 117, 87, .4)'")
-    expect(source).toContain("'rgba(255, 220, 56, 1)'")
-    expect(source).toContain("'rgba(7, 124, 92, .34)'")
-    expect(source).toContain("'rgba(255, 204, 20, .99)'")
-    expect(source).not.toContain('hotGoldCore')
-    expect(source).toContain('context!.shadowBlur = bronze ? 3 : 7')
-    expect(source).not.toContain("activeJade: 'rgb(0 126 92)'")
-    expect(source).toContain("context!.shadowColor = 'transparent'")
-    expect(source).not.toContain('coreJade:')
-    expect(source).not.toContain('lineWidth = bronze ? 3.2 : 2.4')
+    expect(componentSource).toContain('renderLightField')
+    expect(componentSource).toContain('useLightPreset')
+    expect(rendererSource).toContain("ctx.shadowColor = 'transparent'")
+    expect(rendererSource).toContain('drawCelestial')
+    expect(rendererSource).toContain('drawLuoshui')
+    expect(rendererSource).toContain('drawSpotlight')
+    expect(rendererSource).toContain('drawKintsugi')
   })
 })

@@ -1,19 +1,12 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import './assets/tokens.css'
-import './assets/base.css'
-import './assets/glass.css'
-import './assets/main.css'
-import './assets/interaction.css'
-import './assets/pointer-motion.css'
-import './assets/moonhall-light.css'
-import './assets/tactile-ui.css'
-import './assets/light-ui-material-depth.css'
-import './assets/mobile-performance.css'
-import './assets/theme-controls.css'
-import './assets/artifact-awaken.css'
-import './assets/audio-control.css'
-import './assets/view-transitions.css'
+import './styles/00-layers.css'
+import './styles/01-tokens.css'
+import './styles/02-reset-base.css'
+import './styles/03-surfaces.css'
+import './styles/04-components.css'
+import './styles/05-shell.css'
+import './styles/06-motion.css'
 import App from './App.vue'
 import router from './router'
 import { pointerSurface } from './directives/pointerSurface'
@@ -22,7 +15,12 @@ import { applyDevicePerformanceTier } from './lib/devicePerformance'
 
 const performanceTier = applyDevicePerformanceTier()
 const mountApplication = () => {
-  createApp(App).use(createPinia()).use(router).directive('pointer-surface', pointerSurface).directive('artifact-awaken', artifactAwaken).mount('#app')
+  createApp(App)
+    .use(createPinia())
+    .use(router)
+    .directive('pointer-surface', pointerSurface)
+    .directive('artifact-awaken', artifactAwaken)
+    .mount('#app')
 }
 
 if (performanceTier === 'constrained') {

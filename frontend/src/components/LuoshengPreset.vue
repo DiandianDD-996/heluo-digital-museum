@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, useId, watch, type Component } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
-import ui from '../assets/guide/ui.zh-CN.json'
-import { ApiRequestError, apiGet } from '../lib/api'
-import { GUIDE_ARTIFACT, GUIDE_EXHIBIT, guideVisit, type GuideStop } from '../lib/luoshengPreview'
-import { unifiedGuideTurns, useLuoshengVisit } from '../stores/luoshengVisit'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import '../assets/luosheng-palette.css'
+import { apiGet } from '../lib/api'
+import { GUIDE_EXHIBIT_SLUG, type GuidePartName } from '../lib/guideTypes'
+import { useLocale } from '../stores/locale'
+import { useLuoshengStore } from '../stores/luoshengStore'
+import LuoshengApprovedFigure from './LuoshengApprovedFigure.vue'
 
-interface Entry {
+interface PresetEntry {
   cardId: string
   revision: number
   text: string
@@ -15,226 +17,261 @@ interface Entry {
 
 const props = defineProps<{ exhibitSlug: string }>()
 const route = useRoute()
-const relatedPath = computed(() => route.name === 'artifact-detail' ? `/exhibits/${GUIDE_EXHIBIT}` : `/artifacts/${GUIDE_ARTIFACT}`)
-const visit = unifiedGuideTurns ? useLuoshengVisit() : null
-const ApprovedFigure = shallowRef<Component>()
-const figureFailed = ref(false)
-const cards = { ear: 'LS-DING-EARS', feet: 'LS-DING-FEET', motif: 'LS-DING-MOTIF' } as const
-const labels = ui.site.pointNames
-const selected = ref<GuideStop | null>(null)
-const compare = ref(false)
-const observation = ref<HTMLElement>()
-const selectedCard = computed(() => selected.value && entries.value.find(entry => entry.cardId === cards[selected.value!]))
-const points = computed(() => (Object.keys(cards) as GuideStop[]).filter(point => entries.value.some(entry => entry.cardId === cards[point])))
-const headingId = useId()
-const readingId = useId()
-const heading = ref<HTMLElement>()
-const reopen = ref<HTMLButtonElement>()
-const visible = ref(false)
-const mode = ref<'quiet' | 'invite' | 'open'>('quiet')
-const entries = ref<Entry[]>([])
-const busy = ref(false)
-let request: AbortController | undefined
-let figureTimeout: ReturnType<typeof setTimeout> | undefined
-let readyTarget: NonNullable<NonNullable<typeof visit>['target']> | undefined
+const router = useRouter()
+const { locale } = useLocale()
+const guideStore = useLuoshengStore()
 
-async function readEntries() {
-  request?.abort()
-  const current = new AbortController()
-  request = current
+const isEnglish = computed(() => locale.value === 'en-US')
+const entries = ref<PresetEntry[]>([])
+const selectedStop = ref<GuidePartName>('ear')
+const compareFeet = ref(false)
+let controller: AbortController | undefined
+
+const CARD_BY_STOP: Record<GuidePartName, string> = {
+  ear: 'LS-DING-EARS',
+  feet: 'LS-DING-FEET',
+  motif: 'LS-DING-MOTIF',
+}
+
+const FALLBACK_COPY: Record<GuidePartName, { zh: string; en: string; askZh: string; askEn: string }> = {
+  ear: {
+    zh: '从上往下看，鼎口两边各立起一只像把手的结构，展签里称它为鼎耳。可以切到俯视图对比口沿两侧这对立耳的轮廓。',
+    en: 'Viewed from above, two upright handle-like loops rise symmetrically from the rim (referred to as ding ears). Switch to the top view to compare their silhouette.',
+    askZh: '顶上那对立耳能用来提吗？为什么长在口沿上？',
+    askEn: 'Can those upright ears on top be used for lifting?',
+  },
+  feet: {
+    zh: '侧面看只有两条腿，是因为第三只足正好被鼎身挡住了。换到背面，中间和两边一共三只足都能清楚看见。',
+    en: 'Only two legs appear from a side angle because the third leg is occluded by the vessel body. Switch to the back view to see all three tripod legs clearly.',
+    askZh: '为什么侧面看只有两条腿，背面就能看到三条？',
+    askEn: 'Why are only two legs visible from the side view?',
+  },
+  motif: {
+    zh: '看正面局部图，鼎口下方器腹一圈有凸出的宽线，可以顺着它看清向内转折的轮廓。',
+    en: 'In the front close-up, a raised band of broad lines encircles the upper belly below the rim, guiding your eye along the inward curve.',
+    askZh: '器腹那一圈凸起的宽线纹样应该怎么观察？',
+    askEn: 'How should I inspect the raised relief band around the belly?',
+  },
+}
+
+const stops = computed(() => [
+  { key: 'ear' as GuidePartName, label: isEnglish.value ? 'Upright Ears' : '口沿双耳' },
+  { key: 'feet' as GuidePartName, label: isEnglish.value ? 'Three Tripod Legs' : '器底三足' },
+  { key: 'motif' as GuidePartName, label: isEnglish.value ? 'Belly Relief Motif' : '器腹纹样' },
+])
+
+const activeCaption = computed(() => {
+  if (!isEnglish.value) {
+    const matched = entries.value.find(item => item.cardId === CARD_BY_STOP[selectedStop.value])
+    if (matched?.text) return matched.text
+  }
+  return isEnglish.value ? FALLBACK_COPY[selectedStop.value].en : FALLBACK_COPY[selectedStop.value].zh
+})
+
+async function loadPresetEntries() {
+  controller?.abort()
+  controller = new AbortController()
   try {
-    const response = await apiGet<{ available: boolean; entries: Entry[] }>(
-      `/guide/exhibits/${encodeURIComponent(props.exhibitSlug)}?locale=zh-CN`, undefined,
-      { signal: current.signal, timeoutMs: 5000 },
+    const data = await apiGet<{ available: boolean; entries: PresetEntry[] }>(
+      `/guide/exhibits/${encodeURIComponent(props.exhibitSlug)}?locale=zh-CN`,
+      undefined,
+      { signal: controller.signal, timeoutMs: 5000 },
     )
-    if (!current.signal.aborted) return response.available ? response.entries : []
-  } catch (error) {
-    if (!current.signal.aborted && error instanceof ApiRequestError && error.code === 'NETWORK_ERROR') return null
-    if (!current.signal.aborted) return []
+    if (!controller.signal.aborted && data.available) {
+      entries.value = data.entries
+    }
+  } catch {
+    // Graceful fallback to embedded captions when preset API is unavailable
   }
 }
 
-onMounted(async () => {
-  const available = await readEntries()
-  if (!available?.length) {
-    if (available && visit?.target?.path === route.path) visit.failTarget(visit.target, 'plate')
-    return
+watch(
+  () => guideStore.pendingPlateAction,
+  (action) => {
+    if (!action) return
+    const consumed = guideStore.consumePlateAction()
+    if (!consumed) return
+    selectedStop.value = consumed.stop
+    compareFeet.value = Boolean(consumed.compare)
+  },
+  { immediate: true },
+)
+
+function askLuoshengAboutStop(event: MouseEvent) {
+  const prompt = isEnglish.value
+    ? FALLBACK_COPY[selectedStop.value].askEn
+    : FALLBACK_COPY[selectedStop.value].askZh
+  guideStore.openGuide(event.currentTarget as HTMLElement, prompt)
+}
+
+function focusStopIn3D() {
+  const viewByStop: Record<GuidePartName, 'top' | 'back' | 'front'> = {
+    ear: 'top',
+    feet: 'back',
+    motif: 'front',
   }
-  visible.value = true
-  if (!visit && guideVisit.claimInvitation()) mode.value = 'invite'
-  if (visit?.target) void takeTarget()
+  guideStore.queueViewerAction({
+    exhibitSlug: GUIDE_EXHIBIT_SLUG,
+    part: selectedStop.value,
+    view: viewByStop[selectedStop.value],
+    mode: 'solid',
+    label: selectedStop.value,
+  })
+  if (route.path !== `/exhibits/${GUIDE_EXHIBIT_SLUG}`) {
+    void router.push(`/exhibits/${GUIDE_EXHIBIT_SLUG}`)
+  } else {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+}
+
+onMounted(() => {
+  void loadPresetEntries()
 })
 
 onBeforeUnmount(() => {
-  request?.abort()
-  clearTimeout(figureTimeout)
-  figureTimeout = undefined
+  controller?.abort()
 })
-
-watch(selectedCard, card => {
-  if (!unifiedGuideTurns || !card || ApprovedFigure.value
-    || figureFailed.value || figureTimeout !== undefined) return
-  const settle = (component?: Component) => {
-    if (figureTimeout === undefined) return
-    clearTimeout(figureTimeout)
-    figureTimeout = undefined
-    if (component) ApprovedFigure.value = component
-    else figureFailed.value = true
-  }
-  figureTimeout = setTimeout(() => settle(), 8000)
-  void import('./LuoshengApprovedFigure.vue').then(module => settle(module.default), () => settle())
-})
-
-async function open(keepCurrentOnNetworkError = false) {
-  mode.value = 'open'
-  busy.value = true
-  const result = readEntries()
-  await nextTick()
-  heading.value?.focus()
-  const available = await result
-  if (available === undefined) return
-  // Only a same-plate return can keep what is already on screen. An explicit
-  // empty/denied response still clears the previous entries.
-  if (available !== null || !keepCurrentOnNetworkError) entries.value = available ?? []
-  busy.value = false
-}
-
-async function takeTarget() {
-  const target = visit?.target
-  if (!visit || !target || target.path !== route.path) return
-  const currentPlate = mode.value === 'open' && selected.value === target.stop
-    && compare.value === target.compare && Boolean(selectedCard.value && observation.value)
-  await open(currentPlate)
-  if (visit.target !== target || route.path !== target.path) return
-  if (!points.value.includes(target.stop)) {
-    visit.failTarget(target, 'plate')
-    return
-  }
-  selected.value = target.stop
-  compare.value = target.compare
-  readyTarget = target
-  await nextTick()
-  completeTarget()
-}
-
-function completeTarget() {
-  const target = readyTarget
-  const title = observation.value
-  if (!visit || !target || !title || visit.target !== target || route.path !== target.path) return
-  const content = title.nextElementSibling
-  if (!(content instanceof HTMLElement) || content.dataset.lookpoint !== target.stop
-    || content.dataset.compare !== String(target.compare) || !content.querySelector('[data-observation-text]')?.textContent?.trim()) return
-  readyTarget = undefined
-  title.focus({ preventScroll: true })
-  title.scrollIntoView({ block: 'center', behavior: 'instant' })
-  visit.arrive(target, !figureFailed.value)
-}
-function onFigureReady() {
-  completeTarget()
-  if (visit && selected.value && visit.object?.path === route.path) {
-    visit.recordPlateView({ path: route.path, stop: selected.value, compare: compare.value })
-  }
-}
-watch(() => visit?.target, () => { if (visible.value) void takeTarget() })
-watch(figureFailed, completeTarget, { flush: 'post' })
-
-async function close() {
-  request?.abort()
-  readyTarget = undefined
-  entries.value = []
-  busy.value = false
-  mode.value = 'quiet'
-  visit?.confirm(null)
-  await nextTick()
-  reopen.value?.focus()
-}
 </script>
 
 <template>
-  <section v-if="visible" class="preset-guide" :aria-labelledby="headingId" @keydown.esc="mode === 'open' && close()">
-    <header>
-      <span class="preset-mark" aria-hidden="true">{{ ui.preset.mark }}</span>
-      <h2 :id="headingId" ref="heading" tabindex="-1">{{ ui.brand.name }}</h2>
-      <span class="preset-label">{{ ui.preset.label }}</span>
-    </header>
-    <p v-if="mode === 'invite'" class="preset-invite">{{ ui.preset.invite }}</p>
-    <div v-if="mode !== 'open'" class="preset-actions">
-      <button ref="reopen" type="button" :aria-controls="readingId" aria-expanded="false" @click="open()">
-        {{ mode === 'invite' ? ui.preset.accept : ui.preset.read }}
-      </button>
-      <button v-if="mode === 'invite'" type="button" class="preset-quiet" @click="close">{{ ui.entry.selfTour }}</button>
-    </div>
-    <div v-show="mode === 'open'" :id="readingId" class="preset-reading">
-      <p v-if="busy" role="status">{{ ui.preset.loading }}</p>
-      <p v-else-if="!entries.length" role="status">{{ ui.preset.unavailable }}</p>
-      <ul v-else>
-        <li v-for="entry in entries" :key="entry.cardId">
-          <p>{{ entry.text }}</p>
-          <a v-if="entry.publicSource" :href="entry.publicSource" target="_blank" rel="noopener noreferrer">{{ ui.preset.source }}</a>
-        </li>
-      </ul>
-      <div v-if="visit && points.length" class="preset-actions" role="group" :aria-label="ui.preset.choosePoint">
-        <button v-for="point in points" :key="point" type="button" :aria-pressed="selected === point"
-          @click="selected = point; compare = false; visit.confirm(point)">{{ labels[point] }}</button>
-      </div>
-      <div v-if="visit && selected && selectedCard">
-        <h3 ref="observation" tabindex="-1">{{ (figureFailed ? ui.preset.observation : ui.site.plate).replace('{point}', labels[selected]) }}</h3>
-        <component :is="ApprovedFigure" v-if="ApprovedFigure" v-model:compare="compare" :stop="selected" :caption="selectedCard.text"
-          @ready="onFigureReady" />
-        <div v-else-if="figureFailed" :data-lookpoint="selected" :data-compare="String(compare)">
-          <p role="status">{{ ui.preset.plateUnavailable }}</p>
-          <p data-observation-text>{{ selectedCard.text }}</p>
+  <section id="luosheng-static-plates" class="preset-plate-card luosheng-palette" aria-labelledby="luosheng-plates-heading">
+    <header class="preset-plate-card__header">
+      <div class="preset-plate-card__title">
+        <span class="preset-plate-card__seal" aria-hidden="true">笙</span>
+        <div>
+          <h2 id="luosheng-plates-heading">{{ isEnglish ? '3 Key Lookpoints · Static Plates' : '青铜鼎 3 处看点图版' }}</h2>
+          <p>{{ isEnglish ? 'Read-only static reference plates (also available without WebGL).' : '只读静态对照图版，无 WebGL 设备也可清晰观察细节。' }}</p>
         </div>
-        <button type="button" @click="visit.openFrom($event.currentTarget as HTMLElement)">{{ ui.preset.followUp }}</button>
-        <RouterLink :to="relatedPath" class="museum-button" @click.exact="visit.target = { path: relatedPath, stop: selected, compare }">
-          {{ route.name === 'artifact-detail' ? ui.preset.view3d.replace('{point}', labels[selected]) : ui.preset.returnToArtifact }}
-        </RouterLink>
       </div>
-      <div class="preset-actions">
-        <button type="button" class="preset-quiet" @click="close">{{ ui.preset.end }}</button>
+      <div class="preset-plate-card__tabs" role="tablist" :aria-label="isEnglish ? 'Observation lookpoints' : '观察看点切换'">
+        <button
+          v-for="item in stops"
+          :key="item.key"
+          type="button"
+          role="tab"
+          :aria-selected="selectedStop === item.key"
+          :class="{ 'is-active': selectedStop === item.key }"
+          @click="selectedStop = item.key; compareFeet = false"
+        >
+          {{ item.label }}
+        </button>
       </div>
+    </header>
+
+    <div class="preset-plate-card__body">
+      <LuoshengApprovedFigure v-model:compare="compareFeet" :stop="selectedStop" :caption="activeCaption" />
     </div>
+
+    <footer class="preset-plate-card__footer">
+      <button type="button" class="preset-plate-btn preset-plate-btn--primary" @click="askLuoshengAboutStop">
+        {{ isEnglish ? 'Ask Luosheng about this detail' : '向洛笙追问这处细节' }}
+      </button>
+      <button type="button" class="preset-plate-btn preset-plate-btn--secondary" @click="focusStopIn3D">
+        {{ isEnglish ? 'Focus in 3D Showcase' : '在 3D 展柜定位查看' }}
+      </button>
+    </footer>
   </section>
 </template>
 
 <style scoped>
-.preset-guide {
-  max-inline-size: 68rem;
-  margin: 1.75rem auto;
-  padding: clamp(1.1rem, 3vw, 2rem);
-  border: 1px solid var(--theme-border);
-  border-radius: 1.25rem;
-  background: var(--theme-surface-content);
-  color: var(--color-ink);
+.preset-plate-card {
+  width: min(calc(100% - 2rem), 68rem);
+  margin: var(--space-8) auto;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  background: var(--guide-paper);
+  color: var(--guide-ink);
+  display: grid;
+  gap: var(--space-5);
 }
-.preset-guide header, .preset-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; }
-.preset-guide header { padding-block-end: .9rem; border-block-end: 1px solid var(--theme-border); }
-.preset-guide h2 { margin: 0; font: 1.5rem var(--font-display); }
-.preset-mark {
+.preset-plate-card__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-hairline);
+}
+.preset-plate-card__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.preset-plate-card__seal {
   display: grid;
   place-items: center;
-  inline-size: 2.25rem;
-  block-size: 2.25rem;
-  border: 1px solid var(--color-bronze);
-  border-radius: .6rem;
-  font-family: var(--font-display);
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--guide-metal);
+  border-radius: var(--radius-xs);
+  color: var(--guide-metal);
+  font-family: var(--guide-head);
+  font-weight: 600;
+  flex-shrink: 0;
 }
-.preset-label { font-size: .875rem; color: var(--theme-text-muted); }
-.preset-invite, .preset-reading p { margin: .9rem 0; line-height: 1.75; }
-.preset-actions { margin-block-start: .9rem; }
-.preset-actions button {
-  min-block-size: 44px;
-  padding: .5rem 1rem;
-  border: 1px solid var(--theme-border-strong);
-  border-radius: .7rem;
-  background: var(--color-ink);
-  color: var(--color-paper);
-  font: inherit;
+.preset-plate-card__title h2 {
+  margin: 0;
+  font-family: var(--guide-head);
+  font-size: var(--text-lg);
+  line-height: 1.3;
+}
+.preset-plate-card__title p {
+  margin: 0.2rem 0 0;
+  font-size: var(--text-xs);
+  color: var(--guide-muted);
+}
+.preset-plate-card__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.preset-plate-card__tabs button {
+  min-height: var(--control-min);
+  padding: 0 0.9rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle);
+  color: var(--ink-secondary);
+  font-size: var(--text-xs);
+  font-weight: 600;
   cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-curatorial), background var(--duration-fast) var(--ease-curatorial);
 }
-.preset-actions .preset-quiet { background: var(--theme-surface-control); color: var(--color-ink); }
-.preset-reading ul { margin: 0; padding: 0; list-style: none; }
-.preset-reading li { padding-block: .15rem .85rem; border-block-end: 1px solid var(--theme-border); }
-.preset-reading a { text-decoration: underline; text-underline-offset: .2em; }
-.preset-guide :is(button, a, h2):focus-visible { outline: 2px solid var(--color-bronze); outline-offset: 3px; }
+.preset-plate-card__tabs button.is-active {
+  border-color: var(--guide-signal);
+  background: var(--guide-signal);
+  color: var(--guide-action-ink);
+}
+.preset-plate-card__footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-hairline);
+}
+.preset-plate-btn {
+  min-height: var(--control-min);
+  padding: 0 1.15rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-curatorial), opacity var(--duration-fast) var(--ease-curatorial);
+}
+.preset-plate-btn--primary {
+  border: 1px solid var(--guide-action);
+  background: var(--guide-action);
+  color: var(--guide-action-ink);
+}
+.preset-plate-btn--secondary {
+  border: 1px solid var(--border-strong);
+  background: var(--surface-subtle);
+  color: var(--ink-primary);
+}
+.preset-plate-btn:hover {
+  opacity: 0.92;
+  border-color: var(--guide-metal);
+}
 </style>

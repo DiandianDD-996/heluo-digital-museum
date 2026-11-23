@@ -1,35 +1,22 @@
+/* Luosheng AI Guide — Unified directly with Heluo Editorial 2.0 tokens.
+ * Zero hardcoded hex literals; automatically adapts to Daylight Paper & Nocturne Gallery.
+ */
 .luosheng-palette {
-  --guide-paper: #faf8f2;
-  --guide-screen: #eef2eb;
-  --guide-mount: #f2efe6;
-  --guide-field: #fcfaf5;
-  --guide-reply: #fbfaf5;
-  --guide-edge: #b4bcb1;
-  --guide-ink: #172c25;
-  --guide-muted: #4f625a;
-  --guide-signal: #246452;
-  --guide-metal: #795832;
-  --guide-action: #205344;
-  --guide-action-ink: #fffaf0;
-  --guide-head: "Noto Serif SC", "Songti SC", "SimSun", serif;
-  --guide-body-font: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", var(--font-body);
-  --guide-etch: color-mix(in oklch, var(--guide-metal) 24%, transparent);
-}
-
-html[data-theme="dark"] .luosheng-palette {
-  --guide-paper: #242321;
-  --guide-screen: #191e1d;
-  --guide-mount: #1e1e1c;
-  --guide-field: #2a2c29;
-  --guide-reply: #252d2a;
-  --guide-edge: #494a43;
-  --guide-ink: #ede8df;
-  --guide-muted: #b7b7ac;
-  --guide-signal: #a9c2b5;
-  --guide-metal: #c9ad87;
-  --guide-action: #c9ad87;
-  --guide-action-ink: #251e17;
-  --guide-field-edge: #77796d;
-  --guide-screen-light: 4%;
-  --guide-screen-rule: var(--guide-metal);
+  --guide-paper: var(--surface-elevated);
+  --guide-screen: var(--surface-subtle);
+  --guide-mount: var(--surface-subtle);
+  --guide-field: var(--surface-canvas);
+  --guide-reply: var(--surface-subtle);
+  --guide-edge: var(--border-strong);
+  --guide-field-edge: var(--border-strong);
+  --guide-ink: var(--ink-primary);
+  --guide-muted: var(--ink-muted);
+  --guide-signal: var(--accent-jade);
+  --guide-metal: var(--accent-bronze);
+  --guide-action: var(--accent-jade);
+  --guide-action-ink: var(--accent-jade-ink);
+  --guide-head: var(--font-display);
+  --guide-body-font: var(--font-body);
+  --guide-etch: color-mix(in oklch, var(--accent-bronze) 24%, transparent);
+  --guide-screen-rule: var(--accent-bronze);
 }

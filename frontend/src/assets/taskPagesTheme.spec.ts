@@ -5,73 +5,39 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8')
-const css = read('src/assets/task-pages.css')
+const adminCss = read('src/styles/07-admin.css')
 const entry = read('src/main.ts')
 const login = read('src/views/LoginView.vue')
-const routeOwners = [
-  'src/views/AppointmentView.vue',
-  'src/views/LoginView.vue',
-  'src/views/ProfileView.vue',
-  'src/views/AdminContentView.vue',
-  'src/views/AdminOperationsView.vue',
-]
+const profile = read('src/views/ProfileView.vue')
+const appointment = read('src/views/AppointmentView.vue')
 
-describe('task page theme contract', () => {
-  it('loads only with the task routes instead of the public home bundle', () => {
-    expect(entry).not.toContain("import './assets/task-pages.css'")
-    for (const path of routeOwners) expect(read(path)).toContain("import '../assets/task-pages.css'")
-    const appointment = read('src/views/AppointmentView.vue')
-    expect(appointment.indexOf("import '../assets/control-surface-polish.css'"))
-      .toBeGreaterThan(appointment.indexOf("import '../assets/task-pages.css'"))
+describe('task pages and admin workspace theme contract (Heluo Editorial 2.0)', () => {
+  it('keeps admin styles route-scoped instead of bloating the public home bundle', () => {
+    expect(entry).not.toContain('07-admin.css')
+    expect(read('src/views/AdminContentView.vue')).toContain("import '../styles/07-admin.css'")
+    expect(read('src/views/AdminOperationsView.vue')).toContain("import '../styles/07-admin.css'")
   })
 
-  it('scopes account access separately from the existing profile workspace', () => {
-    // Matched by class set rather than a literal opening tag: the page
-    // section also carries a `data-motion-page` hook, and an assertion on
-    // the exact string would fail on any attribute added before or after
-    // `class` — order that carries no meaning in HTML.
-    const sectionTag = [...login.matchAll(/<[^>]*>/g)]
-      .map((match) => match[0])
-      .find((tag) => (/(?:^|\s)class="([^"]*)"/.exec(tag)?.[1] ?? '').split(/\s+/).includes('task-auth-page'))
-    expect(sectionTag).toBeDefined()
-    expect(sectionTag).toContain('auth-page')
-    expect(css).toContain('.task-auth-page .auth-panel')
-    expect(css).toContain('.profile-page .profile-account-panel')
-    expect(css).toContain('html #app .task-auth-page .auth-panel[data-glass="dark"]')
+  it('scopes login 55:45 split layout and visitor archive profile independently with tokens only', () => {
+    expect(login).toContain('task-auth-page')
+    expect(login).toContain('grid-template-columns: 55fr 45fr')
+    expect(login).toContain('auth-story__scrim')
+    expect(login).not.toMatch(/#[0-9a-f]{3,8}\b/i)
+
+    expect(profile).toContain('profile-page')
+    expect(profile).toContain('profile-account-panel')
+    expect(profile).not.toMatch(/#[0-9a-f]{3,8}\b/i)
+
+    expect(appointment).toContain('museum-pass')
+    expect(appointment).not.toContain('task-pages.css')
   })
 
-  it('uses the four semantic surfaces across booking, account and admin pages', () => {
-    for (const token of [
-      '--theme-surface-canvas',
-      '--theme-surface-section',
-      '--theme-surface-content',
-      '--theme-surface-control',
-    ]) expect(css).toContain(token)
-    expect(css).toMatch(/\.appointment-form :where\(input, textarea\)[\s\S]*?min-height: var\(--theme-control-min\)/)
-    expect(css).toMatch(/\.task-auth-page \.auth-panel :where\(input, textarea, select\)[\s\S]*?background: var\(--theme-surface-control\) !important/)
-    expect(css).toMatch(/\.admin-list-filters :where\(input, select\)[\s\S]*?min-height: var\(--theme-control-min\)/)
-  })
-
-  it('keeps focus and accessibility fallbacks explicit', () => {
-    expect(css).toContain('box-shadow: var(--theme-focus-ring)')
-    expect(css).toContain('@media (prefers-reduced-transparency: reduce), (prefers-contrast: more)')
-    expect(css).toContain('@media (forced-colors: active)')
-  })
-
-  it('keeps the admin workbench quiet and dense', () => {
-    expect(css).toContain('.admin-main::before { display: none; }')
-    expect(css).toMatch(/\.admin-workspace \.dashboard-summary article \{ min-height: 88px;/)
-    expect(css).toMatch(/\.admin-list--operations article:hover \{ background: var\(--theme-surface-control-hover\); box-shadow: none; transform: none;/)
-    expect(css).toContain('html #app .admin-workspace .admin-sidebar[data-glass="dark"]')
-    expect(css).toContain('html #app .admin-workspace .admin-create :where(input, textarea, select, .el-select__wrapper)')
-    expect(css).toContain('html #app .admin-workspace .admin-insights[data-glass="light"] > article')
-  })
-
-  it('gives the light admin workbench its own readable navigation and control contract', () => {
-    expect(read('src/components/AdminShell.vue')).toContain(":data-glass=\"isDark ? 'dark' : 'light'\"")
-    expect(css).toContain('html:not([data-theme="dark"]) #app .admin-workspace .admin-sidebar[data-glass="light"]')
-    expect(css).toContain('background: linear-gradient(135deg, #176451, #0e4c40)')
-    expect(css).toContain('.admin-workspace .admin-actions .admin-action-button { min-height: 44px;')
-    expect(css).toContain('outline: 2px solid #438675')
+  it('keeps the admin workbench quiet, dense, flush and Element-Plus harmonized', () => {
+    expect(adminCss).toContain('grid-template-columns: 240px minmax(0, 1fr)')
+    expect(adminCss).toContain('height: 100dvh')
+    expect(adminCss).toContain('font-variant-numeric: tabular-nums')
+    expect(adminCss).toContain('--el-color-primary: var(--accent-jade)')
+    expect(adminCss).not.toMatch(/#[0-9a-f]{3,8}\b/i)
+    expect(adminCss).not.toContain('!important')
   })
 })

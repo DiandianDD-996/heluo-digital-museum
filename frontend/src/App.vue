@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, watch, watchEffect } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch, watchEffect } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { setUnauthorizedHandler } from './lib/api'
 import { User } from '@element-plus/icons-vue'
@@ -8,17 +8,22 @@ import { installInteractionSounds, removeInteractionSounds } from './lib/interac
 import { useAuthStore } from './stores/auth'
 import { useLocale } from './stores/locale'
 import { useTheme } from './stores/theme'
-import { unifiedGuideEnabled, useLuoshengVisit } from './stores/luoshengVisit'
+import { guideEnabled, useLuoshengStore } from './stores/luoshengStore'
 import AudioControl from './components/AudioControl.vue'
 import LoadingSkeleton from './components/LoadingSkeleton.vue'
 import MuseumBrandSeal from './components/MuseumBrandSeal.vue'
-import PointerCursor from './components/PointerCursor.vue'
 
 const auth = useAuthStore()
 const { locale, t, toggle } = useLocale()
 const { isDark, toggle: toggleTheme } = useTheme()
 const route = useRoute()
 const router = useRouter()
+const headerScrolled = ref(false)
+
+function updateHeaderScroll() {
+  headerScrolled.value = window.scrollY > 24
+}
+
 setUnauthorizedHandler((token) => {
   if (token !== auth.token) return
   auth.expireSession(token)
@@ -27,56 +32,127 @@ setUnauthorizedHandler((token) => {
     void router.push({ name: 'login', query: { returnTo: route.fullPath, reason: 'expired' } })
   }
 })
+
 const shellCopy = computed(() => locale.value === 'zh-CN' ? {
-  museum: '河洛数字博物馆', brandSubtitle: 'HELUO DIGITAL MUSEUM', skip: '跳到主要内容', nav: '主导航', loading: '正在打开页面', mobileNav: '移动端主导航',
+  museum: '河洛数字博物馆',
+  brandSubtitle: 'HELUO DIGITAL MUSEUM',
+  skip: '跳到主要内容',
+  nav: '主导航',
+  loading: '正在打开页面',
+  mobileNav: '移动端主导航',
   mobile: ['首页', '馆藏', '展厅', '预约', '文创'],
+  footerMission: '把远在展柜里的青铜、玉石与河洛旧事，搬到触手可及的屏幕前——先在线上慢慢看，有空再约线下相见。',
+  footerAddress: '概念馆址：河南省洛阳市洛龙区开元大道与学府街交叉口',
+  footerHours: '开放时段：周二至周日 09:00–17:00（周一闭馆）',
+  footerIndexTitle: '快速导览',
+  footerProfile: '个人档案',
+  footerStatementTitle: '策展与来源声明',
+  footerStatement: '本站为数字博物馆概念策展项目，展示原创图文与开放馆藏数字重建，预约与文创支付均为教学演示流程。',
+  footerCredit: '青铜鼎 3D 展项参考克利夫兰艺术博物馆 CC0 公开模型（1962.281）重建并标注溯源。',
+  footerCopyright: '© 2026 河洛数字博物馆 · HELUO DIGITAL MUSEUM',
 } : {
-  museum: 'Heluo Digital Museum', brandSubtitle: '河洛数字博物馆', skip: 'Skip to main content', nav: 'Primary navigation', loading: 'Opening page', mobileNav: 'Mobile navigation',
+  museum: 'Heluo Digital Museum',
+  brandSubtitle: '河洛数字博物馆',
+  skip: 'Skip to main content',
+  nav: 'Primary navigation',
+  loading: 'Opening page',
+  mobileNav: 'Mobile navigation',
   mobile: ['Home', 'Collection', 'Gallery', 'Booking', 'Store'],
+  footerMission: 'Re-reading Heluo ritual bronzes, jade and river heritage through calm digital curation — explore online first, then meet offline.',
+  footerAddress: 'Concept Venue: Kaiyuan Ave & Xuefu St, Luolong District, Luoyang',
+  footerHours: 'Opening Hours: Tue–Sun 09:00–17:00 (Closed Mondays)',
+  footerIndexTitle: 'Quick Index',
+  footerProfile: 'Visitor Archive',
+  footerStatementTitle: 'Curatorial & Attribution',
+  footerStatement: 'A concept digital museum platform featuring original curation and open-heritage 3D reconstructions. Bookings and store checkout use simulated flows.',
+  footerCredit: '3D Bronze Ding reconstructed with attribution to Cleveland Museum of Art CC0 public reference (1962.281).',
+  footerCopyright: '© 2026 Heluo Digital Museum · Luoyang',
 })
+
 const pageTitles: Record<string, [string, string]> = {
-  home: ['首页', 'Home'], explore: ['探索馆藏', 'Explore Collection'], 'artifact-detail': ['文物故事', 'Artifact Story'], 'article-detail': ['文化专题', 'Cultural Feature'],
-  exhibits: ['数字展厅', '3D Gallery'], 'exhibit-detail': ['3D 数字展项', '3D Exhibit'], appointment: ['预约参观', 'Visit Booking'], shop: ['河洛文创', 'Museum Store'],
-  login: ['账户登录', 'Sign In'], 'reset-password': ['重置密码', 'Reset Password'], profile: ['个人中心', 'Profile'],
+  home: ['首页', 'Home'],
+  explore: ['探索馆藏', 'Explore Collection'],
+  'artifact-detail': ['文物故事', 'Artifact Story'],
+  'article-detail': ['文化专题', 'Cultural Feature'],
+  exhibits: ['数字展厅', '3D Gallery'],
+  'exhibit-detail': ['3D 数字展项', '3D Exhibit'],
+  appointment: ['预约参观', 'Visit Booking'],
+  shop: ['河洛文创', 'Museum Store'],
+  login: ['账户登录', 'Sign In'],
+  'reset-password': ['重置密码', 'Reset Password'],
+  profile: ['个人中心', 'Profile'],
   'not-found': ['页面不存在', 'Page not found'],
 }
+
 const accountLabel = computed(() => locale.value === 'en-US' && auth.user?.nickname === '博物馆管理员' ? 'Museum Administrator' : auth.user?.nickname)
 const mobileAccountLabel = computed(() => locale.value === 'zh-CN' ? (auth.loggedIn ? '我的' : '登录') : (auth.loggedIn ? 'Account' : 'Sign in'))
 const isAdminRoute = computed(() => route.path.startsWith('/admin'))
 const showMobileTabs = computed(() => !isAdminRoute.value && !route.path.startsWith('/login') && !route.path.startsWith('/reset-password'))
 const shellRouteClass = computed(() => `app-shell--${String(route.name ?? 'unknown')}`)
-const showSiteFooter = computed(() => !isAdminRoute.value && route.name !== 'appointment' && route.name !== 'shop')
-const SiteGuide = import.meta.env.VITE_GUIDE_ENABLED === 'true' || import.meta.env.VITE_GUIDE_SITE_ENABLED === 'true'
+const showSiteFooter = computed(() => !isAdminRoute.value && route.name !== 'exhibit-detail' && route.name !== 'login' && route.name !== 'reset-password')
+
+const SiteGuide = guideEnabled
   ? defineAsyncComponent(() => import('./components/LuoshengSiteGuide.vue'))
   : null
+const PointerCursor = defineAsyncComponent(() => import('./components/PointerCursor.vue'))
+const LightPresetSwitcher = defineAsyncComponent(() => import('./components/LightPresetSwitcher.vue'))
 const siteGuideRoutes = ['home', 'explore', 'artifact-detail', 'article-detail', 'exhibits', 'exhibit-detail', 'appointment', 'shop']
-const visit = unifiedGuideEnabled ? useLuoshengVisit() : null
-watch(() => route.path, path => {
-  visit?.enterPath(path, String(route.name))
-  if (!siteGuideRoutes.includes(String(route.name))) visit?.end()
-}, { flush: 'sync' })
-watch([locale, () => auth.token], ([language]) => {
-  if (!visit) return
-  visit.end()
-  if (language !== 'zh-CN') visit.object = null
-}, { flush: 'sync' })
-onMounted(auth.initialize)
-// Interaction cues cover the whole app from one place, so a control added
-// to any view is heard without its author wiring anything.
-onMounted(installInteractionSounds)
-onBeforeUnmount(removeInteractionSounds)
-// The soundscape follows the route for the whole app, not per page: the
-// bed is meant to be continuous, and a page that started its own would
-// restart the music on every navigation.
+const lightSwitcherRoutes = ['explore', 'exhibits', 'appointment', 'shop']
+const guideStore = guideEnabled ? useLuoshengStore() : null
+
+watch(() => route.fullPath, () => {
+  if (!guideStore) return
+  const routeName = String(route.name ?? 'home')
+  if (!siteGuideRoutes.includes(routeName)) {
+    guideStore.closeGuide()
+    return
+  }
+  const slug = typeof route.params.slug === 'string' ? route.params.slug : null
+  const localizedTitle = pageTitles[routeName]?.[locale.value === 'zh-CN' ? 0 : 1] ?? ''
+  if (routeName !== 'artifact-detail' && routeName !== 'article-detail' && routeName !== 'exhibit-detail') {
+    guideStore.setPageContext({
+      route: routeName,
+      path: route.path,
+      title: localizedTitle,
+      artifactSlug: null,
+      exhibitSlug: null,
+      articleSlug: null,
+    })
+  } else {
+    guideStore.setPageContext({
+      route: routeName,
+      path: route.path,
+      title: localizedTitle,
+      artifactSlug: routeName === 'artifact-detail' ? slug : null,
+      exhibitSlug: routeName === 'exhibit-detail' ? slug : null,
+      articleSlug: routeName === 'article-detail' ? slug : null,
+    })
+  }
+}, { immediate: true })
+
+onMounted(() => {
+  void auth.initialize()
+  installInteractionSounds()
+  updateHeaderScroll()
+  window.addEventListener('scroll', updateHeaderScroll, { passive: true })
+})
+
+onBeforeUnmount(() => {
+  removeInteractionSounds()
+  window.removeEventListener('scroll', updateHeaderScroll)
+  musicDirector.reset()
+})
+
 musicDirector.setRoute(route.name, route.params.slug)
 musicDirector.init()
 watch([() => route.name, () => route.params.slug], ([name, slug]) => musicDirector.setRoute(name, slug))
-onBeforeUnmount(() => musicDirector.reset())
+
 watch(() => route.path, async (_, previousPath) => {
   if (!previousPath) return
   await nextTick()
   document.querySelector<HTMLElement>('#main-content')?.focus({ preventScroll: true })
 })
+
 watchEffect(() => {
   const routeName = String(route.name ?? '')
   const localizedTitle = pageTitles[routeName]?.[locale.value === 'zh-CN' ? 0 : 1] ?? (typeof route.meta.title === 'string' ? route.meta.title : '')
@@ -90,49 +166,147 @@ watchEffect(() => {
 
 <template>
   <div class="app-shell" :class="shellRouteClass">
-      <PointerCursor :disabled="isAdminRoute || ['shop', 'profile', 'login', 'reset-password'].includes(String(route.name))" />
-      <a class="skip-link" href="#main-content">{{ shellCopy.skip }}</a>
-      <header v-if="!isAdminRoute" class="site-header" data-glass="light">
-        <RouterLink class="brand" to="/">
+    <a class="skip-link" href="#main-content">{{ shellCopy.skip }}</a>
+
+    <header v-if="!isAdminRoute" class="site-header" :class="{ 'is-scrolled': headerScrolled }" data-glass="light">
+      <RouterLink class="brand" to="/">
         <MuseumBrandSeal class="brand-seal" />
         <span class="brand-copy"><b>{{ shellCopy.museum }}</b><small>{{ shellCopy.brandSubtitle }}</small></span>
-        </RouterLink>
-        <nav :aria-label="shellCopy.nav">
-          <RouterLink to="/explore">{{ t.explore }}</RouterLink>
-          <RouterLink to="/exhibits">{{ t.exhibits }}</RouterLink>
-          <RouterLink to="/appointment">{{ t.appointment }}</RouterLink>
-          <RouterLink to="/shop">{{ t.shop }}</RouterLink>
-          <RouterLink v-if="auth.isAdmin" to="/admin">{{ t.admin }}</RouterLink>
-        </nav>
-        <div class="site-utilities">
-          <AudioControl />
-          <button class="theme-toggle" data-glass="compact" data-glass-interactive type="button" :aria-label="isDark ? (locale === 'zh-CN' ? '切换到浅色模式' : 'Switch to light mode') : (locale === 'zh-CN' ? '切换到深色模式' : 'Switch to dark mode')" :aria-pressed="isDark" @click="toggleTheme">
-            <svg v-if="isDark" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42" /></svg>
-            <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.5A8 8 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z" /></svg>
-            <span>{{ isDark ? (locale === 'zh-CN' ? '浅色' : 'Light') : (locale === 'zh-CN' ? '深色' : 'Dark') }}</span>
-          </button>
-          <button class="locale-toggle" data-glass="compact" data-glass-interactive type="button" @click="toggle">{{ t.language }}</button>
-          <RouterLink v-if="auth.loggedIn" class="login-link" data-glass="compact" data-glass-interactive to="/profile" :aria-label="accountLabel || mobileAccountLabel">
-            <User class="account-icon" aria-hidden="true" /><span class="account-label--desktop">{{ accountLabel || mobileAccountLabel }}</span><span class="account-label--mobile">{{ mobileAccountLabel }}</span>
-          </RouterLink>
-          <RouterLink v-else class="login-link" data-glass="compact" data-glass-interactive to="/login" :aria-label="t.login">
-            <User class="account-icon" aria-hidden="true" /><span class="account-label--desktop">{{ t.login }}</span><span class="account-label--mobile">{{ mobileAccountLabel }}</span>
-          </RouterLink>
-        </div>
-      </header>
-      <main id="main-content" class="site-main" :class="{ 'site-main--admin': isAdminRoute }" tabindex="-1">
-        <div class="route-frame">
-          <RouterView v-slot="{ Component }"><Suspense><div class="route-view"><component :is="Component" :key="route.path" /></div><template #fallback><LoadingSkeleton class="route-loading" :lines="4" :label="shellCopy.loading" /></template></Suspense></RouterView>
-        </div>
-      </main>
-      <footer v-if="showSiteFooter" class="site-footer"><span>HELUO CIVILIZATION</span><span>{{ t.footer }}</span><i aria-hidden="true"></i></footer>
-      <nav v-if="showMobileTabs" class="mobile-tab-bar" data-glass="light" :aria-label="shellCopy.mobileNav">
-        <RouterLink to="/" exact-active-class="is-active"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 10 8-6 8 6v9H4zM9 19v-5h6v5" /></svg><span>{{ shellCopy.mobile[0] }}</span></RouterLink>
-        <RouterLink to="/explore"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4.5 4.5" /></svg><span>{{ shellCopy.mobile[1] }}</span></RouterLink>
-        <RouterLink to="/exhibits"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM8 9h8M8 13h5" /></svg><span>{{ shellCopy.mobile[2] }}</span></RouterLink>
-        <RouterLink to="/appointment"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16" /></svg><span>{{ shellCopy.mobile[3] }}</span></RouterLink>
-        <RouterLink to="/shop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1 12H6zM8 9V7a4 4 0 0 1 8 0v2" /></svg><span>{{ shellCopy.mobile[4] }}</span></RouterLink>
+      </RouterLink>
+
+      <nav :aria-label="shellCopy.nav">
+        <RouterLink to="/explore">{{ t.explore }}</RouterLink>
+        <RouterLink to="/exhibits">{{ t.exhibits }}</RouterLink>
+        <RouterLink to="/appointment">{{ t.appointment }}</RouterLink>
+        <RouterLink to="/shop">{{ t.shop }}</RouterLink>
+        <RouterLink v-if="auth.isAdmin" to="/admin">{{ t.admin }}</RouterLink>
       </nav>
-      <SiteGuide v-if="SiteGuide && locale === 'zh-CN' && siteGuideRoutes.includes(String(route.name))" />
+
+      <div class="site-utilities">
+        <AudioControl />
+        <button
+          class="theme-toggle"
+          data-glass="compact"
+          data-glass-interactive
+          type="button"
+          :aria-label="isDark ? (locale === 'zh-CN' ? '切换到浅色模式' : 'Switch to light mode') : (locale === 'zh-CN' ? '切换到深色模式' : 'Switch to dark mode')"
+          :aria-pressed="isDark"
+          @click="toggleTheme"
+        >
+          <svg v-if="isDark" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42" />
+          </svg>
+          <svg v-else viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20 15.5A8 8 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z" />
+          </svg>
+          <span>{{ isDark ? (locale === 'zh-CN' ? '浅色' : 'Light') : (locale === 'zh-CN' ? '深色' : 'Dark') }}</span>
+        </button>
+
+        <button class="locale-toggle" data-glass="compact" data-glass-interactive type="button" @click="toggle">
+          {{ t.language }}
+        </button>
+
+        <RouterLink
+          v-if="auth.loggedIn"
+          class="login-link"
+          data-glass="compact"
+          data-glass-interactive
+          to="/profile"
+          :aria-label="accountLabel || mobileAccountLabel"
+        >
+          <User class="account-icon" aria-hidden="true" />
+          <span class="account-label--desktop">{{ accountLabel || mobileAccountLabel }}</span>
+          <span class="account-label--mobile">{{ mobileAccountLabel }}</span>
+        </RouterLink>
+        <RouterLink
+          v-else
+          class="login-link"
+          data-glass="compact"
+          data-glass-interactive
+          to="/login"
+          :aria-label="t.login"
+        >
+          <User class="account-icon" aria-hidden="true" />
+          <span class="account-label--desktop">{{ t.login }}</span>
+          <span class="account-label--mobile">{{ mobileAccountLabel }}</span>
+        </RouterLink>
+      </div>
+    </header>
+
+    <main id="main-content" class="site-main" :class="{ 'site-main--admin': isAdminRoute }" tabindex="-1">
+      <div class="route-frame">
+        <RouterView v-slot="{ Component }"><Suspense><div class="route-view"><component :is="Component" :key="route.path" /></div><template #fallback><LoadingSkeleton class="route-loading" :lines="4" :label="shellCopy.loading" /></template></Suspense></RouterView>
+      </div>
+    </main>
+
+    <footer v-if="showSiteFooter" class="site-footer">
+      <div class="site-footer__inner">
+        <div class="site-footer__col">
+          <div class="site-footer__brand-head">
+            <MuseumBrandSeal class="site-footer__seal" />
+            <div>
+              <strong>{{ shellCopy.museum }}</strong>
+              <span>{{ shellCopy.brandSubtitle }}</span>
+            </div>
+          </div>
+          <p class="site-footer__mission">{{ shellCopy.footerMission }}</p>
+          <div class="site-footer__visit">
+            <span>{{ shellCopy.footerAddress }}</span>
+            <span>{{ shellCopy.footerHours }}</span>
+          </div>
+        </div>
+
+        <div class="site-footer__col">
+          <h2 class="site-footer__heading">{{ shellCopy.footerIndexTitle }}</h2>
+          <ul class="site-footer__links">
+            <li><RouterLink to="/explore">{{ t.explore }}</RouterLink></li>
+            <li><RouterLink to="/exhibits">{{ t.exhibits }}</RouterLink></li>
+            <li><RouterLink to="/appointment">{{ t.appointment }}</RouterLink></li>
+            <li><RouterLink to="/shop">{{ t.shop }}</RouterLink></li>
+            <li><RouterLink :to="auth.loggedIn ? '/profile' : '/login'">{{ shellCopy.footerProfile }}</RouterLink></li>
+          </ul>
+        </div>
+
+        <div class="site-footer__col">
+          <h2 class="site-footer__heading">{{ shellCopy.footerStatementTitle }}</h2>
+          <p class="site-footer__note">{{ shellCopy.footerStatement }}</p>
+          <p class="site-footer__credit">{{ shellCopy.footerCredit }}</p>
+        </div>
+      </div>
+      <div class="site-footer__bottom">
+        <div class="site-footer__bottom-inner">
+          <span>{{ shellCopy.footerCopyright }}</span>
+          <span>{{ t.footer }}</span>
+        </div>
+      </div>
+    </footer>
+
+    <nav v-if="showMobileTabs" class="mobile-tab-bar" data-glass="light" :aria-label="shellCopy.mobileNav">
+      <RouterLink to="/" exact-active-class="is-active">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 10 8-6 8 6v9H4zM9 19v-5h6v5" /></svg>
+        <span>{{ shellCopy.mobile[0] }}</span>
+      </RouterLink>
+      <RouterLink to="/explore">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4.5 4.5" /></svg>
+        <span>{{ shellCopy.mobile[1] }}</span>
+      </RouterLink>
+      <RouterLink to="/exhibits">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM8 9h8M8 13h5" /></svg>
+        <span>{{ shellCopy.mobile[2] }}</span>
+      </RouterLink>
+      <RouterLink to="/appointment">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16" /></svg>
+        <span>{{ shellCopy.mobile[3] }}</span>
+      </RouterLink>
+      <RouterLink to="/shop">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1 12H6zM8 9V7a4 4 0 0 1 8 0v2" /></svg>
+        <span>{{ shellCopy.mobile[4] }}</span>
+      </RouterLink>
+    </nav>
+
+    <LightPresetSwitcher v-if="!isAdminRoute && lightSwitcherRoutes.includes(String(route.name))" />
+    <SiteGuide v-if="SiteGuide && siteGuideRoutes.includes(String(route.name))" />
+    <PointerCursor />
   </div>
 </template>

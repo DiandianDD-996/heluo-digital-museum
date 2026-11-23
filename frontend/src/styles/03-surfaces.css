@@ -1,0 +1,148 @@
+/* Heluo Editorial 2.0 — Unified Material & Surface System
+ * Four restrained museum materials:
+ *   1. paper    — calm elevated card with 1px hairline
+ *   2. plinth   — artifact/object stage with gallery spotlight
+ *   3. glass    — controlled translucent tiers (light | dark | compact)
+ *   4. spotlight — nocturne top-down gallery beam
+ */
+@layer surface {
+  .surface-paper {
+    background: var(--surface-elevated);
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-md);
+  }
+
+  .surface-subtle {
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-md);
+  }
+
+  .surface-plinth {
+    position: relative;
+    background: var(--surface-spotlight), var(--surface-plinth);
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+
+  .surface-spotlight {
+    background-image: var(--surface-spotlight);
+  }
+
+  /* ── Controlled Museum Glass Tiers ── */
+  [data-glass="light"] {
+    background: var(--glass-light-bg);
+    border: 1px solid var(--glass-light-border);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    box-shadow: var(--glass-highlight), var(--shadow-xs);
+  }
+
+  [data-glass="dark"] {
+    background: var(--glass-dark-bg);
+    border: 1px solid var(--glass-dark-border);
+    color: var(--ink-on-dark);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    box-shadow: var(--glass-highlight), var(--shadow-sm);
+  }
+
+  [data-glass="compact"] {
+    background: var(--glass-compact-bg);
+    border: 1px solid var(--glass-compact-border);
+    backdrop-filter: var(--glass-blur-compact);
+    -webkit-backdrop-filter: var(--glass-blur-compact);
+  }
+
+  [data-glass-interactive] {
+    transition: background-color var(--duration-ui) var(--ease-curatorial),
+                border-color var(--duration-ui) var(--ease-curatorial),
+                color var(--duration-ui) var(--ease-curatorial),
+                box-shadow var(--duration-ui) var(--ease-curatorial);
+  }
+
+  [data-glass-interactive]:hover:not(:disabled) {
+    border-color: var(--border-strong);
+  }
+
+  [data-glass-interactive]:disabled {
+    cursor: not-allowed;
+    opacity: var(--theme-disabled-opacity);
+  }
+
+  /* ── Accessibility & Constrained-device Fallbacks ── */
+  @media (prefers-reduced-transparency: reduce) {
+    [data-glass="light"] {
+      background: var(--glass-light-bg-solid);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+
+    [data-glass="dark"] {
+      background: var(--glass-dark-bg-solid);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+
+    [data-glass="compact"] {
+      background: var(--glass-compact-bg-solid);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+  }
+
+  @media (prefers-contrast: more) {
+    [data-glass="light"],
+    [data-glass="compact"] {
+      background: var(--surface-elevated);
+      border-color: var(--ink-primary);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+
+    [data-glass="dark"] {
+      background: var(--surface-darkroom);
+      border-color: var(--ink-on-dark);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+  }
+
+  /* Mobile coarse-pointer & constrained device performance fallback */
+  @media (pointer: coarse) {
+    [data-glass="compact"] {
+      background: var(--glass-compact-bg-solid);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+  }
+
+  html[data-performance-tier="constrained"] [data-glass] {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  html[data-performance-tier="constrained"] [data-glass="light"],
+  html[data-performance-tier="constrained"] [data-glass="compact"] {
+    background: var(--surface-elevated);
+  }
+
+  html[data-performance-tier="constrained"] [data-glass="dark"] {
+    background: var(--surface-darkroom);
+  }
+
+  @media (forced-colors: active) {
+    [data-glass],
+    .surface-paper,
+    .surface-subtle,
+    .surface-plinth {
+      background: Canvas;
+      color: CanvasText;
+      border-color: CanvasText;
+      box-shadow: none;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+  }
+}

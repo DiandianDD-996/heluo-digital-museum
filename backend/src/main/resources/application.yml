@@ -44,17 +44,15 @@ museum:
   guide:
     enabled: ${MUSEUM_GUIDE_ENABLED:false}
     model-enabled: ${MUSEUM_GUIDE_MODEL_ENABLED:true}
-    preset-enabled: ${MUSEUM_GUIDE_PRESET_ENABLED:false}
     pack-path: ${MUSEUM_GUIDE_PACK_PATH:}
     minimum-version-path: ${MUSEUM_GUIDE_MINIMUM_VERSION_PATH:}
     approved-digest-path: ${MUSEUM_GUIDE_APPROVED_DIGEST_PATH:}
-    turns-enabled: ${MUSEUM_GUIDE_TURNS_ENABLED:false}
-    profile-path: ${MUSEUM_GUIDE_PROFILE_PATH:}
-    model-endpoint: ${MUSEUM_GUIDE_MODEL_ENDPOINT:}
-    model-name: ${MUSEUM_GUIDE_MODEL_NAME:}
+    model-endpoint: ${MUSEUM_GUIDE_MODEL_ENDPOINT:https://api.deepseek.com/chat/completions}
+    model-name: ${MUSEUM_GUIDE_MODEL_NAME:deepseek-chat}
     model-key: ${MUSEUM_GUIDE_MODEL_KEY:}
     daily-turn-limit: ${MUSEUM_GUIDE_DAILY_TURN_LIMIT:200}
     max-concurrent-generations: ${MUSEUM_GUIDE_MAX_CONCURRENT_GENERATIONS:4}
+    rate-limit-per-minute: ${MUSEUM_GUIDE_RATE_LIMIT_PER_MINUTE:12}
     pause-path: ${MUSEUM_GUIDE_PAUSE_PATH:}
   security:
     jwt-secret: ${MUSEUM_JWT_SECRET:}

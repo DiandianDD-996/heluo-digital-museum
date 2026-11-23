@@ -5,53 +5,69 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8')
-const tokens = read('src/assets/tokens.css')
-const glass = read('src/assets/glass.css')
-const controls = read('src/assets/theme-controls.css')
+const layers = read('src/styles/00-layers.css')
+const tokens = read('src/styles/01-tokens.css')
+const base = read('src/styles/02-reset-base.css')
+const surfaces = read('src/styles/03-surfaces.css')
+const components = read('src/styles/04-components.css')
 const entry = read('src/main.ts')
 
-describe('theme foundation and shared controls contract', () => {
-  it('defines four semantic surface layers and shared control states', () => {
+describe('Heluo Editorial 2.0 theme foundation and shared controls contract', () => {
+  it('declares an explicit CSS Cascade Layers hierarchy in entry order', () => {
+    expect(layers).toContain('@layer')
+    expect(layers).toContain('reset, tokens, base, surface, components, views, overrides')
+    expect(entry.indexOf("import './styles/01-tokens.css'")).toBeGreaterThan(entry.indexOf("import './styles/00-layers.css'"))
+    expect(entry.indexOf("import './styles/04-components.css'")).toBeGreaterThan(entry.indexOf("import './styles/03-surfaces.css'"))
+    expect(entry.indexOf("import './styles/05-shell.css'")).toBeGreaterThan(entry.indexOf("import './styles/04-components.css'"))
+  })
+
+  it('defines OKLCH Daylight Paper and Nocturne Gallery semantic tokens with zero hex literals', () => {
     for (const token of [
-      '--theme-surface-canvas',
-      '--theme-surface-section',
-      '--theme-surface-content',
-      '--theme-surface-control',
-      '--theme-primary-surface',
-      '--theme-secondary-surface',
-      '--theme-danger-surface',
-      '--theme-success-surface',
-      '--theme-warning-surface',
-      '--theme-focus-ring',
+      '--surface-canvas',
+      '--surface-subtle',
+      '--surface-elevated',
+      '--surface-spotlight',
+      '--ink-primary',
+      '--ink-secondary',
+      '--ink-muted',
+      '--border-hairline',
+      '--border-strong',
+      '--accent-jade',
+      '--accent-bronze',
+      '--accent-seal',
+      '--focus-ring',
+      '--ease-curatorial',
     ]) expect(tokens).toContain(token)
+
+    expect(tokens).toContain('html[data-theme="dark"]')
+    expect(tokens).not.toMatch(/#[0-9a-f]{3,8}\b/i)
+    expect(tokens).not.toMatch(/\brgba?\(/i)
   })
 
-  it('keeps the three glass layers semantic and provides solid fallbacks', () => {
-    expect(glass).toContain('[data-glass="light"]')
-    expect(glass).toContain('[data-glass="dark"]')
-    expect(glass).toContain('[data-glass="compact"]')
-    expect(glass).toContain('(prefers-reduced-transparency: reduce), (prefers-contrast: more)')
-    expect(glass).toContain('@media (forced-colors: active)')
-    expect(glass).toContain('background: var(--theme-surface-content)')
+  it('keeps the three glass layers semantic and provides solid and forced-color fallbacks', () => {
+    expect(surfaces).toContain('[data-glass="light"]')
+    expect(surfaces).toContain('[data-glass="dark"]')
+    expect(surfaces).toContain('[data-glass="compact"]')
+    expect(surfaces).toContain('@media (prefers-reduced-transparency: reduce)')
+    expect(surfaces).toContain('@media (prefers-contrast: more)')
+    expect(surfaces).toContain('@media (forced-colors: active)')
   })
 
-  it('loads the shared theme control layer after legacy page styling', () => {
-    expect(entry.indexOf("import './assets/theme-controls.css'")).toBeGreaterThan(entry.indexOf("import './assets/pointer-motion.css'"))
-  })
-
-  it('gives shared controls theme semantics, touch size and visible focus', () => {
+  it('gives shared controls unified hairline styling, 44px touch targets and visible focus', () => {
     for (const selector of [
       '.fluid-button',
-      '.admin-action-button',
       '.inline-status',
       '.status-badge',
       '.glass-checkbox__box',
       '.museum-search-field__control',
-    ]) expect(controls).toContain(selector)
+      '.loading-skeleton',
+      '.bottom-sheet',
+      '.editorial-card',
+    ]) expect(components).toContain(selector)
 
-    expect(controls).toContain('min-height: var(--theme-control-min)')
-    expect(controls).toContain('outline: 2px solid var(--theme-focus)')
-    expect(controls).toContain('@media (prefers-reduced-motion: reduce)')
-    expect(controls).toContain('@media (forced-colors: active)')
+    expect(tokens).toContain('--control-min: 44px;')
+    expect(base).toContain(':focus-visible')
+    expect(components).toContain('@media (prefers-reduced-motion: reduce)')
+    expect(components).toContain('@media (forced-colors: active)')
   })
 })

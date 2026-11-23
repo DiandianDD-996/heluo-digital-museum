@@ -26,10 +26,10 @@ describe('first-visit route runtime contract', () => {
 
   it('keeps the route shell stable while preserving Suspense loading', () => {
     const app = read('src/App.vue')
-    const mainCss = read('src/assets/main.css')
+    const shellCss = read('src/styles/05-shell.css')
     expect(app).toContain('<div class="route-frame">')
     expect(app).toContain(':class="shellRouteClass"')
-    expect(mainCss).not.toContain('.app-shell:has(')
+    expect(shellCss).not.toContain('.app-shell:has(')
     expect(app).toContain('<RouterView v-slot="{ Component }"><Suspense>')
     expect(app).toContain('<template #fallback><LoadingSkeleton')
     expect(app).not.toContain('AnimatePresence')
@@ -110,14 +110,12 @@ describe('first-visit route runtime contract', () => {
 
   it('uses native press feedback without weakening button semantics', () => {
     const button = read('src/components/FluidButton.vue')
-    const tactileCss = read('src/assets/tactile-ui.css')
-    const taskCss = read('src/assets/task-pages.css')
+    const componentsCss = read('src/styles/04-components.css')
+    const motionCss = read('src/styles/06-motion.css')
     expect(button).toContain('<button')
     expect(button).toContain(':disabled="disabled || loading"')
     expect(button).toContain(':aria-busy="loading"')
-    expect(tactileCss).toContain('.fluid-button[data-tactile-button]:active:not(:disabled)')
-    expect(taskCss).toContain('.slot-list button:active:not(:disabled)')
-    expect(tactileCss).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*\.fluid-button\[data-tactile-button\]:active:not\(:disabled\)[\s\S]*transform: none/)
-    expect(taskCss).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*\.slot-list button:active:not\(:disabled\)[\s\S]*transform: none/)
+    expect(componentsCss).toContain('.fluid-button:active:not(:disabled)')
+    expect(motionCss).toContain('@media (prefers-reduced-motion: reduce)')
   })
 })

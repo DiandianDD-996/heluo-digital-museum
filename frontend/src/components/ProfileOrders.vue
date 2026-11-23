@@ -61,12 +61,6 @@ async function reconcile(orderId: number) {
 }
 
 async function pay(order: Order) {
-  // No audio cue here on purpose. Both outcomes of this action already ring:
-  // `pay` sets `message` or `error`, and the `InlineStatus` pair below
-  // renders either as a fresh status node with `data-state`, which the
-  // delegated layer observes. Adding one would be a second bell on the same
-  // event — and this is the duplicate-payment path a visitor reaches from
-  // the store, so it should sound identical to checkout instead of richer.
   if (payingId.value !== null) return
   payingId.value = order.id
   message.value = ''
@@ -103,21 +97,198 @@ function formatDeadline(value: string) {
 </script>
 
 <template>
-  <section class="profile-record-section" data-glass="dark" aria-labelledby="profile-orders-title">
-    <header class="profile-record-heading"><div><p class="section-label">{{ locale === 'en-US' ? 'STORE LEDGER' : 'STORE LEDGER / 文创账簿' }}</p><h2 id="profile-orders-title">{{ locale === 'en-US' ? 'Store orders' : '订单记录' }}</h2><p>{{ locale === 'en-US' ? `${total} orders` : `共 ${total} 条订单` }}</p></div><button class="profile-record-retry" type="button" :disabled="loading || payingId !== null" @click="load()" :aria-label="locale === 'en-US' ? 'Refresh store orders' : '刷新订单记录'"><RefreshLeft :size="15" aria-hidden="true" />{{ locale === 'en-US' ? 'Refresh' : '刷新' }}</button></header>
-    <InlineStatus v-if="message" kind="success" :message="message" /><InlineStatus v-if="error" kind="error" :message="error" />
+  <section class="profile-record-section" aria-labelledby="profile-orders-title">
+    <header class="profile-record-heading">
+      <div>
+        <p class="eyebrow">{{ locale === 'en-US' ? 'STORE LEDGER' : 'STORE LEDGER · 文创账簿' }}</p>
+        <h2 id="profile-orders-title">{{ locale === 'en-US' ? 'Store orders' : '订单记录' }}</h2>
+        <p class="profile-record-count">{{ locale === 'en-US' ? `${total} orders` : `共 ${total} 条订单` }}</p>
+      </div>
+      <button class="profile-record-retry" type="button" :disabled="loading || payingId !== null" @click="load()" :aria-label="locale === 'en-US' ? 'Refresh store orders' : '刷新订单记录'">
+        <RefreshLeft aria-hidden="true" />
+        <span>{{ locale === 'en-US' ? 'Refresh' : '刷新' }}</span>
+      </button>
+    </header>
+
+    <InlineStatus v-if="message" kind="success" :message="message" />
+    <InlineStatus v-if="error" kind="error" :message="error" />
+
     <div v-if="loading" class="state-panel">{{ locale === 'en-US' ? 'Loading store orders…' : '正在加载订单记录…' }}</div>
-    <div v-else-if="!items.length && !error" class="state-panel">{{ locale === 'en-US' ? 'No store orders yet. ' : '还没有订单记录。' }}<RouterLink class="profile-record-link" to="/shop">{{ locale === 'en-US' ? 'Browse the store →' : '去文创商城 →' }}</RouterLink></div>
+    <div v-else-if="!items.length && !error" class="state-panel">
+      <p>{{ locale === 'en-US' ? 'No store orders yet.' : '还没有订单记录。' }}</p>
+      <RouterLink class="profile-record-link" to="/shop">{{ locale === 'en-US' ? 'Browse the store →' : '去文创商城 →' }}</RouterLink>
+    </div>
     <div v-else class="profile-record-list">
-      <article v-for="item in items" :key="item.id" class="profile-record-card profile-record-card--order" data-glass="compact">
-        <div class="profile-record-card__body"><span class="profile-record-kicker">{{ item.orderNo }}</span><h3><span>{{ locale === 'en-US' ? 'Total' : '订单金额' }}</span>¥ {{ item.payableAmount }}</h3><p class="profile-order-items">{{ item.items.map((line) => `${line.name} × ${line.quantity}`).join(locale === 'en-US' ? ', ' : '、') }}</p><small>{{ item.notificationEmail }}</small></div>
-        <div class="profile-record-actions"><StatusBadge :status="item.status" /><template v-if="item.status === 'PENDING_PAYMENT'"><small v-if="item.expiresAt">{{ locale === 'en-US' ? 'Pay by (Shanghai)' : '支付截止（北京时间）' }} <time :datetime="item.expiresAt">{{ formatDeadline(item.expiresAt) }}</time></small><FluidButton size="sm" :disabled="payingId !== null && payingId !== item.id" :loading="payingId === item.id" @click="pay(item)">{{ locale === 'en-US' ? 'Continue payment' : '继续支付' }}</FluidButton></template></div>
+      <article v-for="item in items" :key="item.id" class="profile-record-card profile-record-card--order">
+        <div class="profile-record-card__body">
+          <span class="profile-record-kicker font-mono">{{ item.orderNo }}</span>
+          <h3 class="font-mono"><span class="order-amount-label">{{ locale === 'en-US' ? 'Total' : '订单金额' }}</span> ¥ {{ item.payableAmount }}</h3>
+          <p class="profile-order-items">{{ item.items.map((line) => `${line.name} × ${line.quantity}`).join(locale === 'en-US' ? ', ' : '、') }}</p>
+          <small class="profile-order-email">{{ item.notificationEmail }}</small>
+        </div>
+        <div class="profile-record-actions">
+          <StatusBadge :status="item.status" />
+          <template v-if="item.status === 'PENDING_PAYMENT'">
+            <small v-if="item.expiresAt" class="order-deadline">
+              {{ locale === 'en-US' ? 'Pay by' : '支付截止' }} <time class="font-mono" :datetime="item.expiresAt">{{ formatDeadline(item.expiresAt) }}</time>
+            </small>
+            <FluidButton size="sm" :disabled="payingId !== null && payingId !== item.id" :loading="payingId === item.id" @click="pay(item)">
+              {{ locale === 'en-US' ? 'Continue payment' : '继续支付' }}
+            </FluidButton>
+          </template>
+        </div>
       </article>
     </div>
-    <nav v-if="totalPages > 1" class="collection-pagination profile-record-pagination" :aria-label="locale === 'en-US' ? 'Order pages' : '订单记录分页'">
-      <button type="button" :disabled="page <= 1 || loading || payingId !== null" :aria-label="locale === 'en-US' ? 'Previous order page' : '上一页订单记录'" :title="locale === 'en-US' ? 'Previous page' : '上一页'" @click="load(page - 1)"><ArrowLeft aria-hidden="true" /></button>
-      <span aria-current="page">{{ page }} / {{ totalPages }}</span>
-      <button type="button" :disabled="page >= totalPages || loading || payingId !== null" :aria-label="locale === 'en-US' ? 'Next order page' : '下一页订单记录'" :title="locale === 'en-US' ? 'Next page' : '下一页'" @click="load(page + 1)"><ArrowRight aria-hidden="true" /></button>
+
+    <nav v-if="totalPages > 1" class="profile-record-pagination" :aria-label="locale === 'en-US' ? 'Order pages' : '订单记录分页'">
+      <button type="button" :disabled="page <= 1 || loading || payingId !== null" :aria-label="locale === 'en-US' ? 'Previous order page' : '上一页订单记录'" @click="load(page - 1)"><ArrowLeft aria-hidden="true" /></button>
+      <span class="font-mono" aria-current="page">{{ page }} / {{ totalPages }}</span>
+      <button type="button" :disabled="page >= totalPages || loading || payingId !== null" :aria-label="locale === 'en-US' ? 'Next order page' : '下一页订单记录'" @click="load(page + 1)"><ArrowRight aria-hidden="true" /></button>
     </nav>
   </section>
 </template>
+
+<style scoped>
+.profile-record-section {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--surface-elevated);
+}
+
+.profile-record-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.profile-record-heading h2 {
+  margin: 2px 0;
+  font-size: var(--text-xl);
+}
+
+.profile-record-count {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}
+
+.profile-record-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 36px;
+  padding: 0 0.875rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-secondary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.profile-record-retry:hover:not(:disabled) {
+  color: var(--ink-primary);
+  border-color: var(--ink-muted);
+}
+
+.profile-record-retry svg {
+  width: 14px;
+  height: 14px;
+}
+
+.profile-record-link {
+  color: var(--accent-jade);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.profile-record-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.profile-record-card--order {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+}
+
+.profile-record-card__body {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.profile-record-kicker {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}
+
+.profile-record-card__body h3 {
+  font-size: var(--text-lg);
+  color: var(--ink-primary);
+}
+
+.order-amount-label {
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--ink-muted);
+}
+
+.profile-order-items {
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+}
+
+.profile-order-email,
+.order-deadline {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}
+
+.profile-record-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.profile-record-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+}
+
+.profile-record-pagination button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+}
+
+.profile-record-pagination button svg {
+  width: 15px;
+  height: 15px;
+}
+</style>
