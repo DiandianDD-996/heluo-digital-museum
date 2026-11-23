@@ -235,15 +235,20 @@ onBeforeUnmount(() => { ++loadSequence; loadController?.abort() })
           <label><span>分类</span><el-select v-model="activeForm.categoryId" popper-class="museum-select-popper" placeholder="请选择内容分类" required><el-option v-for="category in categories" :key="category.id" :label="category.name" :value="category.id" /></el-select></label>
           <label><span>标题</span><input v-model.trim="activeForm.title" required maxlength="200" @blur="!activeForm.slug && makeSlug()" /></label>
           <label><span>URL 标识</span><input v-model.trim="activeForm.slug" required pattern="[a-z0-9-]+" aria-describedby="slug-help" /><small id="slug-help">仅英文小写、数字和连字符，例如 river-story</small></label>
-          <label v-if="tab === 'artifacts'"><span>登记号 <em>可选</em></span><input v-model.trim="activeForm.accessionNo" maxlength="64" /></label>
-          <div v-if="tab === 'artifacts'" class="admin-form-grid"><label><span>年代 <em>可选</em></span><input v-model.trim="activeForm.period" /></label><label><span>材质 <em>可选</em></span><input v-model.trim="activeForm.material" /></label><label><span>尺寸 <em>可选</em></span><input v-model.trim="activeForm.dimensions" /></label><label><span>典藏地 <em>可选</em></span><input v-model.trim="activeForm.collectionLocation" /></label></div>
-          <label><span>英文标题（可选）</span><input v-model.trim="activeForm.titleEn" maxlength="300" /></label>
-          <label><span>英文摘要（可选）</span><textarea v-model.trim="activeForm.summaryEn" maxlength="1000" rows="3" /></label>
-          <p class="form-hint">{{ !activeForm.titleEn || !activeForm.summaryEn ? '英文译文尚未补齐，无法保证英文搜索命中。' : '英文译文已填写。' }} 修改中文内容后，请同步核对译文。</p>
           <label><span>摘要</span><textarea v-model.trim="activeForm.summary" required maxlength="500" rows="3" /></label>
           <label><span>正文</span><textarea v-model.trim="activeForm.content" required rows="7" /></label>
-          <label><span>封面图片路径 <em>可选</em></span><input v-model.trim="activeForm.coverImageUrl" placeholder="/media/exhibits/…" /></label>
-          <label v-if="tab === 'articles'"><span>前台作者名 <em>可选</em></span><input v-model.trim="activeForm.authorDisplay" /></label>
+          <details class="admin-form-fold" :open="editing">
+            <summary><span>器物规格与双语译文 <em>可选</em></span></summary>
+            <div class="admin-form-fold__body">
+              <label v-if="tab === 'artifacts'"><span>登记号 <em>可选</em></span><input v-model.trim="activeForm.accessionNo" maxlength="64" /></label>
+              <div v-if="tab === 'artifacts'" class="admin-form-grid"><label><span>年代 <em>可选</em></span><input v-model.trim="activeForm.period" /></label><label><span>材质 <em>可选</em></span><input v-model.trim="activeForm.material" /></label><label><span>尺寸 <em>可选</em></span><input v-model.trim="activeForm.dimensions" /></label><label><span>典藏地 <em>可选</em></span><input v-model.trim="activeForm.collectionLocation" /></label></div>
+              <label><span>英文标题 <em>可选</em></span><input v-model.trim="activeForm.titleEn" maxlength="300" /></label>
+              <label><span>英文摘要 <em>可选</em></span><textarea v-model.trim="activeForm.summaryEn" maxlength="1000" rows="3" /></label>
+              <p class="form-hint">{{ !activeForm.titleEn || !activeForm.summaryEn ? '英文译文尚未补齐，无法保证英文搜索命中。' : '英文译文已填写。' }} 修改中文内容后，请同步核对译文。</p>
+              <label><span>封面图片路径 <em>可选</em></span><input v-model.trim="activeForm.coverImageUrl" placeholder="/media/exhibits/…" /></label>
+              <label v-if="tab === 'articles'"><span>前台作者名 <em>可选</em></span><input v-model.trim="activeForm.authorDisplay" /></label>
+            </div>
+          </details>
           <div class="admin-form-actions"><FluidButton type="submit" block :loading="saving">{{ editing ? '保存修改' : '创建草稿' }}</FluidButton><FluidButton v-if="editing" variant="ghost" block :disabled="saving" @click="cancelEditing">取消编辑</FluidButton></div>
         </form>
       </section>

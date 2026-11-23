@@ -5,6 +5,8 @@
 @layer tokens {
   :root {
     color-scheme: light;
+    --hl-surface-inset-sheen: oklch(100% 0 0 / 0.06);
+    --hl-surface-inset-sheen-strong: oklch(100% 0 0 / 0.07);
 
     /* ── Typography (System font refinement, 0 WOFF2) ── */
     --font-display: "Source Han Serif CN", "Noto Serif CJK SC", "Songti SC", "STSong", "FangSong", Georgia, serif;
@@ -65,70 +67,114 @@
     --reading-max: 68ch;
     --control-min: 44px;
 
-    /* ── Light Theme: Daylight Paper (日间宣纸月白展厅) ── */
-    --surface-canvas: oklch(98.2% 0.003 90);
-    --surface-subtle: oklch(95.4% 0.005 90);
-    --surface-elevated: oklch(99.8% 0.001 90);
-    --surface-plinth: oklch(95.8% 0.005 90);
-    --surface-spotlight: radial-gradient(ellipse at 50% 0%, oklch(92% 0.012 86 / 0.42), transparent 72%);
-    --surface-darkroom: oklch(13.5% 0.004 82);
+    /* ── Light Theme: Sunlit Warm Parchment (清雅浅缃黄 · 温润象牙白 — 高级博物馆暖黄基底 + 纯净无噪点卡片层) ── */
+    --surface-canvas: oklch(96.6% 0.015 86);
+    --surface-subtle: oklch(94.6% 0.018 85);
+    --surface-elevated: oklch(99.2% 0.006 86);
+    --surface-plinth: oklch(94.2% 0.016 85);
+    --surface-stone-band: oklch(93.2% 0.016 84);
+    --surface-vitrine: oklch(16.8% 0.004 75);
+    --surface-vitrine-spotlight:
+      radial-gradient(ellipse 74% 60% at 50% 16%, oklch(74% 0.044 78 / 0.24) 0%, oklch(42% 0.018 75 / 0.08) 46%, transparent 74%),
+      linear-gradient(180deg, transparent 70%, oklch(10% 0.002 75 / 0.48) 100%);
+    --surface-skylight-wash:
+      radial-gradient(ellipse 84% 40% at 16% 0%, oklch(99.6% 0.008 88 / 0.72) 0%, transparent 66%),
+      radial-gradient(ellipse 68% 34% at 86% 24%, oklch(91.2% 0.022 83 / 0.28) 0%, transparent 72%);
+    --surface-paper-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.35' numOctaves='1' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)' opacity='0.024'/%3E%3C/svg%3E");
+    --footer-anchor-bg: oklch(15.5% 0.002 75);
+    --footer-anchor-card: oklch(19.6% 0.003 75 / 0.78);
+    --footer-anchor-border: oklch(94% 0.004 82 / 0.12);
+    --footer-anchor-ink: oklch(94.6% 0.005 82);
+    --footer-anchor-secondary: oklch(79% 0.006 80);
+    --footer-anchor-muted: oklch(63% 0.006 78);
+    --footer-anchor-accent: oklch(79% 0.068 78);
+
+    /* 1. 极简建筑隐纬微距十字点 (72x72 98%纯粹留白：仅在建筑坐标点留出一枚3.5px微距细十字，永不抢戏) */
+    --pattern-yunlei: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cg fill='none' stroke='%238a6d40'%3E%3Cpath stroke-width='0.6' stroke-opacity='0.065' d='M36 34V38 M34 36H38'/%3E%3Ccircle cx='0' cy='0' r='0.65' fill='%238a6d40' fill-opacity='0.05' stroke='none'/%3E%3Ccircle cx='72' cy='0' r='0.65' fill='%238a6d40' fill-opacity='0.05' stroke='none'/%3E%3Ccircle cx='0' cy='72' r='0.65' fill='%238a6d40' fill-opacity='0.05' stroke='none'/%3E%3Ccircle cx='72' cy='72' r='0.65' fill='%238a6d40' fill-opacity='0.05' stroke='none'/%3E%3C/g%3E%3C/svg%3E");
+
+    /* 1b. 随鼠微光显影 · 极简古铜微距十字点 (克制耐看，无网格噪点) */
+    --pattern-yunlei-lit: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cg fill='none' stroke='%23926d34'%3E%3Cpath stroke-width='0.75' stroke-opacity='0.18' d='M36 33.5V38.5 M33.5 36H38.5'/%3E%3Ccircle cx='0' cy='0' r='0.8' fill='%23926d34' fill-opacity='0.14' stroke='none'/%3E%3Ccircle cx='72' cy='0' r='0.8' fill='%23926d34' fill-opacity='0.14' stroke='none'/%3E%3Ccircle cx='0' cy='72' r='0.8' fill='%23926d34' fill-opacity='0.14' stroke='none'/%3E%3Ccircle cx='72' cy='72' r='0.8' fill='%23926d34' fill-opacity='0.14' stroke='none'/%3E%3C/g%3E%3C/svg%3E");
+
+    /* 2. 极简宣纸微点 (48x48 仅作极淡质感令牌) */
+    --pattern-brocade: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Ccircle cx='24' cy='24' r='0.65' fill='%238a6d40' fill-opacity='0.06'/%3E%3C/svg%3E");
+
+    /* 2b. 随鼠微光 · 极简微点 */
+    --pattern-brocade-lit: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Ccircle cx='24' cy='24' r='0.75' fill='%23926d34' fill-opacity='0.14'/%3E%3C/svg%3E");
+
+    /* 3. 极简展柜微距十字星点 (48x48 深色器物展台) */
+    --pattern-plinth-lattice: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cpath fill='none' stroke='%23d8be8e' stroke-width='0.55' stroke-opacity='0.055' d='M24 22.5V25.5 M22.5 24H25.5'/%3E%3C/svg%3E");
+
+    /* 3b. 随鼠微光 · 展柜错金微距星点 */
+    --pattern-plinth-lattice-lit: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cpath fill='none' stroke='%23e2c48e' stroke-width='0.68' stroke-opacity='0.14' d='M24 22V26 M22 24H26'/%3E%3C/svg%3E");
+
+    /* 4. 犹抱琵琶半遮面 · 浅缃黄柔光渐隐罩染 */
+    --pattern-veil-gauze:
+      radial-gradient(ellipse 72% 64% at 50% 46%, oklch(96.6% 0.015 86 / 0.80) 0%, oklch(96.6% 0.015 86 / 0.36) 58%, transparent 100%);
+
+    --surface-band: var(--pattern-brocade);
+    --surface-ambient-wash: var(--pattern-yunlei);
+    --surface-card-sheen: var(--pattern-brocade);
+    --surface-spotlight: radial-gradient(ellipse at 50% 0%, oklch(99.5% 0.008 88 / 0.50), transparent 72%);
+    --surface-darkroom: oklch(13.2% 0.005 74);
     --exhibit-stage-bg-color: var(--surface-plinth);
     --exhibit-stage-bg-image:
-      radial-gradient(ellipse 68% 58% at 50% 24%, oklch(99% 0.006 90 / 0.32) 0%, transparent 66%),
-      linear-gradient(180deg, oklch(97% 0.005 90 / 0.22) 0%, transparent 24%, transparent 78%, oklch(95% 0.006 90 / 0.30) 100%),
+      radial-gradient(ellipse 68% 58% at 50% 24%, oklch(99% 0.010 88 / 0.36) 0%, transparent 66%),
+      linear-gradient(180deg, oklch(96.6% 0.015 86 / 0.24) 0%, transparent 24%, transparent 78%, oklch(94.6% 0.018 85 / 0.32) 100%),
       url('/media/editorial/digital-gallery-hall.webp');
 
-    --ink-primary: oklch(19% 0.012 165);
-    --ink-secondary: oklch(38% 0.010 165);
-    --ink-muted: oklch(52% 0.008 160);
-    --ink-on-dark: oklch(96% 0.006 86);
-    --ink-on-dark-muted: oklch(78% 0.006 84);
+    --ink-primary: oklch(19.5% 0.010 72);
+    --ink-secondary: oklch(36% 0.012 72);
+    --ink-muted: oklch(48% 0.014 72);
+    --ink-on-dark: oklch(95.2% 0.006 82);
+    --ink-on-dark-muted: oklch(78% 0.007 78);
 
-    --border-hairline: oklch(22% 0.010 165 / 0.09);
-    --border-strong: oklch(22% 0.010 165 / 0.20);
+    --border-hairline: oklch(32% 0.022 76 / 0.10);
+    --border-strong: oklch(30% 0.026 76 / 0.20);
 
-    --accent-jade: oklch(35% 0.068 166);
-    --accent-jade-hover: oklch(29% 0.064 166);
-    --accent-jade-ink: oklch(98.5% 0.003 90);
-    --accent-bronze: oklch(55% 0.085 74);
-    --accent-bronze-soft: oklch(55% 0.085 74 / 0.13);
-    --accent-seal: oklch(53% 0.145 29);
-    --accent-seal-hover: oklch(46% 0.145 29);
-    --accent-seal-ink: oklch(98.5% 0.003 90);
+    --accent-jade: oklch(24.5% 0.018 68);
+    --accent-jade-hover: oklch(32.5% 0.032 68);
+    --accent-jade-ink: oklch(98.5% 0.008 86);
+    --accent-bronze: oklch(47.5% 0.068 68);
+    --accent-bronze-soft: oklch(50% 0.068 68 / 0.12);
+    --accent-seal: oklch(48% 0.138 26);
+    --accent-seal-hover: oklch(42% 0.138 26);
+    --accent-seal-ink: oklch(98.5% 0.008 86);
 
     /* Semantic statuses */
-    --status-positive: oklch(42% 0.092 160);
-    --status-positive-bg: oklch(42% 0.092 160 / 0.09);
-    --status-warning: oklch(56% 0.105 74);
-    --status-warning-bg: oklch(56% 0.105 74 / 0.10);
+    --status-positive: oklch(43% 0.070 156);
+    --status-positive-bg: oklch(43% 0.070 156 / 0.09);
+    --status-warning: oklch(50% 0.090 70);
+    --status-warning-bg: oklch(50% 0.090 70 / 0.11);
     --status-negative: var(--accent-seal);
-    --status-negative-bg: oklch(53% 0.145 29 / 0.09);
-    --status-info: var(--accent-jade);
-    --status-info-bg: oklch(35% 0.068 166 / 0.08);
+    --status-negative-bg: oklch(48% 0.138 26 / 0.09);
+    --status-info: var(--accent-bronze);
+    --status-info-bg: oklch(47.5% 0.068 68 / 0.09);
 
     /* Focus */
-    --focus-color: var(--accent-jade);
-    --focus-ring: 0 0 0 3px oklch(35% 0.068 166 / 0.22);
+    --focus-color: var(--accent-bronze);
+    --focus-ring: 0 0 0 3px oklch(47.5% 0.068 68 / 0.24);
 
     /* Surfaces: Glass tiers (light / dark / compact) */
-    --glass-light-bg: oklch(99.4% 0.002 90 / 0.80);
+    --glass-light-bg: oklch(97.6% 0.012 86 / 0.84);
     --glass-light-bg-solid: var(--surface-elevated);
-    --glass-light-border: var(--border-hairline);
-    --glass-dark-bg: oklch(15% 0.004 82 / 0.78);
-    --glass-dark-bg-solid: oklch(16.5% 0.004 82);
-    --glass-dark-border: oklch(98% 0.004 85 / 0.14);
-    --glass-compact-bg: oklch(99.2% 0.002 90 / 0.84);
+    --glass-light-border: oklch(36% 0.024 76 / 0.12);
+    --glass-dark-bg: oklch(14.5% 0.005 74 / 0.80);
+    --glass-dark-bg-solid: oklch(16% 0.005 74);
+    --glass-dark-border: oklch(94% 0.008 78 / 0.13);
+    --glass-compact-bg: oklch(98.8% 0.008 86 / 0.88);
     --glass-compact-bg-solid: var(--surface-elevated);
-    --glass-compact-border: var(--border-hairline);
-    --glass-blur: blur(20px) saturate(140%);
-    --glass-blur-compact: blur(14px) saturate(130%);
-    --glass-highlight: inset 0 1px 0 oklch(100% 0 0 / 0.08);
+    --glass-compact-border: oklch(36% 0.024 76 / 0.12);
+    --glass-blur: blur(20px) saturate(135%);
+    --glass-blur-compact: blur(14px) saturate(128%);
+    --glass-highlight: inset 0 1px 0 oklch(100% 0.008 88 / 0.50);
 
-    /* Shadows — restrained, diffuse, never heavy plastic */
-    --shadow-xs: 0 1px 2px oklch(18% 0.008 85 / 0.04);
-    --shadow-sm: 0 4px 14px oklch(18% 0.008 85 / 0.06);
-    --shadow-md: 0 12px 32px oklch(18% 0.008 85 / 0.08);
-    --shadow-lg: 0 20px 52px oklch(18% 0.008 85 / 0.12);
+    /* Shadows — layered gallery depth (crisp contact + warm diffuse lift) */
+    --shadow-xs: 0 1px 2px oklch(22% 0.016 72 / 0.07), 0 2px 6px oklch(24% 0.018 72 / 0.04);
+    --shadow-sm: 0 2px 6px oklch(20% 0.016 72 / 0.07), 0 10px 24px oklch(24% 0.018 72 / 0.08);
+    --shadow-md: 0 4px 12px oklch(18% 0.014 72 / 0.09), 0 18px 38px oklch(22% 0.018 72 / 0.11);
+    --shadow-lg: 0 8px 20px oklch(16% 0.014 72 / 0.12), 0 26px 56px oklch(20% 0.018 72 / 0.14);
+    --button-tactile-sheen: inset 0 1px 0 oklch(100% 0.008 88 / 0.22), 0 2px 8px oklch(18% 0.014 72 / 0.16);
+    --card-frame-sheen: inset 0 1px 0 oklch(100% 0.008 88 / 0.68);
 
     /* ── Backwards-compatible token aliases for gradual migration ── */
     --color-paper: var(--surface-canvas);
@@ -157,8 +203,8 @@
     --theme-surface-section: var(--surface-subtle);
     --theme-surface-content: var(--surface-elevated);
     --theme-surface-control: var(--surface-elevated);
-    --theme-surface-control-hover: oklch(95.5% 0.008 115);
-    --theme-surface-control-active: oklch(93% 0.012 135);
+    --theme-surface-control-hover: oklch(93.8% 0.007 78);
+    --theme-surface-control-active: oklch(91.8% 0.009 76);
     --theme-text: var(--ink-secondary);
     --theme-text-strong: var(--ink-primary);
     --theme-text-muted: var(--ink-muted);
@@ -193,70 +239,103 @@
     --theme-disabled-opacity: 0.52;
   }
 
-  /* ── Dark Theme: Obsidian Silk Gallery (夜间乌金展厅 — 纯净通透零脏绿) ── */
+  /* ── Dark Theme: Architectural Graphite Gallery (极净建筑石墨炭灰 · 去棕去泥感，纯粹衬托器物与暖金点缀) ── */
   html[data-theme="dark"] {
     color-scheme: dark;
 
-    --surface-canvas: oklch(13.5% 0.004 82);
-    --surface-subtle: oklch(17.5% 0.004 82);
-    --surface-elevated: oklch(21.5% 0.005 82);
-    --surface-plinth: oklch(16% 0.004 82);
-    --surface-spotlight: radial-gradient(ellipse at 50% 0%, oklch(36% 0.032 78 / 0.28), transparent 72%);
-    --surface-darkroom: oklch(12.5% 0.004 82);
-    --exhibit-stage-bg-color: oklch(18% 0.005 80);
+    --surface-canvas: oklch(15.5% 0.002 75);
+    --surface-subtle: oklch(18.2% 0.002 75);
+    --surface-elevated: oklch(20.8% 0.003 75);
+    --surface-plinth: oklch(18.6% 0.002 75);
+    --surface-stone-band: oklch(17.2% 0.002 75);
+    --surface-vitrine: oklch(18.6% 0.002 75);
+    --surface-vitrine-spotlight:
+      radial-gradient(ellipse 72% 58% at 50% 18%, oklch(76% 0.036 78 / 0.16) 0%, transparent 72%);
+    --surface-skylight-wash: none;
+    --surface-paper-grain: none;
+
+    /* 1. 极简建筑隐纬微距十字点 (72x72 烟熏玄武岩底上98%留白，极简克制) */
+    --pattern-yunlei: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cg fill='none' stroke='%23d8be8e'%3E%3Cpath stroke-width='0.6' stroke-opacity='0.075' d='M36 34V38 M34 36H38'/%3E%3Ccircle cx='0' cy='0' r='0.65' fill='%23d8be8e' fill-opacity='0.055' stroke='none'/%3E%3Ccircle cx='72' cy='0' r='0.65' fill='%23d8be8e' fill-opacity='0.055' stroke='none'/%3E%3Ccircle cx='0' cy='72' r='0.65' fill='%23d8be8e' fill-opacity='0.055' stroke='none'/%3E%3Ccircle cx='72' cy='72' r='0.65' fill='%23d8be8e' fill-opacity='0.055' stroke='none'/%3E%3C/g%3E%3C/svg%3E");
+
+    /* 1b. 随鼠微光显影 · 极简暖金微距十字点 */
+    --pattern-yunlei-lit: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cg fill='none' stroke='%23e2c896'%3E%3Cpath stroke-width='0.75' stroke-opacity='0.20' d='M36 33.5V38.5 M33.5 36H38.5'/%3E%3Ccircle cx='0' cy='0' r='0.8' fill='%23e2c896' fill-opacity='0.16' stroke='none'/%3E%3Ccircle cx='72' cy='0' r='0.8' fill='%23e2c896' fill-opacity='0.16' stroke='none'/%3E%3Ccircle cx='0' cy='72' r='0.8' fill='%23e2c896' fill-opacity='0.16' stroke='none'/%3E%3Ccircle cx='72' cy='72' r='0.8' fill='%23e2c896' fill-opacity='0.16' stroke='none'/%3E%3C/g%3E%3C/svg%3E");
+
+    /* 2. 极简微点 */
+    --pattern-brocade: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Ccircle cx='24' cy='24' r='0.65' fill='%23d8be8e' fill-opacity='0.065'/%3E%3C/svg%3E");
+
+    /* 2b. 随鼠微光 · 极简微点 */
+    --pattern-brocade-lit: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Ccircle cx='24' cy='24' r='0.75' fill='%23e2c896' fill-opacity='0.16'/%3E%3C/svg%3E");
+
+    /* 3. 极简展台微距十字星点 */
+    --pattern-plinth-lattice: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cpath fill='none' stroke='%23d8be8e' stroke-width='0.55' stroke-opacity='0.06' d='M24 22.5V25.5 M22.5 24H25.5'/%3E%3C/svg%3E");
+
+    /* 3b. 随鼠微光 · 展台错金微距星点 */
+    --pattern-plinth-lattice-lit: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cpath fill='none' stroke='%23e2c48e' stroke-width='0.68' stroke-opacity='0.15' d='M24 22V26 M22 24H26'/%3E%3C/svg%3E");
+
+    /* 4. 暗房柔光渐隐罩染 */
+    --pattern-veil-gauze:
+      radial-gradient(ellipse 72% 64% at 50% 46%, oklch(15.5% 0.002 75 / 0.78) 0%, oklch(15.5% 0.002 75 / 0.36) 58%, transparent 100%);
+
+    --surface-band: var(--pattern-brocade);
+    --surface-ambient-wash: var(--pattern-yunlei);
+    --surface-card-sheen: var(--pattern-brocade);
+    --surface-spotlight: radial-gradient(ellipse 76% 64% at 50% 14%, oklch(34% 0.012 76 / 0.28), transparent 74%);
+    --surface-darkroom: oklch(13.8% 0.002 75);
+    --exhibit-stage-bg-color: oklch(17.5% 0.002 75);
     --exhibit-stage-bg-image:
-      radial-gradient(ellipse 60% 54% at 50% 24%, oklch(56% 0.062 76 / 0.34) 0%, oklch(28% 0.014 78 / 0.20) 48%, transparent 78%),
-      radial-gradient(ellipse 64% 40% at 50% 80%, oklch(34% 0.018 78 / 0.30) 0%, transparent 74%),
-      linear-gradient(180deg, oklch(16% 0.005 80 / 0.78) 0%, oklch(21% 0.006 80 / 0.66) 50%, oklch(15% 0.005 80 / 0.86) 100%),
+      radial-gradient(ellipse 60% 54% at 50% 24%, oklch(46% 0.024 76 / 0.24) 0%, oklch(24% 0.006 75 / 0.16) 48%, transparent 78%),
+      radial-gradient(ellipse 64% 40% at 50% 80%, oklch(28% 0.006 75 / 0.22) 0%, transparent 74%),
+      linear-gradient(180deg, oklch(15.5% 0.002 75 / 0.78) 0%, oklch(19.5% 0.003 75 / 0.66) 50%, oklch(14.5% 0.002 75 / 0.86) 100%),
       url('/media/editorial/digital-gallery-hall.webp');
 
-    --ink-primary: oklch(96% 0.006 86);
-    --ink-secondary: oklch(81% 0.006 84);
-    --ink-muted: oklch(64% 0.006 82);
+    --ink-primary: oklch(94.2% 0.004 82);
+    --ink-secondary: oklch(78.5% 0.005 78);
+    --ink-muted: oklch(62.5% 0.005 76);
 
-    --border-hairline: oklch(98% 0.003 85 / 0.09);
-    --border-strong: oklch(98% 0.004 85 / 0.18);
+    --border-hairline: oklch(92% 0.006 80 / 0.10);
+    --border-strong: oklch(92% 0.008 80 / 0.18);
 
-    /* Primary action elevates to silk champagne bronze gold in dark gallery */
-    --accent-jade: oklch(75% 0.088 76);
-    --accent-jade-hover: oklch(81% 0.092 76);
-    --accent-jade-ink: oklch(14% 0.006 76);
-    --accent-bronze: oklch(77% 0.084 76);
-    --accent-bronze-soft: oklch(77% 0.084 76 / 0.15);
-    --accent-seal: oklch(65% 0.140 28);
-    --accent-seal-hover: oklch(71% 0.142 28);
-    --accent-seal-ink: oklch(14% 0.006 76);
+    /* Primary action uses pale brushed titanium-champagne; accents use warm muted antique bronze */
+    --accent-jade: oklch(81% 0.048 78);
+    --accent-jade-hover: oklch(86% 0.052 78);
+    --accent-jade-ink: oklch(16% 0.009 72);
+    --accent-bronze: oklch(73% 0.056 72);
+    --accent-bronze-soft: oklch(73% 0.056 72 / 0.15);
+    --accent-seal: oklch(64% 0.128 28);
+    --accent-seal-hover: oklch(70% 0.132 28);
+    --accent-seal-ink: oklch(16% 0.009 72);
 
-    --status-positive: oklch(73% 0.095 162);
-    --status-positive-bg: oklch(73% 0.095 162 / 0.13);
-    --status-warning: oklch(77% 0.100 76);
-    --status-warning-bg: oklch(77% 0.100 76 / 0.13);
-    --status-negative: oklch(69% 0.142 28);
-    --status-negative-bg: oklch(69% 0.142 28 / 0.14);
+    --status-positive: oklch(72% 0.072 160);
+    --status-positive-bg: oklch(72% 0.072 160 / 0.13);
+    --status-warning: oklch(76% 0.078 76);
+    --status-warning-bg: oklch(76% 0.078 76 / 0.13);
+    --status-negative: oklch(68% 0.132 28);
+    --status-negative-bg: oklch(68% 0.132 28 / 0.14);
     --status-info: var(--accent-bronze);
-    --status-info-bg: oklch(77% 0.084 76 / 0.13);
+    --status-info-bg: oklch(73% 0.056 72 / 0.13);
 
-    --focus-color: oklch(81% 0.092 76);
-    --focus-ring: 0 0 0 3px oklch(81% 0.092 76 / 0.28);
+    --focus-color: oklch(81% 0.048 78);
+    --focus-ring: 0 0 0 3px oklch(81% 0.048 78 / 0.28);
 
-    --glass-light-bg: oklch(16.5% 0.004 82 / 0.78);
+    --glass-light-bg: oklch(17.2% 0.002 75 / 0.84);
     --glass-light-bg-solid: var(--surface-subtle);
-    --glass-light-border: oklch(98% 0.004 85 / 0.11);
-    --glass-dark-bg: oklch(14.5% 0.004 82 / 0.80);
-    --glass-dark-bg-solid: oklch(16% 0.004 82);
-    --glass-dark-border: oklch(98% 0.004 85 / 0.13);
-    --glass-compact-bg: oklch(21% 0.005 82 / 0.80);
+    --glass-light-border: oklch(92% 0.006 80 / 0.11);
+    --glass-dark-bg: oklch(15.0% 0.002 75 / 0.84);
+    --glass-dark-bg-solid: oklch(16.8% 0.002 75);
+    --glass-dark-border: oklch(92% 0.006 80 / 0.13);
+    --glass-compact-bg: oklch(21.0% 0.003 75 / 0.86);
     --glass-compact-bg-solid: var(--surface-elevated);
-    --glass-compact-border: oklch(98% 0.004 85 / 0.12);
+    --glass-compact-border: oklch(92% 0.006 80 / 0.12);
+    --glass-highlight: inset 0 1px 0 oklch(100% 0 0 / 0.07);
 
-    --shadow-xs: 0 1px 2px oklch(0% 0 0 / 0.24);
-    --shadow-sm: 0 6px 18px oklch(0% 0 0 / 0.32);
-    --shadow-md: 0 14px 36px oklch(0% 0 0 / 0.42);
-    --shadow-lg: 0 24px 60px oklch(0% 0 0 / 0.54);
+    --shadow-xs: 0 1px 2px oklch(0% 0 0 / 0.26);
+    --shadow-sm: 0 6px 20px oklch(0% 0 0 / 0.34);
+    --shadow-md: 0 16px 38px oklch(0% 0 0 / 0.42);
+    --shadow-lg: 0 26px 60px oklch(0% 0 0 / 0.52);
 
-    --theme-surface-control-hover: oklch(25% 0.006 82);
-    --theme-surface-control-active: oklch(28.5% 0.007 82);
-    --theme-danger-surface-hover: oklch(69% 0.142 28 / 0.20);
+    --theme-surface-control-hover: oklch(24.2% 0.003 75);
+    --theme-surface-control-active: oklch(27.5% 0.003 75);
+    --theme-danger-surface-hover: oklch(68% 0.132 28 / 0.20);
   }
 
   @media (prefers-reduced-motion: reduce) {

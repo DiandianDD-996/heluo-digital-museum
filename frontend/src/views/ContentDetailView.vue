@@ -115,6 +115,33 @@ const detail = computed(() => {
   return source ? localizedContent(source, locale.value) : null
 })
 
+const editorialCoverOverrides: Record<string, string> = {
+  'heluo-bronze-ding': '/media/editorial/explore-bronze-ding-user-v2.webp',
+  'water-bird-bronze': '/media/editorial/explore-water-bird-bronze-user-v2.webp',
+  'heluo-bronze-jue': '/media/editorial/explore-bronze-jue-user-v2.webp',
+  'river-map-jade-bi': '/media/editorial/explore-jade-bi-user-v2.webp',
+  'painted-pottery-water-jar': '/media/editorial/explore-painted-pottery-jar-user-v2.webp',
+  'river-map-pattern-stone': '/media/editorial/explore-river-map-stone-user-v2.webp',
+  'why-negative-space-matters': '/media/editorial/explore-jade-bi-user-v2.webp',
+  'river-as-timeline': '/media/editorial/explore-river-map-stone-user-v2.webp',
+  'how-to-read-bronze': '/media/editorial/explore-bronze-jue-user-v2.webp',
+}
+
+const detailCoverUrl = computed(() => {
+  if (!detail.value) return ''
+  return editorialCoverOverrides[detail.value.slug] ?? detail.value.coverImageUrl
+})
+
+const hasStaticLookpoints = computed(() => Boolean(
+  LuoshengPreset
+  && artifact.value?.slug === GUIDE_ARTIFACT_SLUG
+  && artifact.value.exhibits.some(item => item.slug === GUIDE_EXHIBIT_SLUG),
+))
+
+function scrollToLookpoints() {
+  document.getElementById('luosheng-static-plates')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
 const contentBlocks = computed(() => (detail.value?.content.split(/\n\s*\n/).filter(Boolean) ?? []).map((text) => ({
   text,
   heading: text.length <= 30 && (text.includes('｜') || text === '留给观众的问题'),
@@ -291,9 +318,9 @@ onBeforeUnmount(() => {
       <header class="detail-header" :class="{ 'detail-header--article': !artifact }">
         <div class="detail-media surface-plinth" data-motion="detail-cover">
           <img
-            v-if="detail.coverImageUrl && !imageFailed"
-            :src="detail.coverImageUrl"
-            :srcset="mediaSrcset(detail.coverImageUrl)"
+            v-if="detailCoverUrl && !imageFailed"
+            :src="detailCoverUrl"
+            :srcset="mediaSrcset(detailCoverUrl)"
             sizes="(max-width: 760px) calc(100vw - 32px), 720px"
             :alt="detail.title"
             decoding="async"
@@ -322,12 +349,20 @@ onBeforeUnmount(() => {
             <RouterLink
               v-if="artifact && artifact.exhibits.length"
               class="fluid-button fluid-button--primary"
-              :to="`/exhibits/${artifact.exhibits[0]!.slug}`"
+              :to="{ path: `/exhibits/${artifact.exhibits[0]!.slug}`, query: { from: route.path } }"
             >
               {{ copy.enter }} →
             </RouterLink>
             <button
-              v-if="guideStore"
+              v-if="hasStaticLookpoints"
+              type="button"
+              class="fluid-button fluid-button--secondary museum-button"
+              @click="scrollToLookpoints"
+            >
+              {{ isEnglish ? '3 Key Lookpoints ↓' : '查看 3 处细节图版 ↓' }}
+            </button>
+            <button
+              v-else-if="guideStore"
               type="button"
               class="fluid-button fluid-button--secondary museum-button"
               @click="guideStore.openGuide($event.currentTarget as HTMLElement)"
@@ -339,7 +374,7 @@ onBeforeUnmount(() => {
       </header>
 
       <LuoshengPreset
-        v-if="LuoshengPreset && artifact?.slug === GUIDE_ARTIFACT_SLUG && artifact.exhibits.some(item => item.slug === GUIDE_EXHIBIT_SLUG)"
+        v-if="hasStaticLookpoints"
         :exhibit-slug="GUIDE_EXHIBIT_SLUG"
       />
 
@@ -420,11 +455,11 @@ onBeforeUnmount(() => {
 }
 
 .detail-page-shell {
-  background: var(--surface-canvas);
+  background: transparent;
   color: var(--ink-secondary);
 }
 
-/* Fixed 2px Bronze Reading Progress Hairline */
+/* Fixed 2px Seal-Cinnabar Reading Progress Hairline */
 .reading-progress {
   position: fixed;
   top: 0;
@@ -441,7 +476,7 @@ onBeforeUnmount(() => {
   display: block;
   width: 100%;
   height: 100%;
-  background: var(--accent-bronze);
+  background: var(--accent-seal);
   transform-origin: left;
   transform: scaleX(var(--progress, 0));
   transition: transform 160ms linear;
@@ -485,6 +520,9 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
   padding: var(--space-5);
+  background-color: var(--surface-vitrine);
+  background-image: var(--surface-vitrine-spotlight);
+  box-shadow: var(--shadow-md);
 }
 
 .detail-media img {
@@ -493,6 +531,7 @@ onBeforeUnmount(() => {
   max-height: 492px;
   object-fit: contain;
   border-radius: var(--radius-xs);
+  filter: drop-shadow(0 20px 28px oklch(6% 0.004 75 / 0.48));
 }
 
 .detail-header__meta {
@@ -523,6 +562,11 @@ onBeforeUnmount(() => {
 .detail-header__body {
   display: grid;
   gap: var(--space-4);
+  padding: clamp(1.5rem, 3vw, 2.25rem);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface-elevated);
+  box-shadow: var(--card-frame-sheen), var(--shadow-sm);
 }
 
 .detail-header__body h1 {
@@ -538,12 +582,14 @@ onBeforeUnmount(() => {
 
 /* Specimen Plaque Grid */
 .object-facts {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1px;
   margin: var(--space-2) 0;
-  border: 1px solid var(--border-hairline);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--accent-seal);
+  border-radius: var(--radius-sm);
   background: var(--border-hairline);
   overflow: hidden;
 }
@@ -552,7 +598,7 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 0.2rem;
   padding: var(--space-3) var(--space-4);
-  background: var(--surface-elevated);
+  background: var(--surface-subtle);
 }
 
 .object-facts dt {

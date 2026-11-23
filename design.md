@@ -26,23 +26,29 @@
 
 ## Theme — OKLCH 语义双色板
 
-### 浅色「月白宣纸 · Daylight Paper」
-- `--surface-canvas`: `oklch(97.8% 0.006 95)`（温润宣纸底）
-- `--surface-subtle`: `oklch(95.2% 0.009 92)`（次级锦绫浅底）
-- `--surface-elevated`: `oklch(99.5% 0.003 95)`（浮起纯净纸面）
-- `--surface-plinth`: `oklch(93.8% 0.011 90)`（器物展台）
-- `--ink-primary`: `oklch(20% 0.018 165)`（河洛松烟墨）
-- `--ink-secondary`: `oklch(38% 0.014 165)` / `--ink-muted`: `oklch(52% 0.010 160)`
-- `--accent-jade`: `oklch(34% 0.068 165)`（深青玉主操作）
-- `--accent-bronze`: `oklch(52% 0.088 72)`（古铜眉标与激活细线）
-- `--accent-seal`: `oklch(49% 0.145 27)`（朱砂印章，严格限高优先级警示与印戳）
+### 浅色「缃色暖黄古宣 · 鎏金松烟 · Daylight Parchment」
+- `--surface-canvas`: `oklch(95.4% 0.024 86)`（全站统一温润缃色暖黄古宣基底）
+- `--surface-subtle`: `oklch(93.4% 0.028 84)`（暖栗宣纸次级底）
+- `--surface-elevated`: `oklch(97.2% 0.018 87)`（温润象牙暖黄展签与控件面）
+- `--surface-plinth`: `oklch(91.8% 0.030 83)`（器物展台暖砂宣底）
+- **极简宋韵留白暗纹与随鼠柔光显影（85%–90% 大留白，严格位于内容底层 `z-index: 0`）**：
+  - `--pattern-yunlei` / `--pattern-yunlei-lit`（`64px × 64px` 无缝平铺）：**极简宋韵斜格 · 微距柿蒂星点**（静置仅微露 `0.65px` 细丝，鼠标划过时由底层柔光 `.app-ambient-veil` 以日光象牙金光晕点亮深古铜赤金线条与中心四芒星）；
+  - `--pattern-brocade` / `--pattern-brocade-lit`（`48px × 48px` 无缝平铺）：**极简宋锦方胜暗纹**（八角细框 + 中心方胜微点，随卡片鼠标柔光浮现）；
+  - `--pattern-plinth-lattice` / `--pattern-plinth-lattice-lit`（`36px × 36px` 无缝平铺）：**极简展柜微距十字星点**（铺陈于深色器物舞台）。
+- `--ink-primary`: `oklch(19.5% 0.014 68)`（暖胡桃松烟浓墨）
+- `--ink-secondary`: `oklch(34.5% 0.018 68)` / `--ink-muted`: `oklch(46.5% 0.022 68)`
+- `--accent-jade`: `oklch(24% 0.024 64)`（漆黑乌金主操作色，悬停泛暖栗古铜 `oklch(32% 0.042 64)`，配 `--accent-jade-ink: oklch(97.6% 0.016 86)`）
+- `--accent-bronze`: `oklch(44% 0.078 66)`（高对比深栗古铜眉标与激活细线，WCAG AA `>= 5.8:1`）
+- `--accent-seal`: `oklch(47% 0.142 26)`（经典博物馆朱砂印章红，与暖黄古宣形成典雅金石对比）
 
-### 深色「乌金石墨 · Obsidian Silk」
-- `--surface-canvas`: `oklch(13.5% 0.004 82)`（纯净暖乌金炭黑，彻底去偏绿发闷，绝非纯黑）
-- `--surface-subtle`: `oklch(17.5% 0.004 82)` / `--surface-elevated`: `oklch(21.5% 0.005 82)` / `--surface-plinth`: `oklch(16% 0.004 82)`
-- `--ink-primary`: `oklch(96% 0.006 86)`（纯净暖象牙白） / `--ink-secondary`: `oklch(81% 0.006 84)`
-- `--accent-jade`: `oklch(75% 0.088 76)`（高定香槟古铜金主操作，配 `--accent-jade-ink: oklch(14% 0.006 76)`）
-- 玻璃材质附加顶部微光高光 `--glass-highlight` 与 `saturate(140%)`；3D 展厅在浅色模式呈现日间实景建筑展厅，在深色模式呈现乌金暖光景深展厅与「天青月白 × 香槟鎏金」星尘点云。
+### 深色「曜石暗房 · 丝绸钛金 · Obsidian Silk」
+- `--surface-canvas`: `oklch(13.2% 0.005 74)`（全站统一纯净微暖曜石炭黑基底，绝非纯黑或脏绿）
+- `--surface-subtle`: `oklch(15.4% 0.006 74)` / `--surface-elevated`: `oklch(17.6% 0.006 74)` / `--surface-plinth`: `oklch(14.8% 0.006 74)`
+- **馆藏级无缝错金暗纹**：与浅色同构的 `--pattern-yunlei`（`64px × 64px` 乌金错金云雷柿蒂回纹，`stroke-opacity: 0.068`）、`--pattern-brocade`（`48px × 48px` 暗锦八达晕菱格纹，`stroke-opacity: 0.076`）与 `--pattern-plinth-lattice`（`36px × 36px` 展台暗金细格纹，`stroke-opacity: 0.095`），在保持 `--surface-canvas` 统一底色的前提下赋予大面积区域错金漆器与宋锦装裱质感。
+- `--ink-primary`: `oklch(95.2% 0.006 82)`（温润丝绸象牙白） / `--ink-secondary`: `oklch(80% 0.007 78)`
+- `--accent-jade`: `oklch(81% 0.048 78)`（丝绸浅香槟钛金主操作，配 `--accent-jade-ink: oklch(14% 0.006 74)`）
+- `--accent-bronze`: `oklch(72% 0.054 72)`（哑光暖古铜眉标与细线，与主操作色形成清晰明度与色度层级分离）
+- 玻璃材质附加顶部微光高光 `--glass-highlight` 与 `saturate(135%)`；鼠标光点场在浅/深双主题下统一为「暖玉珍珠白 × 丝绸浅香槟金 × 矿物银砂」纯光学加色高光点，零深绿或暗褐斑点。
 
 ## Typography & Accessibility
 

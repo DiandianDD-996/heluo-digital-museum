@@ -401,8 +401,8 @@ onBeforeUnmount(() => {
 <style scoped>
 .pointer-dot-field[data-renderer="css"][data-palette="opaque"] {
   background-image:
-    radial-gradient(circle, rgb(86 151 133) 0 .72px, transparent .9px),
-    radial-gradient(circle, rgb(238 187 47) 0 1.18px, transparent 1.36px);
+    radial-gradient(circle, rgb(184 162 128) 0 .72px, transparent .9px),
+    radial-gradient(circle, rgb(212 174 104) 0 1.18px, transparent 1.36px);
   background-position: center, calc(50% + 27px) calc(50% + 27px);
   background-size: 27px 27px, 81px 81px;
   opacity: 1;

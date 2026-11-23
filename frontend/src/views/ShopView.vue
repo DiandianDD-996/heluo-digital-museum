@@ -639,7 +639,7 @@ onBeforeUnmount(() => gsapContext?.revert())
   right: 0;
   bottom: -1px;
   height: 2px;
-  background: var(--accent-bronze);
+  background: var(--accent-seal);
   transform: scaleX(0);
   transform-origin: left;
   transition: transform var(--duration-ui) var(--ease-curatorial);
@@ -682,24 +682,35 @@ onBeforeUnmount(() => gsapContext?.revert())
 .product-card {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border-hairline);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   background: var(--surface-elevated);
+  box-shadow: var(--card-frame-sheen), var(--shadow-xs);
   overflow: hidden;
   transition: border-color var(--duration-ui) var(--ease-curatorial),
-              box-shadow var(--duration-ui) var(--ease-curatorial);
+              box-shadow var(--duration-ui) var(--ease-curatorial),
+              transform var(--duration-ui) var(--ease-curatorial);
 }
 
 .product-card:hover {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-sm);
+  border-color: color-mix(in oklch, var(--accent-bronze) 52%, var(--border-strong));
+  box-shadow: var(--card-frame-sheen), var(--shadow-md);
+  transform: translateY(-2px);
 }
 
 .product-image {
   position: relative;
   aspect-ratio: 4 / 5;
-  background: var(--surface-spotlight), var(--surface-plinth);
+  background: var(--surface-spotlight), var(--surface-stone-band);
   overflow: hidden;
+}
+
+.product-image::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.16), inset 0 -1px 0 oklch(12% 0.01 72 / 0.12);
 }
 
 .product-image img {
@@ -747,7 +758,7 @@ onBeforeUnmount(() => gsapContext?.revert())
   right: 0;
   bottom: 0;
   padding: var(--space-5) var(--space-4) var(--space-3);
-  background: linear-gradient(180deg, transparent, oklch(10% 0.01 165 / 0.78));
+  background: linear-gradient(180deg, transparent, oklch(12% 0.006 74 / 0.82));
   color: var(--ink-on-dark);
   font-size: var(--text-xs);
   line-height: 1.55;
@@ -817,10 +828,10 @@ onBeforeUnmount(() => gsapContext?.revert())
   display: grid;
   gap: var(--space-4);
   padding: var(--space-5);
-  border: 1px solid var(--border-hairline);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   background: var(--surface-elevated);
-  box-shadow: var(--shadow-xs);
+  box-shadow: var(--card-frame-sheen), var(--shadow-sm);
 }
 
 .cart-heading {

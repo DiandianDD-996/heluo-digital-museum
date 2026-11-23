@@ -5,7 +5,7 @@ import { useLightPreset, type LightPresetId } from '../stores/lightPreset'
 
 const { locale } = useLocale()
 const { preset, presets, setPreset } = useLightPreset()
-const collapsed = ref(false)
+const collapsed = ref(true)
 
 const activeMeta = computed(() => presets.find((item) => item.id === preset.value) ?? presets[0]!)
 const isZh = computed(() => locale.value === 'zh-CN')
@@ -100,10 +100,10 @@ function choose(id: LightPresetId) {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 38px;
-  padding: 0 14px;
+  min-height: 44px;
+  padding: 0 16px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: var(--text-xs, 0.75rem);
   font-weight: 600;
   cursor: pointer;
 }
@@ -119,7 +119,7 @@ function choose(id: LightPresetId) {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
+  font-size: var(--text-xs, 0.75rem);
   font-weight: 600;
   letter-spacing: 0.06em;
   color: var(--ink-secondary);
@@ -136,9 +136,10 @@ function choose(id: LightPresetId) {
 .light-preset-dock__collapse {
   border: 0;
   background: transparent;
-  color: var(--ink-muted);
-  font-size: 11px;
-  padding: 2px 6px;
+  color: var(--ink-secondary);
+  font-size: var(--text-xs, 0.75rem);
+  min-height: 36px;
+  padding: 4px 10px;
   border-radius: 6px;
   cursor: pointer;
 }
@@ -156,14 +157,14 @@ function choose(id: LightPresetId) {
 .light-preset-dock__tab {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  min-height: 31px;
-  padding: 0 10px;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 12px;
   border: 1px solid var(--border-hairline);
   border-radius: 999px;
   background: color-mix(in oklch, var(--surface-subtle) 78%, transparent);
   color: var(--ink-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs, 0.75rem);
   font-weight: 600;
   cursor: pointer;
   transition: border-color 180ms var(--ease-curatorial),
@@ -183,16 +184,15 @@ function choose(id: LightPresetId) {
 }
 
 .light-preset-dock__idx {
-  font-size: 10px;
-  opacity: 0.72;
+  font-size: var(--text-xs, 0.75rem);
   color: var(--accent-bronze);
 }
 
 .light-preset-dock__desc {
   margin: 0;
-  font-size: 11.5px;
-  line-height: 1.45;
-  color: var(--ink-muted);
+  font-size: var(--text-xs, 0.75rem);
+  line-height: 1.5;
+  color: var(--ink-secondary);
 }
 
 @media (max-width: 760px), (pointer: coarse), (hover: none), (prefers-reduced-motion: reduce) {

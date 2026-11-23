@@ -12,7 +12,7 @@ describe('public responsive polish (Heluo Editorial 2.0)', () => {
 
   it('keeps mobile home cards in responsive flow with wrappable titles', () => {
     expect(home).toContain('grid-template-columns: 112px minmax(0, 1fr) 20px')
-    expect(home).toContain('grid-template-columns: 1.35fr 1fr 1fr')
+    expect(home).toContain('grid-template-columns: repeat(3, minmax(0, 1fr))')
     expect(home).not.toContain('public-responsive-polish.css')
   })
 

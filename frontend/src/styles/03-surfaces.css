@@ -7,22 +7,40 @@
  */
 @layer surface {
   .surface-paper {
-    background: var(--surface-elevated);
+    background-color: var(--surface-elevated);
     border: 1px solid var(--border-hairline);
     border-radius: var(--radius-md);
+    box-shadow: var(--card-frame-sheen), var(--shadow-xs);
   }
 
   .surface-subtle {
-    background: var(--surface-subtle);
+    background-color: var(--surface-subtle);
     border: 1px solid var(--border-hairline);
     border-radius: var(--radius-md);
   }
 
   .surface-plinth {
     position: relative;
-    background: var(--surface-spotlight), var(--surface-plinth);
-    border: 1px solid var(--border-hairline);
+    background-color: var(--surface-plinth);
+    background-image: var(--surface-spotlight);
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    border: 1px solid var(--border-strong);
     border-radius: var(--radius-md);
+    box-shadow: inset 0 1px 0 var(--hl-surface-inset-sheen-strong), var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  .surface-vitrine {
+    position: relative;
+    isolation: isolate;
+    background-color: var(--surface-vitrine);
+    background-image: var(--surface-vitrine-spotlight);
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
     overflow: hidden;
   }
 

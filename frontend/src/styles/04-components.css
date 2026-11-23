@@ -67,23 +67,28 @@
     background: var(--accent-jade);
     border-color: var(--accent-jade);
     color: var(--accent-jade-ink);
+    box-shadow: var(--button-tactile-sheen);
   }
 
   .fluid-button--primary:hover:not(:disabled) {
     background: var(--accent-jade-hover);
     border-color: var(--accent-jade-hover);
-    box-shadow: var(--shadow-xs);
+    box-shadow: var(--button-tactile-sheen), var(--shadow-xs);
+    transform: translateY(-1px);
   }
 
   .fluid-button--secondary {
-    background: transparent;
+    background: var(--surface-elevated);
     border-color: var(--border-strong);
     color: var(--ink-primary);
+    box-shadow: var(--card-frame-sheen), var(--shadow-xs);
   }
 
   .fluid-button--secondary:hover:not(:disabled) {
-    background: var(--surface-subtle);
-    border-color: var(--ink-muted);
+    background: var(--surface-elevated);
+    border-color: var(--accent-jade);
+    box-shadow: var(--card-frame-sheen), var(--shadow-sm);
+    transform: translateY(-1px);
   }
 
   .fluid-button--ghost {
@@ -521,9 +526,10 @@
   .editorial-card {
     display: flex;
     flex-direction: column;
-    border: 1px solid var(--border-hairline);
+    border: 1px solid var(--border-strong);
     border-radius: var(--radius-md);
     background: var(--surface-elevated);
+    box-shadow: var(--card-frame-sheen), var(--shadow-xs);
     overflow: hidden;
     transition: border-color var(--duration-ui) var(--ease-curatorial),
                 box-shadow var(--duration-ui) var(--ease-curatorial),
@@ -531,15 +537,24 @@
   }
 
   .editorial-card--interactive:hover {
-    border-color: var(--border-strong);
-    box-shadow: var(--shadow-sm);
+    border-color: color-mix(in oklch, var(--accent-bronze) 52%, var(--border-strong));
+    box-shadow: var(--card-frame-sheen), var(--shadow-md);
+    transform: translateY(-2px);
   }
 
   .editorial-card__media {
     position: relative;
     aspect-ratio: 4 / 3;
-    background: var(--surface-spotlight), var(--surface-plinth);
+    background: var(--surface-vitrine-spotlight), var(--surface-vitrine);
     overflow: hidden;
+  }
+
+  .editorial-card__media::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.14), inset 0 -1px 0 oklch(10% 0.01 72 / 0.18);
   }
 
   .editorial-card__media img {

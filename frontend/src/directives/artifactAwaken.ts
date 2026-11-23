@@ -28,9 +28,9 @@ export interface AwakenOptions {
 }
 
 const MATERIAL_GLOW: Record<AwakenMaterial, string> = {
-  bronze: 'oklch(64% .1 73)',
-  jade: 'oklch(70% .09 165)',
-  ink: 'oklch(45% .05 250)',
+  bronze: 'oklch(68% .072 74)',
+  jade: 'oklch(76% .044 82)',
+  ink: 'oklch(58% .036 72)',
 }
 
 const MATERIAL_SOUND: Record<AwakenMaterial, 'awaken-bronze' | 'awaken-jade' | 'awaken-ink'> = {
@@ -64,9 +64,6 @@ function shouldAnimate(): boolean {
 }
 
 function particleBudget(): number {
-  const tier = document.documentElement.dataset.performanceTier
-  if (tier === 'full') return 5
-  if (tier === 'balanced') return 3
   return 0
 }
 
@@ -111,9 +108,9 @@ async function handleEnter(state: AwakenState, event: PointerEvent) {
   state.gsapModule = gsapModule
   if (gsapModule && state.container.classList.contains('is-awakened')) {
     gsapModule.gsap.to(state.img, {
-      scale: 1.03,
-      rotation: -0.4,
-      duration: 0.6,
+      scale: 1.018,
+      rotation: 0,
+      duration: 0.65,
       ease: 'power2.out',
       overwrite: 'auto',
     })

@@ -1213,13 +1213,15 @@ onBeforeUnmount(() => {
   top: calc(var(--header-height) + var(--space-5));
   display: grid;
   gap: var(--space-5);
+  padding-bottom: 4.5rem;
 }
 
 .museum-pass {
+  position: relative;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   background: var(--surface-elevated);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--card-frame-sheen), var(--shadow-md);
   overflow: hidden;
   transition: border-color var(--duration-ui) var(--ease-curatorial);
 }
@@ -1252,7 +1254,7 @@ onBeforeUnmount(() => {
   bottom: var(--space-2);
   padding: 0.15rem 0.5rem;
   border-radius: var(--radius-xs);
-  background: oklch(12% 0.01 165 / 0.72);
+  background: oklch(13% 0.006 74 / 0.76);
   color: var(--ink-on-dark);
   font-size: var(--text-xs);
 }
@@ -1332,9 +1334,14 @@ onBeforeUnmount(() => {
 
 /* Live Ticket Stub */
 .appointment-summary {
+  position: relative;
   display: grid;
   gap: var(--space-4);
   padding: var(--space-4) var(--space-5) var(--space-5);
+  background-color: var(--surface-canvas);
+  background-image: var(--pattern-yunlei);
+  background-repeat: repeat;
+  background-size: 64px 64px;
 }
 
 .pass-stub__header {

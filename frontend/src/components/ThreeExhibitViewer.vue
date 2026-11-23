@@ -421,14 +421,14 @@ async function initialize() {
     floor.rotation.x = -Math.PI / 2
     floor.receiveShadow = renderProfile.shadows
     scene.add(floor)
-    // Warm limestone layers mirror the confirmed reference without competing
-    // with the aged bronze. The thin brass ring is the only bright accent.
-    const baseMaterial = new THREE.MeshStandardMaterial({ color: '#c9c1b4', roughness: .88, metalness: .02 })
+    // Matte dark-slate / basalt plinth layers anchor the vessel without competing
+    // with the aged bronze reliefs. The thin brass ring is the sole bright accent.
+    const baseMaterial = new THREE.MeshStandardMaterial({ color: '#6e685f', roughness: .94, metalness: 0 })
     const base = new THREE.Mesh(new THREE.CylinderGeometry(2.15, 2.28, .32, renderProfile.baseSegments), baseMaterial)
     base.position.y = .21
     base.receiveShadow = renderProfile.shadows
     scene.add(base)
-    const topMaterial = new THREE.MeshStandardMaterial({ color: '#eee8dc', roughness: .82, metalness: .02 })
+    const topMaterial = new THREE.MeshStandardMaterial({ color: '#847d72', roughness: .92, metalness: 0 })
     const top = new THREE.Mesh(new THREE.CylinderGeometry(1.88, 1.96, .19, renderProfile.baseSegments), topMaterial)
     top.position.y = .44
     top.receiveShadow = renderProfile.shadows
@@ -466,10 +466,10 @@ async function initialize() {
     syncStageTheme = () => {
       const darkStage = sceneTheme === 'dark'
       const lightPointCloud = !darkStage && activeMode === 'points'
-      floorMaterial.color.set(darkStage ? '#242220' : lightPointCloud ? '#59534b' : '#d7d0c4')
-      floorMaterial.opacity = darkStage ? .26 : lightPointCloud ? .24 : .12
-      baseMaterial.color.set(darkStage ? '#242220' : lightPointCloud ? '#4f4a43' : '#c9c1b4')
-      topMaterial.color.set(darkStage ? '#33302c' : lightPointCloud ? '#3f3b35' : '#eee8dc')
+      floorMaterial.color.set(darkStage ? '#181715' : lightPointCloud ? '#48433c' : '#b8b0a3')
+      floorMaterial.opacity = darkStage ? .24 : lightPointCloud ? .22 : .12
+      baseMaterial.color.set(darkStage ? '#171614' : lightPointCloud ? '#38342f' : '#6e685f')
+      topMaterial.color.set(darkStage ? '#1f1d1a' : lightPointCloud ? '#2e2b27' : '#847d72')
       pedestalTrimMaterial.color.set(darkStage ? '#d4a962' : lightPointCloud ? '#e2b65e' : '#b68a4b')
       floorRingMaterials.forEach((material, index) => {
         material.color.set(darkStage ? '#a8926e' : lightPointCloud ? '#b89c70' : '#af9d7d')

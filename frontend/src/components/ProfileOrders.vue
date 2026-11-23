@@ -3,6 +3,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ArrowLeft, ArrowRight, RefreshLeft } from '@element-plus/icons-vue'
 import { apiGet, apiRequest, type ContentPage } from '../lib/api'
+import { fallbackProductCover } from '../lib/productPresentation'
 import InlineStatus from './InlineStatus.vue'
 import FluidButton from './FluidButton.vue'
 import StatusBadge from './StatusBadge.vue'
@@ -89,6 +90,11 @@ async function pay(order: Order) {
 onMounted(load)
 onBeforeUnmount(() => { requestVersion++; controller?.abort() })
 
+function orderCover(order: Order) {
+  const firstName = order.items[0]?.name
+  return fallbackProductCover({ name: firstName })
+}
+
 function formatDeadline(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
@@ -120,11 +126,16 @@ function formatDeadline(value: string) {
     </div>
     <div v-else class="profile-record-list">
       <article v-for="item in items" :key="item.id" class="profile-record-card profile-record-card--order">
-        <div class="profile-record-card__body">
-          <span class="profile-record-kicker font-mono">{{ item.orderNo }}</span>
-          <h3 class="font-mono"><span class="order-amount-label">{{ locale === 'en-US' ? 'Total' : '订单金额' }}</span> ¥ {{ item.payableAmount }}</h3>
-          <p class="profile-order-items">{{ item.items.map((line) => `${line.name} × ${line.quantity}`).join(locale === 'en-US' ? ', ' : '、') }}</p>
-          <small class="profile-order-email">{{ item.notificationEmail }}</small>
+        <div class="profile-order-main">
+          <div class="profile-order-thumb surface-plinth" aria-hidden="true">
+            <img :src="orderCover(item)" alt="" loading="lazy" decoding="async" />
+            <span v-if="item.items.length > 1" class="profile-order-thumb__count font-mono">+{{ item.items.length - 1 }}</span>
+          </div>
+          <div class="profile-record-card__body">
+            <span class="profile-record-kicker font-mono">{{ item.orderNo }}</span>
+            <h3 class="font-mono"><span class="order-amount-label">{{ locale === 'en-US' ? 'Total' : '订单金额' }}</span> ¥ {{ item.payableAmount }}</h3>
+            <p class="profile-order-items">{{ item.items.map((line) => `${line.name} × ${line.quantity}`).join(locale === 'en-US' ? ', ' : '、') }}</p>
+          </div>
         </div>
         <div class="profile-record-actions">
           <StatusBadge :status="item.status" />
@@ -224,6 +235,43 @@ function formatDeadline(value: string) {
   border: 1px solid var(--border-hairline);
   border-radius: var(--radius-md);
   background: var(--surface-subtle);
+}
+
+.profile-order-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+  flex: 1 1 260px;
+}
+
+.profile-order-thumb {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-hairline);
+  overflow: hidden;
+  background: var(--surface-plinth);
+}
+
+.profile-order-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-order-thumb__count {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  padding: 1px 5px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in oklch, var(--surface-canvas) 88%, transparent);
+  color: var(--ink-primary);
+  font-size: var(--text-xs);
+  font-weight: 600;
 }
 
 .profile-record-card__body {

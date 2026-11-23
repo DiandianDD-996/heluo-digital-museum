@@ -98,6 +98,11 @@ const PointerCursor = defineAsyncComponent(() => import('./components/PointerCur
 const LightPresetSwitcher = defineAsyncComponent(() => import('./components/LightPresetSwitcher.vue'))
 const siteGuideRoutes = ['home', 'explore', 'artifact-detail', 'article-detail', 'exhibits', 'exhibit-detail', 'appointment', 'shop']
 const lightSwitcherRoutes = ['explore', 'exhibits', 'appointment', 'shop']
+const showLightDebugDock = computed(() => (
+  !isAdminRoute.value
+  && lightSwitcherRoutes.includes(String(route.name))
+  && route.query.debugLights === '1'
+))
 const guideStore = guideEnabled ? useLuoshengStore() : null
 
 watch(() => route.fullPath, () => {
@@ -166,6 +171,7 @@ watchEffect(() => {
 
 <template>
   <div class="app-shell" :class="shellRouteClass">
+    <div v-if="!isAdminRoute" class="app-ambient-veil" aria-hidden="true"></div>
     <a class="skip-link" href="#main-content">{{ shellCopy.skip }}</a>
 
     <header v-if="!isAdminRoute" class="site-header" :class="{ 'is-scrolled': headerScrolled }" data-glass="light">
@@ -305,7 +311,7 @@ watchEffect(() => {
       </RouterLink>
     </nav>
 
-    <LightPresetSwitcher v-if="!isAdminRoute && lightSwitcherRoutes.includes(String(route.name))" />
+    <LightPresetSwitcher v-if="showLightDebugDock" />
     <SiteGuide v-if="SiteGuide && siteGuideRoutes.includes(String(route.name))" />
     <PointerCursor />
   </div>

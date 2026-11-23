@@ -134,6 +134,7 @@ const copy = computed(() => locale.value === 'en-US' ? {
 
 const categoryEnglish: Record<string, string> = { BRONZE: 'Bronze Rituals', JADE: 'Jade Imagery', RIVER: 'Heluo Stories', POTTERY: 'Pottery & Life', STONE: 'Stone Inscriptions' }
 const artifactEnglish: Record<string, { period: string; material: string; category: string }> = {
+  'heluo-bronze-ding': { period: 'Bronze Age ritual concept', material: 'Bronze', category: 'Bronze Rituals' },
   'water-bird-bronze': { period: 'Animal motif concept', material: 'Bronze', category: 'Bronze Rituals' },
   'heluo-bronze-jue': { period: 'Bronze Age concept', material: 'Bronze', category: 'Bronze Rituals' },
   'river-map-jade-bi': { period: 'Traditional jade ritual concept', material: 'Jade', category: 'Jade Imagery' },
@@ -166,7 +167,7 @@ const searchCopy = (item: SearchResult) => {
 }
 
 const hasSubmittedSearch = computed(() => submittedQuery.value.length > 0)
-const preferredOrder = ['water-bird-bronze', 'heluo-bronze-jue', 'river-map-jade-bi', 'painted-pottery-water-jar', 'river-map-pattern-stone']
+const preferredOrder = ['heluo-bronze-ding', 'water-bird-bronze', 'heluo-bronze-jue', 'river-map-jade-bi', 'painted-pottery-water-jar', 'river-map-pattern-stone']
 const editorialArtifactMedia: Record<string, string> = {
   'heluo-bronze-ding': '/media/editorial/explore-bronze-ding-user-v2.webp',
   'water-bird-bronze': '/media/editorial/explore-water-bird-bronze-user-v2.webp',
@@ -197,6 +198,11 @@ const displayArtifacts = computed(() => [...artifacts.value].sort((a, b) => {
   const bi = preferredOrder.indexOf(b.slug)
   return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi)
 }))
+function isFeaturedArtifact(index: number) {
+  if (selectedCategory.value || collectionPage.value !== 1) return false
+  if (displayArtifacts.value.length === 6) return index === 0 || index === 3 || index === 4
+  return index === 0
+}
 function artifactVisual(artifact: ArtifactCard) {
   return editorialArtifactMedia[artifact.slug] ?? artifact.coverImageUrl
 }
@@ -491,7 +497,7 @@ onBeforeUnmount(() => {
               v-artifact-awaken="{ material: artifactMaterial(artifact) }"
               class="gallery-object"
               data-motion="explore-object"
-              :class="{ 'gallery-object--featured': index === 0 && !selectedCategory && collectionPage === 1 }"
+              :class="{ 'gallery-object--featured': isFeaturedArtifact(index) }"
               :to="`/artifacts/${artifact.slug}`"
               :aria-label="`${copy.view}：${artifactCopy(artifact).title}`"
             >
@@ -513,13 +519,13 @@ onBeforeUnmount(() => {
                 <p class="gallery-object__meta">
                   {{ artifactCopy(artifact).categoryName }}
                   <span v-if="isConcept(artifact)"> · {{ copy.concept }}</span>
-                  <span v-if="artifact.slug === 'heluo-bronze-ding'"> · {{ locale === 'en-US' ? 'AI editorial image' : 'AI策展配图' }}</span>
+                  <span v-if="artifact.slug === 'heluo-bronze-ding'"> · {{ locale === 'en-US' ? '3D Interactive' : '3D 互动馆藏' }}</span>
                 </p>
                 <div class="gallery-object__title-row">
                   <h3>{{ objectTitle(artifact) }}</h3>
                   <TopRight class="gallery-object__arrow" aria-hidden="true" />
                 </div>
-                <p v-if="index === 0 && !selectedCategory && collectionPage === 1 && artifactCopy(artifact).summary" class="gallery-object__summary">
+                <p v-if="isFeaturedArtifact(index) && artifactCopy(artifact).summary" class="gallery-object__summary">
                   {{ artifactCopy(artifact).summary }}
                 </p>
                 <p class="gallery-object__period">
@@ -673,8 +679,8 @@ onBeforeUnmount(() => {
 }
 
 .gallery-hot-terms button {
-  min-height: 28px;
-  padding: 0 0.625rem;
+  min-height: 36px;
+  padding: 0 0.75rem;
   border: 1px solid var(--border-hairline);
   border-radius: var(--radius-pill);
   background: transparent;
@@ -734,7 +740,7 @@ onBeforeUnmount(() => {
   right: 0;
   bottom: -1px;
   height: 2px;
-  background: var(--accent-bronze);
+  background: var(--accent-seal);
   transform: scaleX(0);
   transform-origin: left;
   transition: transform var(--duration-ui) var(--ease-curatorial);
@@ -814,17 +820,20 @@ onBeforeUnmount(() => {
 .gallery-object {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border-hairline);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   background: var(--surface-elevated);
+  box-shadow: var(--card-frame-sheen), var(--shadow-xs);
   overflow: hidden;
   transition: border-color var(--duration-ui) var(--ease-curatorial),
-              box-shadow var(--duration-ui) var(--ease-curatorial);
+              box-shadow var(--duration-ui) var(--ease-curatorial),
+              transform var(--duration-ui) var(--ease-curatorial);
 }
 
 .gallery-object:hover {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-sm);
+  border-color: color-mix(in oklch, var(--accent-bronze) 52%, var(--border-strong));
+  box-shadow: var(--card-frame-sheen), var(--shadow-md);
+  transform: translateY(-2px);
 }
 
 .gallery-object__media {
@@ -833,8 +842,19 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
   padding: var(--space-3);
-  background: var(--surface-spotlight), var(--surface-plinth);
+  background-color: var(--surface-vitrine);
+  background-image: var(--surface-vitrine-spotlight);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
   overflow: hidden;
+}
+
+.gallery-object__media::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.08), inset 0 -14px 28px oklch(8% 0.002 75 / 0.28);
 }
 
 .gallery-object__media img {
@@ -924,10 +944,19 @@ onBeforeUnmount(() => {
 }
 
 .gallery-object--featured .gallery-object__caption {
+  position: relative;
   min-width: 0;
   padding: var(--space-6) var(--space-6);
   justify-content: center;
   gap: var(--space-3);
+  border-left: 1px solid var(--border-hairline);
+  background: var(--surface-elevated);
+}
+
+.gallery-object--featured .gallery-object__period {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--border-strong);
 }
 
 .gallery-object--featured .gallery-object__title-row h3 {
@@ -1043,32 +1072,46 @@ onBeforeUnmount(() => {
   color: var(--ink-secondary);
 }
 
-/* ── Theme Pathways Band ── */
+/* ── Theme Pathways Band (Warm Limestone Architectural Band) ── */
 .gallery-themes {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 2fr);
-  gap: var(--space-8);
-  align-items: start;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
   margin-top: clamp(4rem, 7vw, 5.5rem);
-  padding-top: clamp(3rem, 5vw, 4rem);
-  border-top: 1px solid var(--border-hairline);
+  padding: clamp(2rem, 4vw, 3rem);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xl);
+  background: var(--surface-stone-band);
+  background-image: var(--pattern-brocade);
+  background-repeat: repeat;
+  background-size: 48px 48px;
+}
+
+.gallery-themes__intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-8);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-hairline);
 }
 
 .gallery-themes__intro h2 {
-  margin: var(--space-2) 0 var(--space-3);
+  margin: var(--space-2) 0 0;
   font-size: clamp(1.5rem, 2.4vw, 2rem);
 }
 
 .gallery-themes__intro p:last-child {
   font-size: var(--text-sm);
   line-height: 1.75;
-  color: var(--ink-muted);
+  color: var(--ink-secondary);
 }
 
 .gallery-themes__links {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-4);
+  gap: var(--space-5);
 }
 
 .gallery-themes__links > a {
@@ -1077,16 +1120,19 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: var(--space-3);
   min-height: 84px;
-  padding: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-3) var(--space-3);
   border: 1px solid var(--border-hairline);
   border-radius: var(--radius-md);
-  background: var(--surface-elevated);
+  background-color: var(--surface-canvas);
+  background-image: var(--pattern-yunlei);
+  background-repeat: repeat;
+  background-size: 64px 64px;
   transition: border-color var(--duration-ui) var(--ease-curatorial),
               box-shadow var(--duration-ui) var(--ease-curatorial);
 }
 
 .gallery-themes__links > a:hover {
-  border-color: var(--border-strong);
+  border-color: color-mix(in oklch, var(--accent-bronze) 48%, var(--border-strong));
   box-shadow: var(--shadow-xs);
 }
 

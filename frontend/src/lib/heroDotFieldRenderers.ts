@@ -87,9 +87,9 @@ function getSprites(): GlowSprites | null {
   if (typeof document === 'undefined') return null
   if (!cachedSprites) {
     cachedSprites = {
-      goldDark: makeGlowSprite('rgba(255,250,236,1)', 'rgba(238,200,128,0.68)', 'rgba(204,154,72,0.14)'),
-      goldLight: makeGlowSprite('rgba(255,252,242,0.96)', 'rgba(218,174,92,0.52)', 'rgba(176,128,46,0.10)'),
-      amberDark: makeGlowSprite('rgba(255,244,220,0.92)', 'rgba(212,172,106,0.48)', 'rgba(168,126,64,0.10)'),
+      goldDark: makeGlowSprite('rgba(255,252,245,1)', 'rgba(232,206,158,0.62)', 'rgba(186,154,102,0.12)'),
+      goldLight: makeGlowSprite('rgba(255,252,240,0.98)', 'rgba(226,184,104,0.64)', 'rgba(196,150,72,0.14)'),
+      amberDark: makeGlowSprite('rgba(255,249,238,0.92)', 'rgba(214,186,136,0.44)', 'rgba(168,136,86,0.09)'),
     }
   }
   return cachedSprites
@@ -243,11 +243,11 @@ export function stepHeroDotField(state: HeroDotFieldState, deltaMs: number): boo
         targetEnergy = Math.max(targetEnergy, Math.min(1, smoothFall * breathe * state.presence))
 
         const realD = Math.hypot(dx, dy) || 1
-        const push = smoothFall * (195 + 18 * Math.sin(breathPhase - realD * 0.04)) * state.presence * dtSec
+        const push = smoothFall * 38 * state.presence * dtSec
         n.vx += (dx / realD) * push
         n.vy += (dy / realD) * push
-        n.vx += state.velX * smoothFall * 0.085 * dtSec
-        n.vy += state.velY * smoothFall * 0.085 * dtSec
+        n.vx += state.velX * smoothFall * 0.025 * dtSec
+        n.vy += state.velY * smoothFall * 0.025 * dtSec
       }
     }
 
@@ -265,8 +265,8 @@ export function stepHeroDotField(state: HeroDotFieldState, deltaMs: number): boo
         const crest = Math.cos((delta / band) * Math.PI * 0.5)
         const fade = (1 - p) * (1 - p) * Math.min(1, p * 8)
         const amp = crest * crest * fade * w.strength
-        targetEnergy = Math.max(targetEnergy, amp * 1.15)
-        const wavePush = amp * 360 * dtSec
+        targetEnergy = Math.max(targetEnergy, amp * 0.65)
+        const wavePush = amp * 72 * dtSec
         n.vx += (dx / d) * wavePush
         n.vy += (dy / d) * wavePush
       }
@@ -298,8 +298,8 @@ export function renderHeroDotField(ctx: CanvasRenderingContext2D, state: HeroDot
   if (!width || !height) return
 
   const sprites = getSprites()
-  const baseField = dark ? 'rgba(214, 192, 154, 0.15)' : 'rgba(86, 76, 62, 0.15)'
-  const baseStar = dark ? 'rgba(240, 206, 138, 0.32)' : 'rgba(156, 118, 52, 0.28)'
+  const baseField = dark ? 'rgba(216, 198, 168, 0.14)' : 'rgba(198, 174, 134, 0.14)'
+  const baseStar = dark ? 'rgba(236, 210, 162, 0.30)' : 'rgba(210, 174, 112, 0.28)'
 
   // 1) Fast batched resting micro-dots with spatial curatorial masking.
   ctx.beginPath()
@@ -324,18 +324,18 @@ export function renderHeroDotField(ctx: CanvasRenderingContext2D, state: HeroDot
   ctx.fillStyle = baseStar
   ctx.fill()
 
-  // 2) Soft ambient champagne aura around cursor.
+  // 2) Soft ambient champagne-pearl aura around cursor.
   if (presence > 0.03) {
     const auraR = 175
     const aura = ctx.createRadialGradient(state.smoothX, state.smoothY, 0, state.smoothX, state.smoothY, auraR)
     if (dark) {
-      aura.addColorStop(0, `rgba(238, 200, 128, ${(0.11 * presence).toFixed(3)})`)
-      aura.addColorStop(0.55, `rgba(196, 152, 82, ${(0.045 * presence).toFixed(3)})`)
-      aura.addColorStop(1, 'rgba(196, 152, 82, 0)')
+      aura.addColorStop(0, `rgba(236, 210, 162, ${(0.10 * presence).toFixed(3)})`)
+      aura.addColorStop(0.55, `rgba(192, 160, 108, ${(0.04 * presence).toFixed(3)})`)
+      aura.addColorStop(1, 'rgba(192, 160, 108, 0)')
     } else {
-      aura.addColorStop(0, `rgba(255, 248, 232, ${(0.28 * presence).toFixed(3)})`)
-      aura.addColorStop(0.55, `rgba(214, 174, 102, ${(0.08 * presence).toFixed(3)})`)
-      aura.addColorStop(1, 'rgba(214, 174, 102, 0)')
+      aura.addColorStop(0, `rgba(255, 250, 234, ${(0.34 * presence).toFixed(3)})`)
+      aura.addColorStop(0.5, `rgba(226, 186, 112, ${(0.14 * presence).toFixed(3)})`)
+      aura.addColorStop(1, 'rgba(226, 186, 112, 0)')
     }
     ctx.beginPath()
     ctx.arc(state.smoothX, state.smoothY, auraR, 0, TAU)
@@ -343,161 +343,48 @@ export function renderHeroDotField(ctx: CanvasRenderingContext2D, state: HeroDot
     ctx.fill()
   }
 
-  // 3) Ordered Heluo 2-nearest-neighbor constellation filaments.
-  const stars: HeroGridNode[] = []
+  // 3) Quiet energized micro-motes (no flashy spiderweb filaments or spinning star needles).
   for (let i = 0; i < nodes.length; i += 1) {
     const n = nodes[i]!
-    if (n.bronze && n.energy > 0.16) stars.push(n)
-  }
-
-  if (stars.length > 1) {
-    const maxDist = 144
-    const drawnPairs = new Set<number>()
-    ctx.lineWidth = 0.72
-
-    for (let i = 0; i < stars.length; i += 1) {
-      const a = stars[i]!
-      let best1 = -1
-      let best2 = -1
-      let dist1 = maxDist
-      let dist2 = maxDist
-
-      for (let j = 0; j < stars.length; j += 1) {
-        if (i === j) continue
-        const b = stars[j]!
-        const d = Math.hypot(a.x - b.x, a.y - b.y)
-        if (d < dist1) {
-          dist2 = dist1
-          best2 = best1
-          dist1 = d
-          best1 = j
-        } else if (d < dist2) {
-          dist2 = d
-          best2 = j
-        }
-      }
-
-      const neighbors = [
-        [best1, dist1],
-        [best2, dist2],
-      ] as const
-
-      for (let k = 0; k < neighbors.length; k += 1) {
-        const [j, d] = neighbors[k]!
-        if (j < 0) continue
-        const pairKey = i < j ? i * 1000 + j : j * 1000 + i
-        if (drawnPairs.has(pairKey)) continue
-        drawnPairs.add(pairKey)
-
-        const b = stars[j]!
-        const alpha = (1 - d / maxDist) * Math.min(a.energy, b.energy) * (dark ? 0.68 : 0.52)
-        const grad = ctx.createLinearGradient(a.x, a.y, b.x, b.y)
-        if (dark) {
-          grad.addColorStop(0, `rgba(255, 244, 214, ${(alpha * 1.1).toFixed(3)})`)
-          grad.addColorStop(0.5, `rgba(232, 194, 122, ${(alpha * 0.62).toFixed(3)})`)
-          grad.addColorStop(1, `rgba(255, 244, 214, ${(alpha * 1.1).toFixed(3)})`)
-        } else {
-          grad.addColorStop(0, `rgba(148, 104, 32, ${(alpha * 1.1).toFixed(3)})`)
-          grad.addColorStop(0.5, `rgba(186, 142, 68, ${(alpha * 0.58).toFixed(3)})`)
-          grad.addColorStop(1, `rgba(148, 104, 32, ${(alpha * 1.1).toFixed(3)})`)
-        }
-        ctx.strokeStyle = grad
-        ctx.beginPath()
-        ctx.moveTo(a.x, a.y)
-        ctx.lineTo(b.x, b.y)
-        ctx.stroke()
-      }
-    }
-  }
-
-  // 4) Energized luminous nodes + bespoke astrolabe 4-point star needles on star pivots.
-  for (let i = 0; i < nodes.length; i += 1) {
-    const n = nodes[i]!
-    if (n.energy <= 0.06) continue
-    const spatialFade = 0.45 + 0.55 * n.restWeight
+    if (n.energy <= 0.08) continue
+    const spatialFade = 0.40 + 0.60 * n.restWeight
     const e = Math.min(1, n.energy) * spatialFade
-    if (e <= 0.05) continue
-    const r = (n.bronze ? 1.32 : 0.88) + e * (n.bronze ? 2.3 : 1.45)
+    if (e <= 0.06) continue
+    const r = (n.bronze ? 1.15 : 0.78) + e * (n.bronze ? 1.05 : 0.62)
 
     if (sprites) {
       const stamp = dark
         ? (n.bronze ? sprites.goldDark : sprites.amberDark)
         : sprites.goldLight
-      const s = r * (n.bronze ? 7.2 : 5.2)
-      ctx.globalAlpha = e * (dark ? 0.88 : 0.72)
+      const s = r * (n.bronze ? 5.2 : 4.0)
+      ctx.globalAlpha = e * (dark ? 0.56 : 0.52)
       ctx.drawImage(stamp, n.x - s * 0.5, n.y - s * 0.5, s, s)
     }
     ctx.globalAlpha = 1
 
-    if (n.bronze && e > 0.26) {
-      const starAlpha = ((e - 0.26) / 0.74) * (dark ? 0.68 : 0.56)
-      const ringR = r * (1.85 + e * 0.55)
-      ctx.lineWidth = 0.65
-      ctx.strokeStyle = dark
-        ? `rgba(246, 214, 148, ${(starAlpha * 0.78).toFixed(3)})`
-        : `rgba(168, 122, 44, ${(starAlpha * 0.78).toFixed(3)})`
-      ctx.beginPath()
-      ctx.arc(n.x, n.y, ringR, 0, TAU)
-      ctx.stroke()
-
-      if (e > 0.36) {
-        const arm = r * (2.6 + e * 2.1)
-        const rot = (n.seed - 0.5) * 0.35 + state.timeMs * 0.00022
-        const cosR = Math.cos(rot)
-        const sinR = Math.sin(rot)
-        ctx.lineWidth = 0.75
-        ctx.strokeStyle = dark
-          ? `rgba(255, 246, 222, ${starAlpha.toFixed(3)})`
-          : `rgba(154, 108, 32, ${starAlpha.toFixed(3)})`
-        ctx.beginPath()
-        ctx.moveTo(n.x - cosR * arm, n.y - sinR * arm)
-        ctx.lineTo(n.x + cosR * arm, n.y + sinR * arm)
-        ctx.moveTo(n.x + sinR * arm * 0.78, n.y - cosR * arm * 0.78)
-        ctx.lineTo(n.x - sinR * arm * 0.78, n.y + cosR * arm * 0.78)
-        ctx.stroke()
-      }
-    }
-
     if (dark) {
-      const rr = Math.round(206 + e * 49)
-      const gg = Math.round(164 + e * 76)
-      const bb = Math.round(96 + e * 124)
+      const rr = Math.round(216 + e * 32)
+      const gg = Math.round(188 + e * 44)
+      const bb = Math.round(140 + e * 68)
       ctx.beginPath()
       ctx.arc(n.x, n.y, r, 0, TAU)
-      ctx.fillStyle = `rgba(${rr}, ${gg}, ${bb}, ${(0.45 + e * 0.55).toFixed(3)})`
+      ctx.fillStyle = `rgba(${rr}, ${gg}, ${bb}, ${(0.34 + e * 0.40).toFixed(3)})`
       ctx.fill()
-
-      if (n.bronze && e > 0.3) {
-        ctx.beginPath()
-        ctx.arc(n.x, n.y, r * 0.44, 0, TAU)
-        ctx.fillStyle = `rgba(255, 252, 244, ${(e * 0.94).toFixed(3)})`
-        ctx.fill()
-      }
     } else if (n.bronze) {
       ctx.beginPath()
-      ctx.arc(n.x, n.y, r * 1.14, 0, TAU)
-      ctx.fillStyle = `rgba(196, 150, 68, ${(0.45 + e * 0.48).toFixed(3)})`
+      ctx.arc(n.x, n.y, r * 1.08, 0, TAU)
+      ctx.fillStyle = `rgba(218, 178, 106, ${(0.42 + e * 0.34).toFixed(3)})`
       ctx.fill()
 
       ctx.beginPath()
-      ctx.arc(n.x, n.y, r * 0.68, 0, TAU)
-      ctx.fillStyle = `rgba(26, 86, 70, ${(0.62 + e * 0.36).toFixed(3)})`
+      ctx.arc(n.x, n.y, r * 0.56, 0, TAU)
+      ctx.fillStyle = `rgba(255, 253, 246, ${(0.76 + e * 0.20).toFixed(3)})`
       ctx.fill()
     } else {
-      const rr = Math.round(128 + e * 56)
-      const gg = Math.round(98 + e * 42)
-      const bb = Math.round(52 + e * 18)
       ctx.beginPath()
       ctx.arc(n.x, n.y, r, 0, TAU)
-      ctx.fillStyle = `rgba(${rr}, ${gg}, ${bb}, ${(0.34 + e * 0.52).toFixed(3)})`
+      ctx.fillStyle = `rgba(224, 190, 128, ${(0.32 + e * 0.34).toFixed(3)})`
       ctx.fill()
-
-      if (e > 0.42) {
-        ctx.beginPath()
-        ctx.arc(n.x, n.y, r * 0.38, 0, TAU)
-        ctx.fillStyle = `rgba(255, 250, 238, ${(e * 0.85).toFixed(3)})`
-        ctx.fill()
-      }
     }
   }
   ctx.globalAlpha = 1

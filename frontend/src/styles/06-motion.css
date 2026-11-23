@@ -38,7 +38,7 @@
     opacity: 0.78;
   }
 
-  /* Real-time cursor-tracked museum vitrine spotlight + crisp 1px metallic rim */
+  /* Real-time cursor-tracked museum vitrine spotlight + smooth radial filigree reveal */
   .artifact-awaken-surface::before {
     content: '';
     position: absolute;
@@ -47,13 +47,28 @@
     pointer-events: none;
     border-radius: inherit;
     opacity: 0;
-    background:
+    background-image:
+      var(--pattern-plinth-lattice-lit),
       radial-gradient(
         260px circle at var(--awaken-x) var(--awaken-y),
-        color-mix(in oklch, var(--awaken-glow) 22%, white 18%) 0%,
+        color-mix(in oklch, var(--awaken-glow) 22%, white 16%) 0%,
         color-mix(in oklch, var(--awaken-glow) 8%, transparent) 46%,
         transparent 76%
       );
+    background-size: 36px 36px, 100% 100%;
+    background-repeat: repeat, no-repeat;
+    -webkit-mask-image: radial-gradient(
+      240px circle at var(--awaken-x) var(--awaken-y),
+      oklch(0% 0 0 / 0.92) 0%,
+      oklch(0% 0 0 / 0.42) 48%,
+      transparent 86%
+    );
+    mask-image: radial-gradient(
+      240px circle at var(--awaken-x) var(--awaken-y),
+      oklch(0% 0 0 / 0.92) 0%,
+      oklch(0% 0 0 / 0.42) 48%,
+      transparent 86%
+    );
     transition: opacity 280ms var(--ease-curatorial);
   }
 
@@ -69,19 +84,7 @@
   }
 
   .artifact-awaken-surface::after {
-    content: '';
-    position: absolute;
-    inset: -20% -60%;
-    z-index: 3;
-    pointer-events: none;
-    background: linear-gradient(
-      75deg,
-      transparent 44%,
-      color-mix(in oklch, var(--awaken-glow) 42%, white 24%) 50%,
-      transparent 56%
-    );
-    opacity: 0;
-    transform: translateX(-60%);
+    display: none;
   }
 
   .artifact-awaken-surface.is-sweeping::after {
@@ -99,9 +102,9 @@
     background:
       radial-gradient(
         290px circle at var(--awaken-x) var(--awaken-y),
-        oklch(96% 0.022 86 / 0.24) 0%,
-        oklch(82% 0.062 80 / 0.16) 32%,
-        oklch(72% 0.044 182 / 0.11) 58%,
+        oklch(96% 0.018 84 / 0.24) 0%,
+        oklch(84% 0.048 78 / 0.16) 32%,
+        oklch(76% 0.036 74 / 0.11) 58%,
         transparent 78%
       );
   }
@@ -135,7 +138,7 @@
     --pointer-light: 0;
   }
 
-  /* Masked 1px specular metal rim following cursor (Apple / Linear museum frame craft) */
+  /* Masked 1px specular metal rim following cursor (high-contrast burnished bronze in light mode, champagne in dark mode) */
   [data-pointer-surface][data-pointer-spotlight="true"]::before {
     content: '';
     position: absolute;
@@ -146,9 +149,9 @@
     pointer-events: none;
     background: radial-gradient(
       340px circle at var(--pointer-x) var(--pointer-y),
-      oklch(82% 0.105 80 / 0.92) 0%,
-      oklch(64% 0.078 166 / 0.42) 38%,
-      transparent 72%
+      oklch(48% 0.096 70 / 0.96) 0%,
+      oklch(56% 0.082 72 / 0.54) 40%,
+      transparent 74%
     );
     opacity: var(--pointer-light);
     -webkit-mask: linear-gradient(oklch(0% 0 0) 0 0) content-box, linear-gradient(oklch(0% 0 0) 0 0);
@@ -158,7 +161,16 @@
     transition: opacity 220ms var(--ease-curatorial);
   }
 
-  /* Soft gallery vitrine surface reflection following cursor */
+  html[data-theme="dark"] [data-pointer-surface][data-pointer-spotlight="true"]::before {
+    background: radial-gradient(
+      340px circle at var(--pointer-x) var(--pointer-y),
+      oklch(82% 0.072 78 / 0.92) 0%,
+      oklch(66% 0.052 74 / 0.42) 38%,
+      transparent 72%
+    );
+  }
+
+  /* Smooth radial Song-brocade reveal following cursor on cards ("犹抱琵琶半遮面") */
   [data-pointer-surface][data-pointer-spotlight="true"]::after {
     content: '';
     position: absolute;
@@ -166,52 +178,76 @@
     z-index: 3;
     border-radius: inherit;
     pointer-events: none;
-    background: radial-gradient(
-      320px circle at var(--pointer-x) var(--pointer-y),
-      oklch(90% 0.055 82 / 0.16) 0%,
-      oklch(74% 0.065 80 / 0.06) 44%,
-      transparent 74%
+    background-image:
+      var(--pattern-brocade-lit),
+      radial-gradient(
+        320px circle at var(--pointer-x) var(--pointer-y),
+        oklch(99% 0.020 88 / 0.44) 0%,
+        oklch(88% 0.058 82 / 0.14) 46%,
+        transparent 76%
+      );
+    background-size: 48px 48px, 100% 100%;
+    background-repeat: repeat, no-repeat;
+    -webkit-mask-image: radial-gradient(
+      300px circle at var(--pointer-x) var(--pointer-y),
+      oklch(0% 0 0 / 1) 0%,
+      oklch(0% 0 0 / 0.64) 48%,
+      oklch(0% 0 0 / 0.14) 76%,
+      transparent 100%
+    );
+    mask-image: radial-gradient(
+      300px circle at var(--pointer-x) var(--pointer-y),
+      oklch(0% 0 0 / 1) 0%,
+      oklch(0% 0 0 / 0.64) 48%,
+      oklch(0% 0 0 / 0.14) 76%,
+      transparent 100%
     );
     opacity: var(--pointer-light);
     transition: opacity 220ms var(--ease-curatorial);
   }
 
   html[data-theme="dark"] [data-pointer-surface][data-pointer-spotlight="true"]::after {
-    background: radial-gradient(
-      340px circle at var(--pointer-x) var(--pointer-y),
-      oklch(86% 0.088 80 / 0.18) 0%,
-      oklch(68% 0.068 166 / 0.07) 44%,
-      transparent 74%
-    );
+    background-image:
+      var(--pattern-brocade-lit),
+      radial-gradient(
+        340px circle at var(--pointer-x) var(--pointer-y),
+        oklch(86% 0.062 78 / 0.18) 0%,
+        oklch(68% 0.046 74 / 0.07) 44%,
+        transparent 74%
+      );
   }
 
   html[data-light-preset="luoshui"] [data-pointer-surface][data-pointer-spotlight="true"]::before {
     background: radial-gradient(
       360px circle at var(--pointer-x) var(--pointer-y),
-      oklch(94% 0.032 85 / 0.90) 0%,
-      oklch(82% 0.068 80 / 0.78) 28%,
-      oklch(72% 0.046 182 / 0.56) 54%,
+      oklch(94% 0.028 84 / 0.90) 0%,
+      oklch(82% 0.052 78 / 0.78) 28%,
+      oklch(74% 0.040 74 / 0.56) 54%,
       transparent 78%
     );
   }
 
   html[data-light-preset="luoshui"] [data-pointer-surface][data-pointer-spotlight="true"]::after {
-    background: radial-gradient(
-      320px circle at var(--pointer-x) var(--pointer-y),
-      oklch(96% 0.022 86 / 0.20) 0%,
-      oklch(82% 0.058 80 / 0.09) 38%,
-      oklch(72% 0.042 182 / 0.05) 60%,
-      transparent 78%
-    );
+    background-image:
+      var(--pattern-brocade-lit),
+      radial-gradient(
+        320px circle at var(--pointer-x) var(--pointer-y),
+        oklch(96% 0.020 84 / 0.20) 0%,
+        oklch(82% 0.048 78 / 0.09) 38%,
+        oklch(74% 0.036 74 / 0.05) 60%,
+        transparent 78%
+      );
   }
 
   html[data-light-preset="spotlight"] [data-pointer-surface][data-pointer-spotlight="true"]::after {
-    background: radial-gradient(
-      260px circle at var(--pointer-x) var(--pointer-y),
-      oklch(96% 0.042 84 / 0.24) 0%,
-      oklch(78% 0.075 78 / 0.08) 40%,
-      transparent 70%
-    );
+    background-image:
+      var(--pattern-brocade-lit),
+      radial-gradient(
+        260px circle at var(--pointer-x) var(--pointer-y),
+        oklch(96% 0.042 84 / 0.24) 0%,
+        oklch(78% 0.075 78 / 0.08) 40%,
+        transparent 70%
+      );
   }
 
   html[data-light-preset="kintsugi"] [data-pointer-surface][data-pointer-spotlight="true"]::before {
@@ -248,26 +284,30 @@
     opacity: 0.55;
   }
 
-  /* ── Surface 4: Precision Museum PointerCursor (4 presets + click ripple + trails) ── */
+  /* ── Surface 4: Quiet Museum Precision PointerCursor (restraint over gimmicks) ── */
   :root {
     --cursor-dot-size: 4px;
-    --cursor-halo-size: 32px;
-    --cursor-dot-pressed-scale: 0.72;
-    --cursor-dot-color: var(--accent-jade);
+    --cursor-halo-size: 26px;
+    --cursor-dot-pressed-scale: 0.78;
+    --cursor-dot-color: oklch(24% 0.018 70);
     --cursor-dot-danger: var(--accent-seal);
-    --cursor-halo-rim: color-mix(in oklch, var(--accent-jade) 58%, transparent);
-    --cursor-halo-rim-pulling: oklch(52% 0.082 171 / 0.92);
-    --cursor-halo-glint: oklch(80% 0.125 84 / 0.98);
+    --cursor-halo-rim: oklch(44% 0.052 70 / 0.42);
+    --cursor-halo-rim-pulling: oklch(40% 0.064 70 / 0.62);
+    --cursor-halo-glint: oklch(48% 0.068 70 / 0.56);
     --cursor-halo-fill: transparent;
-    --motion-pointer-state: 120ms;
-    --ease-pointer: cubic-bezier(0.16, 1, 0.3, 1);
+    --motion-pointer-state: 140ms;
+    --ease-pointer: cubic-bezier(0.22, 1, 0.36, 1);
     --z-cursor: 130;
   }
 
   html[data-theme="dark"] {
-    --cursor-halo-rim: color-mix(in oklch, var(--accent-bronze) 68%, transparent);
-    --cursor-halo-rim-pulling: oklch(94% 0.04 84 / 0.96);
-    --cursor-halo-glint: oklch(86% 0.115 84 / 1);
+    --cursor-dot-size: 4px;
+    --cursor-halo-size: 26px;
+    --cursor-dot-color: oklch(93% 0.014 80);
+    --cursor-halo-rim: oklch(82% 0.036 78 / 0.38);
+    --cursor-halo-rim-pulling: oklch(86% 0.044 78 / 0.58);
+    --cursor-halo-glint: oklch(84% 0.048 78 / 0.52);
+    --cursor-halo-fill: transparent;
   }
 
   .pointer-cursor {
@@ -346,28 +386,17 @@
   }
 
   .pointer-cursor__halo::after {
-    position: absolute;
-    inset: -1px;
-    padding: 1px;
-    border-radius: inherit;
-    background: conic-gradient(from 18deg, transparent 0deg 310deg, var(--cursor-halo-glint) 334deg 358deg, transparent 360deg);
-    content: '';
-    opacity: 0.92;
-    pointer-events: none;
-    -webkit-mask: linear-gradient(oklch(0% 0 0) 0 0) content-box, linear-gradient(oklch(0% 0 0) 0 0);
-    -webkit-mask-composite: xor;
-    mask: linear-gradient(oklch(0% 0 0) 0 0) content-box, linear-gradient(oklch(0% 0 0) 0 0);
-    mask-composite: exclude;
+    display: none;
   }
 
-  /* Click pulse ring */
+  /* Restrained click pulse ring */
   .pointer-cursor__pulse {
     position: fixed;
     top: 0;
     left: 0;
-    width: 44px;
-    height: 44px;
-    margin: -22px 0 0 -22px;
+    width: 34px;
+    height: 34px;
+    margin: -17px 0 0 -17px;
     border-radius: 50%;
     border: 1px solid var(--cursor-halo-glint);
     opacity: 0;
@@ -381,7 +410,7 @@
     inset: 0;
     border-radius: inherit;
     border: 1px solid var(--cursor-halo-glint);
-    transform: scale(0.28);
+    transform: scale(0.52);
     opacity: 0;
   }
 
@@ -391,25 +420,17 @@
   }
 
   .pointer-cursor__pulse.is-pulsing::after {
-    animation: cursor-ripple-bloom 520ms var(--ease-curatorial) forwards;
+    animation: cursor-ripple-bloom 360ms var(--ease-curatorial) forwards;
   }
 
   @keyframes cursor-ripple-bloom {
-    0% { transform: scale(0.25); opacity: 0.85; }
-    100% { transform: scale(1.42); opacity: 0; }
+    0% { transform: scale(0.52); opacity: 0.42; }
+    100% { transform: scale(1.12); opacity: 0; }
   }
 
-  /* Subtle inertia trail beads (active in luoshui & kintsugi presets) */
+  /* Trailing orbs disabled for calm museum restraint */
   .pointer-cursor__trail {
-    position: fixed;
-    top: 0;
-    left: 0;
-    border-radius: 50%;
-    translate: -50% -50%;
-    pointer-events: none;
-    opacity: 0;
-    will-change: transform, opacity;
-    transition: opacity 180ms var(--ease-pointer);
+    display: none;
   }
 
   .pointer-cursor__trail--near {
@@ -434,25 +455,39 @@
     opacity: 0.48;
   }
 
-  /* Preset-specific cursor halo personalities */
+  /* Preset-specific cursor halo personalities — kept whisper-quiet and architectural */
   .pointer-cursor[data-preset="luoshui"] .pointer-cursor__halo {
-    --cursor-halo-size: 36px;
-    border-color: oklch(86% 0.048 82 / 0.34);
-    background: radial-gradient(circle, oklch(96% 0.020 86 / 0.14) 0%, oklch(84% 0.052 80 / 0.07) 42%, oklch(74% 0.040 182 / 0.04) 68%, transparent 82%);
-    box-shadow: 0 0 18px -6px oklch(86% 0.056 80 / 0.32);
+    --cursor-halo-size: 26px;
+    border-color: var(--cursor-halo-rim);
+    background: transparent;
+    box-shadow: none;
   }
 
   .pointer-cursor[data-preset="luoshui"] .pointer-cursor__halo::after {
-    background: conic-gradient(from 24deg, transparent 0deg 260deg, oklch(94% 0.032 84 / 0.85) 310deg 345deg, transparent 360deg);
-    opacity: 0.78;
+    background: conic-gradient(from 24deg, transparent 0deg 250deg, var(--cursor-halo-glint) 305deg 348deg, transparent 360deg);
+    opacity: 0.92;
   }
 
   .pointer-cursor[data-preset="luoshui"] .pointer-cursor__trail--near {
-    background: radial-gradient(circle, oklch(95% 0.028 85 / 0.92) 0%, oklch(82% 0.062 80 / 0.45) 50%, transparent 76%);
+    background: radial-gradient(circle, var(--cursor-halo-glint) 0%, oklch(64% 0.092 74 / 0.56) 52%, transparent 78%);
   }
 
   .pointer-cursor[data-preset="luoshui"] .pointer-cursor__trail--far {
-    background: radial-gradient(circle, oklch(76% 0.046 182 / 0.68) 0%, transparent 74%);
+    background: radial-gradient(circle, oklch(58% 0.088 72 / 0.72) 0%, transparent 76%);
+  }
+
+  html[data-theme="dark"] .pointer-cursor[data-preset="luoshui"] .pointer-cursor__halo {
+    border-color: oklch(86% 0.044 80 / 0.34);
+    background: radial-gradient(circle, oklch(96% 0.018 84 / 0.14) 0%, oklch(84% 0.044 78 / 0.07) 42%, oklch(76% 0.036 74 / 0.04) 68%, transparent 82%);
+    box-shadow: 0 0 18px -6px oklch(86% 0.048 78 / 0.32);
+  }
+
+  html[data-theme="dark"] .pointer-cursor[data-preset="luoshui"] .pointer-cursor__trail--near {
+    background: radial-gradient(circle, oklch(95% 0.024 84 / 0.92) 0%, oklch(82% 0.052 78 / 0.45) 50%, transparent 76%);
+  }
+
+  html[data-theme="dark"] .pointer-cursor[data-preset="luoshui"] .pointer-cursor__trail--far {
+    background: radial-gradient(circle, oklch(78% 0.042 76 / 0.68) 0%, transparent 74%);
   }
 
   .pointer-cursor[data-preset="spotlight"] .pointer-cursor__halo {
@@ -472,18 +507,18 @@
   }
 
   html.pointer-motion-enabled:not([data-theme="dark"]):has(.pointer-dot-field[data-state="active"]) .pointer-cursor:not([data-intent="danger"]) {
-    --cursor-halo-rim: oklch(58% 0.082 76 / 0.56);
-    --cursor-halo-rim-pulling: oklch(52% 0.088 76 / 0.82);
+    --cursor-halo-rim: oklch(62% 0.064 74 / 0.56);
+    --cursor-halo-rim-pulling: oklch(52% 0.072 72 / 0.84);
   }
 
   html.pointer-motion-enabled:not([data-theme="dark"]):has(.pointer-dot-field[data-state="active"]) .pointer-cursor:not([data-intent="danger"]) .pointer-cursor__dot::before {
-    background: oklch(35% 0.068 166);
-    box-shadow: 0 0 0 1.25px oklch(68% 0.095 76 / 0.85);
+    background: oklch(98.5% 0.005 84);
+    box-shadow: 0 0 0 1.25px oklch(62% 0.074 74 / 0.92), 0 0 8px oklch(78% 0.078 78 / 0.48);
   }
 
   html.pointer-motion-enabled[data-theme="dark"]:has(.pointer-dot-field[data-state="active"]) .pointer-cursor:not([data-intent="danger"]) .pointer-cursor__dot::before {
-    background: oklch(95% 0.045 84);
-    box-shadow: 0 0 0 1px oklch(78% 0.10 82 / 0.45);
+    background: oklch(96% 0.024 82);
+    box-shadow: 0 0 0 1px oklch(80% 0.064 78 / 0.52);
   }
 
   html.pointer-motion-enabled:has(.pointer-dot-field[data-state="active"]) .pointer-cursor.is-visible .pointer-cursor__halo,

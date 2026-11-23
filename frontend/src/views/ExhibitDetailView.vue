@@ -201,9 +201,29 @@ const copy = computed(() => locale.value === 'zh-CN' ? {
 })
 
 const displayTitle = computed(() => exhibit.value?.title || copy.value.title)
-const headerBadge = computed(() => `EXHIBIT ${exhibit.value?.displayNo || '01'}`)
+const headerBadge = computed(() => {
+  if (exhibit.value?.slug === 'heluo-bronze-ding-3d') return 'EXHIBIT 01'
+  return `EXHIBIT ${exhibit.value?.displayNo || '01'}`
+})
+const fromArtifactPath = computed(() => {
+  const from = typeof route.query?.from === 'string' ? route.query.from : ''
+  return from.startsWith('/artifacts/') ? from : ''
+})
+const backDestination = computed(() => fromArtifactPath.value || '/exhibits')
+const backLabel = computed(() => {
+  if (!fromArtifactPath.value) return copy.value.back
+  return locale.value === 'en-US' ? 'Back to artifact' : '返回器物档案'
+})
+const localizedSourceCredit = computed(() => {
+  const raw = exhibit.value?.sourceCredit
+  if (!raw) return copy.value.unknownSource
+  if (locale.value === 'zh-CN' && raw.includes('Cleveland Museum of Art')) {
+    return '克利夫兰艺术博物馆 · 1962.281 CC0 公开馆藏参考'
+  }
+  return raw
+})
 const exhibitFacts = computed(() => [
-  { label: copy.value.factLabels[0], value: exhibit.value?.sourceCredit || copy.value.unknownSource },
+  { label: copy.value.factLabels[0], value: localizedSourceCredit.value },
   { label: copy.value.factLabels[1], value: exhibit.value?.licenseLabel || copy.value.material },
   { label: copy.value.factLabels[2], value: exhibit.value?.collectionLocation || exhibit.value?.summary || copy.value.noDescription },
 ])
@@ -434,7 +454,7 @@ onBeforeUnmount(() => {
     <section class="exhibit-scene" :data-display-mode="displayMode">
       <!-- Module 1: Frameless Top Floating Bar -->
       <header class="darkroom-topbar" data-motion="scene-label">
-        <RouterLink class="darkroom-back" to="/exhibits">← {{ copy.back }}</RouterLink>
+        <RouterLink class="darkroom-back" :to="backDestination">← {{ backLabel }}</RouterLink>
         <div class="darkroom-title">
           <span class="font-mono">{{ headerBadge }}</span>
           <i aria-hidden="true">·</i>
@@ -623,7 +643,6 @@ onBeforeUnmount(() => {
               :disabled="!viewerInteractive"
               @click="chooseView(view.key)"
             >
-              <img :src="view.thumbnail || exhibit.coverImageUrl" alt="" />
               <span>{{ view.label }}</span>
             </button>
           </div>
@@ -877,7 +896,7 @@ onBeforeUnmount(() => {
   padding: 3px;
   border: 1px solid var(--glass-dark-border);
   border-radius: var(--radius-pill);
-  background: oklch(10% 0.010 165 / 0.65);
+  background: oklch(11% 0.005 74 / 0.68);
 }
 
 .dock-mode-switch button {
@@ -904,8 +923,8 @@ onBeforeUnmount(() => {
 }
 
 .dock-mode-switch button.active {
-  background: oklch(72% 0.092 75);
-  color: oklch(14% 0.014 165);
+  background: oklch(81% 0.048 78);
+  color: oklch(14% 0.006 74);
 }
 
 .dock-mode-switch button:disabled {
@@ -922,9 +941,9 @@ onBeforeUnmount(() => {
 .view-switcher button {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  justify-content: center;
   min-height: 36px;
-  padding: 3px 0.7rem 3px 4px;
+  padding: 0 0.75rem;
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
   background: transparent;
@@ -936,14 +955,6 @@ onBeforeUnmount(() => {
   transition: border-color var(--duration-fast) var(--ease-curatorial),
               background-color var(--duration-fast) var(--ease-curatorial),
               color var(--duration-fast) var(--ease-curatorial);
-}
-
-.view-switcher button img {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  object-fit: cover;
-  background: oklch(14% 0.01 165);
 }
 
 .view-switcher button:hover:not(:disabled) {
@@ -1133,26 +1144,26 @@ onBeforeUnmount(() => {
   padding: 0 0.625rem;
   border: 1px solid var(--glass-dark-border);
   border-radius: var(--radius-xs);
-  background: oklch(18% 0.012 165 / 0.7);
+  background: oklch(18% 0.006 74 / 0.72);
   color: var(--ink-on-dark-muted);
   font-size: var(--text-xs);
 }
 
 .tour-route li.active span,
 .tour-route li button {
-  border-color: oklch(72% 0.092 75 / 0.55);
+  border-color: oklch(78% 0.052 76 / 0.55);
   color: var(--ink-on-dark);
 }
 
 .tour-route li button {
   cursor: pointer;
-  background: oklch(72% 0.092 75 / 0.2);
+  background: oklch(78% 0.052 76 / 0.18);
   font-weight: 600;
 }
 
 .tour-route li button:hover:not(:disabled) {
-  background: oklch(72% 0.092 75);
-  color: oklch(14% 0.014 165);
+  background: oklch(81% 0.048 78);
+  color: oklch(14% 0.006 74);
 }
 
 .exhibit-panel-actions {
@@ -1176,8 +1187,8 @@ onBeforeUnmount(() => {
 }
 
 .panel-cta-primary {
-  background: oklch(72% 0.092 75);
-  color: oklch(14% 0.014 165);
+  background: oklch(81% 0.048 78);
+  color: oklch(14% 0.006 74);
 }
 
 .panel-cta-secondary {
@@ -1227,7 +1238,7 @@ onBeforeUnmount(() => {
   padding: var(--space-6);
   border: 1px solid var(--glass-dark-border);
   border-radius: var(--radius-lg);
-  background: oklch(12% 0.012 165 / 0.84);
+  background: oklch(13% 0.005 74 / 0.86);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   text-align: center;
@@ -1279,9 +1290,9 @@ onBeforeUnmount(() => {
 }
 
 .viewer-poster-start {
-  border: 1px solid oklch(72% 0.092 75);
-  background: oklch(72% 0.092 75);
-  color: oklch(14% 0.014 165);
+  border: 1px solid oklch(81% 0.048 78);
+  background: oklch(81% 0.048 78);
+  color: oklch(14% 0.006 74);
 }
 
 .viewer-poster-info {
@@ -1437,7 +1448,7 @@ html[data-theme="dark"] .immersive-exhibit .exhibit-scene[data-display-mode="poi
 }
 
 html[data-theme="dark"] .immersive-exhibit .darkroom-topbar {
-  background: linear-gradient(180deg, oklch(12% 0.012 165 / 0.68) 0%, transparent 100%);
+  background: linear-gradient(180deg, oklch(12% 0.005 74 / 0.68) 0%, transparent 100%);
 }
 
 html[data-theme="dark"] .immersive-exhibit .darkroom-back {
@@ -1447,7 +1458,7 @@ html[data-theme="dark"] .immersive-exhibit .darkroom-back {
 }
 
 html[data-theme="dark"] .immersive-exhibit .darkroom-title {
-  background: oklch(18% 0.014 165 / 0.62);
+  background: oklch(18% 0.006 74 / 0.66);
   border-color: var(--glass-dark-border);
   color: var(--ink-on-dark);
 }
