@@ -121,6 +121,20 @@ function ensureFrame() {
     trailA.value?.style.setProperty('transform', `translate3d(${trailAX}px, ${trailAY}px, 0)`)
     trailB.value?.style.setProperty('transform', `translate3d(${trailBX}px, ${trailBY}px, 0)`)
 
+    const ambientVeil = typeof document !== 'undefined'
+      ? document.querySelector<HTMLElement>('.app-ambient-veil')
+      : null
+    if (ambientVeil) {
+      const scrollY = typeof window !== 'undefined' ? window.scrollY : 0
+      const scrollX = typeof window !== 'undefined' ? window.scrollX : 0
+      const bgX = -(((scrollX % 72) + 72) % 72)
+      const bgY = -(((scrollY % 72) + 72) % 72)
+      ambientVeil.style.setProperty('--ambient-x', `${haloX.toFixed(1)}px`)
+      ambientVeil.style.setProperty('--ambient-y', `${haloY.toFixed(1)}px`)
+      ambientVeil.style.setProperty('background-position', `${bgX.toFixed(1)}px ${bgY.toFixed(1)}px, 0 0`)
+      ambientVeil.dataset.active = 'true'
+    }
+
     sampledTime += deltaMs
     sampledFrames += 1
     if (sampledFrames >= 20) {

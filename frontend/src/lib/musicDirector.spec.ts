@@ -217,4 +217,37 @@ describe('recorded music director', () => {
     document.dispatchEvent(new Event('visibilitychange'))
     expect(mocks.pause).not.toHaveBeenCalled()
   })
+
+  it('broadcasts state updates for background pause and locks manual track across route changes until reset to auto', () => {
+    const snapshots: Array<ReturnType<typeof musicDirector.getState>> = []
+    const unsub = musicDirector.subscribe(state => snapshots.push(state))
+    enable('home')
+    expect(snapshots.at(-1)?.isPausedByVisibility).toBe(false)
+
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
+    document.dispatchEvent(new Event('visibilitychange'))
+    expect(snapshots.at(-1)?.isPausedByVisibility).toBe(true)
+
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+    document.dispatchEvent(new Event('visibilitychange'))
+    expect(musicDirector.getState().isPausedByVisibility).toBe(true)
+
+    gesture('click')
+    expect(musicDirector.getState().isPausedByVisibility).toBe(false)
+
+    mocks.start.mockClear()
+    musicDirector.setManualTrack('bronze')
+    expect(musicDirector.getState().manualTrack).toBe('bronze')
+    expect(mocks.start.mock.lastCall?.[2]).toBe('exhibit')
+
+    // Route change must not override manual track lock
+    musicDirector.setRoute('shop')
+    expect(mocks.start.mock.lastCall?.[2]).toBe('exhibit')
+
+    // Returning to auto restores route mapping
+    musicDirector.setManualTrack(null)
+    expect(musicDirector.getState().manualTrack).toBeNull()
+    expect(mocks.start.mock.lastCall?.[2]).toBe('store')
+    unsub()
+  })
 })

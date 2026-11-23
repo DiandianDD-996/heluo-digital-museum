@@ -162,15 +162,18 @@ public class GuidePromptBuilder {
         }
         sb.append(english ? "3D Exhibits:\n" : "3D 展项：\n");
         for (ExhibitItem e : catalog.exhibits()) {
-            sb.append("- [EXHIBIT:").append(e.slug()).append("] ").append(e.title())
+            String title = english && !e.titleEn().isBlank() ? e.titleEn() + " (" + e.title() + ")" : e.title();
+            sb.append("- [EXHIBIT:").append(e.slug()).append("] ").append(title)
                     .append(" (artifact=").append(e.artifactSlug()).append(")\n");
         }
         sb.append(english ? "Museum Shop Products:\n" : "文创商品（/shop）：\n");
         for (ProductItem p : catalog.products()) {
-            sb.append("- [PRODUCT:").append(p.slug()).append("] ").append(p.name())
+            String name = english && !p.nameEn().isBlank() ? p.nameEn() + " (" + p.name() + ")" : p.name();
+            String summary = english && !p.summaryEn().isBlank() ? p.summaryEn() : p.summary();
+            sb.append("- [PRODUCT:").append(p.slug()).append("] ").append(name)
                     .append(" | ¥").append(p.price())
                     .append(" | stock=").append(p.availableStock())
-                    .append(" | ").append(truncate(p.summary(), 60)).append('\n');
+                    .append(" | ").append(truncate(summary, 60)).append('\n');
         }
         sb.append(english
                 ? "Core routes: /explore, /exhibits, /appointment, /shop\n"
@@ -203,13 +206,13 @@ public class GuidePromptBuilder {
                             .append(", view=").append(vs.view() == null ? "front" : vs.view()).append('\n');
                 }
                 knowledge.findArtifact(exhibit.artifactSlug()).ifPresent(artifact -> appendArtifactFull(sb, artifact, audit));
-                appendTier1Evidence(sb, exhibit.slug(), audit);
+                appendTier1Evidence(sb, exhibit.slug(), english, audit);
             });
         } else if (ctx.artifactSlug() != null && !ctx.artifactSlug().isBlank()) {
             knowledge.findArtifact(ctx.artifactSlug()).ifPresent(artifact -> {
                 appendArtifactFull(sb, artifact, audit);
                 if (artifact.exhibitSlug() != null) {
-                    appendTier1Evidence(sb, artifact.exhibitSlug(), audit);
+                    appendTier1Evidence(sb, artifact.exhibitSlug(), english, audit);
                 }
             });
         } else if (ctx.articleSlug() != null && !ctx.articleSlug().isBlank()) {
@@ -265,8 +268,8 @@ public class GuidePromptBuilder {
         sb.append("content:\n").append(artifact.content()).append('\n');
     }
 
-    private void appendTier1Evidence(StringBuilder sb, String exhibitSlug, ToolAuditContext audit) {
-        List<GuideEvidenceReader.Evidence> cards = knowledge.evidenceCards(exhibitSlug);
+    private void appendTier1Evidence(StringBuilder sb, String exhibitSlug, boolean english, ToolAuditContext audit) {
+        List<GuideEvidenceReader.Evidence> cards = knowledge.evidenceCards(exhibitSlug, english ? "en-US" : "zh-CN");
         if (cards.isEmpty()) {
             return;
         }

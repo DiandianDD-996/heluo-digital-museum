@@ -7,8 +7,8 @@ const require = createRequire(new URL('../../frontend/package.json', import.meta
 const { chromium } = require('@playwright/test')
 const output = new URL('../../artifacts/music-audition-2026-09-27/', import.meta.url)
 const diagnostic = process.argv.includes('--diagnostic')
-const revision = process.argv.includes('--r3') ? 'r3' : process.argv.includes('--r2') ? 'r2' : 'r1'
-const revisionIds = revision === 'r3' ? ['r3', 'r2', 'r1'] : revision === 'r2' ? ['r2', 'r1'] : ['r1']
+const revision = process.argv.includes('--r4') ? 'r4' : process.argv.includes('--r3') ? 'r3' : process.argv.includes('--r2') ? 'r2' : 'r1'
+const revisionIds = revision === 'r4' ? ['r4', 'r3', 'r2', 'r1'] : revision === 'r3' ? ['r3', 'r2', 'r1'] : revision === 'r2' ? ['r2', 'r1'] : ['r1']
 const editions = await Promise.all(revisionIds.map(async id => ({
   id,
   report: JSON.parse(await readFile(new URL(id === 'r1' ? 'render-report.json' : 'render-report-' + id + '.json', output), 'utf8')),
@@ -37,7 +37,8 @@ try {
   assert.equal(await page.locator('audio').count(), 1)
   assert.equal(await page.locator('audio').evaluate(audio => audio.paused), true)
   assert.equal(await page.locator('input[name="revision"]:checked').inputValue(), revision)
-  if (revision !== 'r1') assert.equal(await page.locator('.track[aria-pressed="true"]').getAttribute('data-id'), 'bronze')
+  if (revision === 'r4') assert.equal(await page.locator('.track[aria-pressed="true"]').getAttribute('data-id'), 'jade')
+  else if (revision !== 'r1') assert.equal(await page.locator('.track[aria-pressed="true"]').getAttribute('data-id'), 'bronze')
   for (const id of revisionIds) assert.equal(await page.locator('input[name="revision"][value="' + id + '"]').count(), 1)
   results.push('HTTP 200; URL revision and initial scene match; one player; initial load remains paused')
 
@@ -71,7 +72,7 @@ try {
         assert.equal(body.length, resourceInfo.bytes)
         assert.equal(await page.locator('#download').getAttribute('href'), resourceInfo.file)
         results.push(edition.id + '/' + track.id + '/' + mode + ': WAV decoded, ' + resourceInfo.durationSeconds + 's and duration label, sections, HTTP bytes and download match')
-        if (revision === 'r3' && edition.id === 'r3' && track.id === 'bronze' && mode === 'scene') {
+        if (((revision === 'r3' && edition.id === 'r3' && track.id === 'bronze') || (revision === 'r4' && edition.id === 'r4' && track.id === 'jade')) && mode === 'scene') {
           const url = new URL(resourceInfo.file, origin).href
           const first = await page.request.get(url, { headers: { Range: 'bytes=0-63' } })
           assert.equal(first.status(), 206)
@@ -129,9 +130,21 @@ try {
     results.push('Old/new version comparison and rapid switches retain the same second and playback in one player')
   }
 
-  if (revision === 'r3') {
-    assert.equal(new Set(report.tracks.map(track => track.scene.durationSeconds)).size, 3)
+  if (revision === 'r3' || revision === 'r4') {
+    const expectedCount = revision === 'r4' ? 4 : 3
+    assert.equal(new Set(report.tracks.map(track => track.scene.durationSeconds)).size, expectedCount)
     assert.ok(report.tracks.every(track => track.scene.durationSeconds >= 90 && track.scene.durationSeconds <= 120))
+    if (revision === 'r4') {
+      await page.locator('input[name="revision"][value="r4"]').check()
+      await page.locator('.track[data-id="jade"]').click()
+      await waitForAudio(trackAt('jade'), 'scene', false)
+      await page.locator('input[name="revision"][value="r3"]').check()
+      await waitForAudio(trackAt('bronze', 'r3'), 'scene', false)
+      assert.equal(await page.locator('.track[data-id="jade"]').isDisabled(), true)
+      await page.locator('input[name="revision"][value="r4"]').check()
+      assert.equal(await page.locator('.track[data-id="jade"]').isDisabled(), false)
+      results.push('R4 jade -> R3 fallback to bronze and disabled jade button verified')
+    }
     await page.locator('.track[data-id="bronze"]').click()
     await waitForAudio(trackAt('bronze'), 'scene', false)
     await page.locator('audio').evaluate(async audio => { audio.currentTime = 80; await audio.play() })
@@ -140,27 +153,27 @@ try {
     assert.ok(await page.locator('audio').evaluate(audio => audio.currentTime < 2))
     assert.match(await page.locator('#status').textContent(), /所选版本较短，从开头继续/)
     assert.match(await page.locator('#revision-note').textContent(), /同一秒数不代表同一乐句/)
-    results.push('80s playing R3 → 56s R2 resumes from the start with an explicit duration/structure notice')
+    results.push(`80s playing ${revision.toUpperCase()} → 56s R2 resumes from the start with an explicit duration/structure notice`)
 
-    await page.locator('input[name="revision"][value="r3"]').check()
+    await page.locator('input[name="revision"][value="' + revision + '"]').check()
     await waitForAudio(trackAt('bronze'), 'scene', true)
     await page.locator('audio').evaluate(audio => { audio.pause(); audio.currentTime = 80 })
     await page.locator('input[name="revision"][value="r1"]').check()
     await waitForAudio(trackAt('bronze', 'r1'), 'scene', false)
     assert.equal(await page.locator('audio').evaluate(audio => audio.currentTime), 0)
     assert.match(await page.locator('#status').textContent(), /所选版本较短，已回到开头/)
-    results.push('80s paused R3 → 56s R1 returns to the start and remains paused')
+    results.push(`80s paused ${revision.toUpperCase()} → 56s R1 returns to the start and remains paused`)
 
-    await page.locator('input[name="revision"][value="r3"]').check()
+    await page.locator('input[name="revision"][value="' + revision + '"]').check()
     await waitForAudio(trackAt('bronze'), 'scene', false)
     await page.locator('audio').evaluate(audio => { audio.currentTime = 80 })
-    await page.evaluate(() => {
-      for (const value of ['r2', 'r1', 'r3']) document.querySelector('input[name="revision"][value="' + value + '"]').click()
-    })
+    await page.evaluate(rev => {
+      for (const value of ['r2', 'r1', rev]) document.querySelector('input[name="revision"][value="' + value + '"]').click()
+    }, revision)
     await waitForAudio(trackAt('bronze'), 'scene', false)
     assert.ok(Math.abs(await page.locator('audio').evaluate(audio => audio.currentTime) - 80) < 0.1)
     assert.equal(await page.locator('audio').count(), 1)
-    results.push('Rapid paused R3 → R2 → R1 → R3 keeps the intended 80s position without starting playback')
+    results.push(`Rapid paused ${revision.toUpperCase()} → R2 → R1 → ${revision.toUpperCase()} keeps the intended 80s position without starting playback`)
 
     await page.locator('input[name="mode"][value="audition"]').check()
     await waitForAudio(trackAt('bronze'), 'audition', false)
@@ -185,12 +198,13 @@ try {
   await waitForAudio(trackAt('reading'), 'scene', false)
   results.push('Track selection works from keyboard and remains paused')
 
-  if (revision === 'r3') {
-    await page.locator('input[name="revision"][value="r3"]').focus()
+  if (revision === 'r3' || revision === 'r4') {
+    await page.locator('input[name="revision"][value="' + revision + '"]').focus()
     await page.keyboard.press('ArrowRight')
-    assert.equal(await page.locator('input[name="revision"]:checked').inputValue(), 'r2')
-    await waitForAudio(trackAt('reading', 'r2'), 'scene', false)
-    await page.locator('input[name="revision"][value="r3"]').focus()
+    const expectedNext = revision === 'r4' ? 'r3' : 'r2'
+    assert.equal(await page.locator('input[name="revision"]:checked').inputValue(), expectedNext)
+    await waitForAudio(trackAt('reading', expectedNext), 'scene', false)
+    await page.locator('input[name="revision"][value="' + revision + '"]').focus()
     await page.keyboard.press('Space')
     await waitForAudio(trackAt('reading'), 'scene', false)
     results.push('Version radios work with arrow/space keys without starting playback')

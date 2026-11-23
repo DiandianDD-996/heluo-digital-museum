@@ -27,15 +27,15 @@ for (const route of ['/', '/explore', '/artifacts/water-bird-bronze', '/appointm
   checked.push(`${route}: current build HTML`)
 }
 
-const manifestResponse = await get('/media/audio/music-r3/manifest.json')
+const manifestResponse = await get('/media/audio/music-r4/manifest.json')
 assert.equal(manifestResponse.status, 200)
 const manifestBytes = Buffer.from(await manifestResponse.arrayBuffer())
-assert.equal(digest(manifestBytes), digest(await readFile(path.join(dist, 'media/audio/music-r3/manifest.json'))))
+assert.equal(digest(manifestBytes), digest(await readFile(path.join(dist, 'media/audio/music-r4/manifest.json'))))
 const manifest = JSON.parse(manifestBytes)
 for (const track of manifest.tracks) {
   const response = await get(track.url)
   assert.equal(response.status, 200, track.url)
-  assert.match(response.headers.get('content-type') || '', /^audio\/mpeg\b/)
+  assert.match(response.headers.get('content-type') || '', /^audio\/mp4\b/)
   const bytes = Buffer.from(await response.arrayBuffer())
   assert.equal(bytes.length, track.bytes)
   assert.equal(digest(bytes), track.sha256)

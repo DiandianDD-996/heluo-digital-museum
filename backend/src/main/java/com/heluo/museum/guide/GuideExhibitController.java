@@ -34,13 +34,12 @@ class GuideExhibitController {
         if (knowledge.findExhibit(slug).isEmpty()) {
             throw new ResourceNotFoundException("Guide exhibit unavailable");
         }
-        List<Entry> entries = "zh-CN".equals(locale)
-                ? knowledge.evidenceCards(slug).stream()
-                        .map(row -> new Entry(row.card().id(), row.card().revision(), row.spokenText(), row.publicSource()))
-                        .toList()
-                : List.of();
+        String targetLocale = locale.toLowerCase().startsWith("en") ? "en-US" : "zh-CN";
+        List<Entry> entries = knowledge.evidenceCards(slug, targetLocale).stream()
+                .map(row -> new Entry(row.card().id(), row.card().revision(), row.spokenText(), row.publicSource()))
+                .toList();
         return ResponseEntity.ok().cacheControl(CacheControl.noStore())
-                .body(ApiResponse.ok(new Preset(slug, locale, !entries.isEmpty(), entries), "guide exhibit"));
+                .body(ApiResponse.ok(new Preset(slug, targetLocale, !entries.isEmpty(), entries), "guide exhibit"));
     }
 
     record Preset(String exhibitSlug, String locale, boolean available, List<Entry> entries) {}

@@ -35,11 +35,13 @@ vi.mock('vue-router', async () => {
 })
 
 import ExhibitDetailView from './ExhibitDetailView.vue'
+import { audioSystem } from '../lib/audioSystem'
+import { useAudio } from '../stores/audio'
 
 const viewerStub = defineComponent({
   name: 'ThreeExhibitViewer',
   props: { modelUrl: { type: String, required: true } },
-  emits: ['mode-change', 'quality-change', 'state-change', 'point-cloud-state'],
+  emits: ['mode-change', 'quality-change', 'state-change', 'point-cloud-state', 'part-focus'],
   setup(props, { emit, expose }) {
     onMounted(() => emit('state-change', 'ready'))
     expose({
@@ -299,5 +301,75 @@ describe('ExhibitDetailView point-cloud mode control', () => {
     const scopedBlock = sfc.match(/<style\s+scoped>([\s\S]*?)<\/style>/)?.[1] ?? ''
     expect(scopedBlock).not.toContain(':global(html[data-theme="dark"])')
     expect(sfc).toContain('html[data-theme="dark"] .immersive-exhibit .exhibit-scene::after')
+  })
+
+  it('syncs pointcloud acoustic filter, resets on unmount, triggers spatial part-focus audio, and persists darkroom invite', async () => {
+    localStorage.clear()
+    vi.stubGlobal('AudioContext', vi.fn(function () {
+      return {
+        currentTime: 0,
+        state: 'running',
+        sampleRate: 48000,
+        destination: {},
+        createGain: () => ({ gain: { value: 1, setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn(), cancelScheduledValues: vi.fn() }, connect: vi.fn() }),
+        createBiquadFilter: () => ({ type: 'allpass', frequency: { value: 0 }, gain: { value: 0, setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn(), cancelScheduledValues: vi.fn() }, connect: vi.fn() }),
+        resume: () => Promise.resolve(),
+        addEventListener: vi.fn(),
+      }
+    }))
+    useAudio().disable()
+    const spaceSpy = vi.spyOn(audioSystem, 'setSpaceAcoustic')
+    const playSpy = vi.spyOn(audioSystem, 'playInteraction').mockResolvedValue()
+
+    const wrapper = mount(ExhibitDetailView, {
+      global: { stubs: { ThreeExhibitViewer: viewerStub, BottomSheet: true } },
+    })
+    await flushPromises()
+
+    // Darkroom invite shows when audio is off and not dismissed
+    expect(wrapper.find('[data-testid="darkroom-audio-invite"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="darkroom-audio-invite"]').text()).toContain('《观器·温金》')
+
+    // Enable from invite hides invite and turns on audio
+    await wrapper.get('[data-testid="darkroom-invite-enable"]').trigger('click')
+    expect(useAudio().enabled.value).toBe(true)
+    expect(wrapper.find('[data-testid="darkroom-audio-invite"]').exists()).toBe(false)
+
+    // Switch to point cloud -> enables pointcloud acoustic filter
+    await wrapper.get('.tour-route li:nth-child(5) button').trigger('click')
+    expect(spaceSpy).toHaveBeenCalledWith('pointcloud')
+
+    // Part focus spatial audio (ear -> pan -0.22 / rate 1.14, feet -> pan 0.22 / rate 0.84)
+    vi.useFakeTimers()
+    vi.setSystemTime(1000)
+    const runtime = wrapper.findComponent(viewerStub)
+    runtime.vm.$emit('part-focus', 'ear')
+    expect(playSpy).toHaveBeenLastCalledWith('awaken-bronze', { rate: 1.14, volume: 0.16, pan: -0.22 })
+    vi.setSystemTime(1250)
+    runtime.vm.$emit('part-focus', 'feet')
+    expect(playSpy).toHaveBeenLastCalledWith('awaken-bronze', { rate: 0.84, volume: 0.18, pan: 0.22 })
+    vi.useRealTimers()
+
+    // Unmount MUST reset pointcloud acoustic filter back to default
+    wrapper.unmount()
+    expect(spaceSpy).toHaveBeenLastCalledWith('default')
+
+    // Dismissing invite persists across mounts
+    useAudio().disable()
+    const wrapper2 = mount(ExhibitDetailView, {
+      global: { stubs: { ThreeExhibitViewer: viewerStub, BottomSheet: true } },
+    })
+    await flushPromises()
+    await wrapper2.get('[data-testid="darkroom-invite-dismiss"]').trigger('click')
+    expect(localStorage.getItem('museum-audio-darkroom-invite-dismissed')).toBe('true')
+    expect(wrapper2.find('[data-testid="darkroom-audio-invite"]').exists()).toBe(false)
+    wrapper2.unmount()
+
+    const wrapper3 = mount(ExhibitDetailView, {
+      global: { stubs: { ThreeExhibitViewer: viewerStub, BottomSheet: true } },
+    })
+    await flushPromises()
+    expect(wrapper3.find('[data-testid="darkroom-audio-invite"]').exists()).toBe(false)
+    wrapper3.unmount()
   })
 })

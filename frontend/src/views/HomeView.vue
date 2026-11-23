@@ -8,6 +8,7 @@ import { audioSystem } from '../lib/audioSystem'
 import { claimHomeEntrance } from '../lib/homeEntrance'
 import PointerDotField from '../components/PointerDotField.vue'
 import HeluoPattern from '../components/HeluoPattern.vue'
+import AcousticRuler from '../components/AcousticRuler.vue'
 
 const { locale } = useLocale()
 const { isDark } = useTheme()
@@ -36,9 +37,9 @@ const copy = computed(() => locale.value === 'zh-CN'
       closeLabel: '走近器物',
       closeTitle: '一鼎之间，\n细看青铜。',
       closeText: '站在一件青铜鼎前，视线通常会先落在器腹繁复的兽面纹上，再慢慢移向双耳与三足。我们参照克利夫兰艺术博物馆公开馆藏重制了这件数字青铜鼎——不妨先点开下面三处细节，再去 3D 展柜里亲手转一转。',
-      closeNote: '青铜鼎意象 · 数字策展配图',
-      closePlaqueType: '礼器 · 三足方鼎',
-      closePlaqueMaterial: '古青铜 PBR 数字重制',
+      closeNote: '克利夫兰艺术博物馆公开馆藏参考',
+      closePlaqueType: '商周青铜礼器 · 三足方鼎',
+      closePlaqueMaterial: '数字馆藏重制',
       closeAction: '阅读青铜鼎故事',
       close3dAction: '进入 3D 近观',
       observations: [
@@ -47,8 +48,8 @@ const copy = computed(() => locale.value === 'zh-CN'
         { label: '三足支撑', detail: '三根圆实柱足稳稳托住器身，进 3D 展柜转到下方仰看，还能留意到合范铸造留下的线条。' },
       ],
       themesIntro: '从礼器、温玉到河水边的生活，慢慢翻看河洛的另一面。',
-      visitEyebrow: '赴一场河洛之约',
-      visitTitle: '把探索，延伸到下一站。',
+      visitEyebrow: '线下参观',
+      visitTitle: '来展厅里，亲眼看看这些器物。',
       visitText: '挑一个不赶时间的上午或午后，把线上的好奇带到展厅里。周二至周日 09:00–17:00 开放预约。',
     }
   : {
@@ -100,13 +101,13 @@ const heroMedia = computed(() => isDark.value
 
 const featureCards = computed(() => locale.value === 'zh-CN'
   ? [
-      { index: '01', category: 'BRONZE', material: 'bronze' as const, title: '青铜礼器', text: '礼乐承载，制度与信仰', image: '/media/editorial/hero-bronze-ding-home-384w-v1.webp', srcset: '/media/editorial/hero-bronze-ding-home-192w-v1.webp 192w, /media/editorial/hero-bronze-ding-home-384w-v1.webp 384w, /media/editorial/hero-bronze-ding-home-640w-v1.webp 640w', to: '/explore' },
-      { index: '02', category: 'JADE', material: 'jade' as const, title: '玉石意象', text: '温润致远，观念与美学', image: '/media/exhibits/jade-bi-home-384w-v1.webp', srcset: '/media/exhibits/jade-bi-home-192w-v1.webp 192w, /media/exhibits/jade-bi-home-384w-v1.webp 384w, /media/exhibits/jade-bi-home-640w-v1.webp 640w', to: '/explore' },
+      { index: '01', category: 'BRONZE', material: 'bronze' as const, title: '青铜礼器', text: '礼乐承载，制度与信仰', image: '/media/editorial/explore-bronze-jue-user-v2.webp', srcset: '/media/responsive/explore-bronze-jue-user-v2-320w.webp 320w, /media/responsive/explore-bronze-jue-user-v2-640w.webp 640w, /media/responsive/explore-bronze-jue-user-v2-960w.webp 960w', to: '/explore' },
+      { index: '02', category: 'JADE', material: 'jade' as const, title: '玉石意象', text: '温润致远，观念与美学', image: '/media/editorial/explore-jade-bi-user-v2.webp', srcset: '/media/responsive/explore-jade-bi-user-v2-320w.webp 320w, /media/responsive/explore-jade-bi-user-v2-640w.webp 640w, /media/responsive/explore-jade-bi-user-v2-960w.webp 960w', to: '/explore' },
       { index: '03', category: 'RIVER', material: 'ink' as const, title: '河洛故事', text: '从地理到文脉，河洛的千年流转', image: '/media/editorial/heluo-river-map-home-384w-v1.webp', srcset: '/media/editorial/heluo-river-map-home-192w-v1.webp 192w, /media/editorial/heluo-river-map-home-384w-v1.webp 384w, /media/editorial/heluo-river-map-home-640w-v1.webp 640w', to: '/explore' },
     ]
   : [
-      { index: '01', category: 'BRONZE', material: 'bronze' as const, title: 'Bronze rituals', text: 'Ritual order and belief', image: '/media/editorial/hero-bronze-ding-home-384w-v1.webp', srcset: '/media/editorial/hero-bronze-ding-home-192w-v1.webp 192w, /media/editorial/hero-bronze-ding-home-384w-v1.webp 384w, /media/editorial/hero-bronze-ding-home-640w-v1.webp 640w', to: '/explore' },
-      { index: '02', category: 'JADE', material: 'jade' as const, title: 'Jade imagery', text: 'Ideas and aesthetics', image: '/media/exhibits/jade-bi-home-384w-v1.webp', srcset: '/media/exhibits/jade-bi-home-192w-v1.webp 192w, /media/exhibits/jade-bi-home-384w-v1.webp 384w, /media/exhibits/jade-bi-home-640w-v1.webp 640w', to: '/explore' },
+      { index: '01', category: 'BRONZE', material: 'bronze' as const, title: 'Bronze rituals', text: 'Ritual order and belief', image: '/media/editorial/explore-bronze-jue-user-v2.webp', srcset: '/media/responsive/explore-bronze-jue-user-v2-320w.webp 320w, /media/responsive/explore-bronze-jue-user-v2-640w.webp 640w, /media/responsive/explore-bronze-jue-user-v2-960w.webp 960w', to: '/explore' },
+      { index: '02', category: 'JADE', material: 'jade' as const, title: 'Jade imagery', text: 'Ideas and aesthetics', image: '/media/editorial/explore-jade-bi-user-v2.webp', srcset: '/media/responsive/explore-jade-bi-user-v2-320w.webp 320w, /media/responsive/explore-jade-bi-user-v2-640w.webp 640w, /media/responsive/explore-jade-bi-user-v2-960w.webp 960w', to: '/explore' },
       { index: '03', category: 'RIVER', material: 'ink' as const, title: 'Heluo stories', text: 'A river of cultural memory', image: '/media/editorial/heluo-river-map-home-384w-v1.webp', srcset: '/media/editorial/heluo-river-map-home-192w-v1.webp 192w, /media/editorial/heluo-river-map-home-384w-v1.webp 384w, /media/editorial/heluo-river-map-home-640w-v1.webp 640w', to: '/explore' },
     ])
 
@@ -197,16 +198,16 @@ async function revealHome() {
         duration: 0.28,
         onStart: () => void audioSystem.playInteraction('awaken-jade', { volume: 0.24 }),
       }, 0)
-      .from('[data-motion="intro-title"]', { autoAlpha: 0, duration: 0.18 }, 0.06)
+      .from('[data-motion="intro-title"]', { autoAlpha: 0, duration: 0.14 }, 0.02)
       .from('[data-motion="intro-title-line"]', {
-        yPercent: 108,
-        duration: 0.48,
-        stagger: 0.07,
+        yPercent: 104,
+        duration: 0.42,
+        stagger: 0.06,
         clearProps: 'transform',
         ease: 'power3.out',
-      }, 0.08)
-      .from('[data-motion="intro-copy"]', { autoAlpha: 0, y: 8, duration: 0.32 }, 0.18)
-    timeline.timeScale(1.35)
+      }, 0.04)
+      .from('[data-motion="intro-copy"]', { autoAlpha: 0, y: 8, duration: 0.28 }, 0.12)
+    timeline.timeScale(1.45)
   }, scope)
 }
 
@@ -262,11 +263,7 @@ onBeforeUnmount(() => {
 
       <div class="home-cover__inner">
         <div class="home-cover__copy">
-          <div class="home-cover__kicker" data-motion="intro-eyebrow">
-            <span class="home-cover__rule" aria-hidden="true"></span>
-            <span class="home-cover__tag font-mono">{{ copy.coverTag }}</span>
-            <span class="home-eyebrow">{{ copy.eyebrow }}</span>
-          </div>
+          <p class="home-eyebrow" data-motion="intro-eyebrow">{{ copy.eyebrow }}</p>
           <h1 id="home-title" data-motion="intro-title" :class="{ 'is-english': locale === 'en-US' }">
             <span v-for="line in titleLines" :key="line" class="home-title-line">
               <span data-motion="intro-title-line">{{ line }}</span>
@@ -302,6 +299,10 @@ onBeforeUnmount(() => {
           <ArrowRight aria-hidden="true" />
         </RouterLink>
       </div>
+
+      <div class="home-cover__ruler">
+        <AcousticRuler variant="hero" default-track="home" />
+      </div>
     </section>
 
     <!-- Section 2: 5:7 Asymmetric Object Close-up -->
@@ -330,7 +331,6 @@ onBeforeUnmount(() => {
       </figure>
 
       <div class="home-closeup__copy">
-        <p class="eyebrow">{{ copy.closeLabel }}</p>
         <h2 id="closeup-title">{{ copy.closeTitle }}</h2>
         <p class="home-closeup__text">{{ copy.closeText }}</p>
 
@@ -345,7 +345,6 @@ onBeforeUnmount(() => {
             :class="{ 'is-active': activeObservation === idx }"
             @click="activeObservation = idx"
           >
-            <span class="font-mono">0{{ idx + 1 }}</span>
             <span>{{ item.label }}</span>
           </button>
         </div>
@@ -368,12 +367,12 @@ onBeforeUnmount(() => {
     </section>
 
     <!-- Section 3: 1.35fr : 1fr : 1fr Golden Three-Column Theme Gallery -->
-    <section class="home-themes home-content" aria-labelledby="curation-title">
+    <section
+      class="home-themes home-content"
+      aria-labelledby="curation-title"
+    >
       <header class="home-section-heading">
-        <div>
-          <p class="eyebrow">{{ copy.curation }}</p>
-          <h2 id="curation-title">{{ copy.note }}</h2>
-        </div>
+        <h2 id="curation-title">{{ copy.note }}</h2>
         <p>{{ copy.themesIntro }}</p>
       </header>
 
@@ -385,7 +384,10 @@ onBeforeUnmount(() => {
           :to="{ path: card.to, query: { category: card.category } }"
           class="home-theme"
         >
-          <div class="home-theme__media surface-plinth">
+          <div
+            class="home-theme__media surface-plinth"
+            :class="{ 'home-theme__media--panoramic': card.category === 'RIVER' }"
+          >
             <img
               :src="card.image"
               :srcset="card.srcset"
@@ -398,30 +400,18 @@ onBeforeUnmount(() => {
             />
           </div>
           <div class="home-theme__copy">
-            <span class="home-theme__index font-mono">{{ card.index }}</span>
-            <div>
-              <h3>{{ card.title }}</h3>
-              <p>{{ card.text }}</p>
-            </div>
+            <h3>{{ card.title }}</h3>
+            <p>{{ card.text }}</p>
           </div>
           <ArrowRight class="home-theme__arrow" aria-hidden="true" />
         </RouterLink>
       </div>
     </section>
 
-    <!-- Section 4: Curatorial Invitation Pass Banner -->
+    <!-- Section 4: Curatorial Visit Invitation Band -->
     <section class="home-visit-wrap home-content">
-      <div
-        class="home-visit"
-        @pointermove="trackAmbientSurface"
-        @pointerleave="clearAmbientSurface"
-      >
-        <svg class="home-visit__wave" viewBox="0 0 960 220" preserveAspectRatio="none" aria-hidden="true">
-          <path d="M0 140 C160 88, 280 184, 480 124 S780 68, 960 128" />
-          <path d="M0 166 C180 116, 310 202, 500 148 S800 94, 960 154" />
-        </svg>
+      <div class="home-visit">
         <div class="home-visit__copy">
-          <p class="eyebrow">{{ copy.visitEyebrow }}</p>
           <h2>{{ copy.visitTitle }}</h2>
           <p>{{ copy.visitText }}</p>
         </div>
@@ -437,8 +427,9 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .museum-home {
-  background: var(--surface-canvas);
+  background: transparent;
   color: var(--ink-secondary);
+  overflow-x: clip;
 }
 
 .museum-home svg {
@@ -481,8 +472,8 @@ onBeforeUnmount(() => {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 58% 72% at 18% 46%, color-mix(in oklch, var(--surface-canvas) 82%, transparent) 0%, color-mix(in oklch, var(--surface-canvas) 38%, transparent) 55%, transparent 82%),
-    linear-gradient(180deg, transparent 74%, color-mix(in oklch, var(--surface-canvas) 92%, transparent) 100%);
+    radial-gradient(ellipse 62% 76% at 18% 44%, color-mix(in oklch, var(--surface-canvas) 90%, transparent) 0%, color-mix(in oklch, var(--surface-canvas) 54%, transparent) 56%, transparent 84%),
+    linear-gradient(180deg, transparent 68%, color-mix(in oklch, var(--surface-canvas) 94%, transparent) 100%);
 }
 
 .home-cover :deep(.pointer-dot-field) {
@@ -525,8 +516,9 @@ onBeforeUnmount(() => {
 }
 
 .home-eyebrow {
-  font-size: var(--text-xs);
-  font-weight: 600;
+  margin-bottom: var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: 500;
   letter-spacing: 0.08em;
   color: var(--ink-secondary);
 }
@@ -589,17 +581,20 @@ onBeforeUnmount(() => {
   background: var(--accent-jade);
   border: 1px solid var(--accent-jade);
   color: var(--accent-jade-ink);
+  box-shadow: var(--button-tactile-sheen);
 }
 
 .home-primary:hover {
   background: var(--accent-jade-hover);
   border-color: var(--accent-jade-hover);
+  transform: translateY(-1px);
 }
 
 .home-ghost {
   background: var(--glass-light-bg);
   border: 1px solid var(--border-strong);
   color: var(--ink-primary);
+  box-shadow: var(--card-frame-sheen), var(--shadow-xs);
   backdrop-filter: var(--glass-blur-compact);
   -webkit-backdrop-filter: var(--glass-blur-compact);
 }
@@ -607,6 +602,7 @@ onBeforeUnmount(() => {
 .home-ghost:hover {
   background: var(--surface-elevated);
   border-color: var(--ink-primary);
+  transform: translateY(-1px);
 }
 
 .home-cover__foot {
@@ -617,11 +613,21 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: var(--space-4);
   width: min(calc(100% - 4rem), var(--container-max));
-  margin: auto auto 0;
-  padding: var(--space-4) 0 var(--space-5);
+  margin: auto auto 4.75rem;
+  padding: var(--space-4) 0 var(--space-3);
   border-top: 1px solid var(--border-hairline);
   font-size: var(--text-xs);
   color: var(--ink-secondary);
+}
+
+.home-cover__ruler {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 14px;
+  z-index: 3;
+  width: min(calc(100% - 4rem), var(--container-max));
+  padding-right: 7.5rem;
 }
 
 .home-cover__venue {
@@ -641,14 +647,14 @@ onBeforeUnmount(() => {
 }
 
 .home-cover__hours {
-  color: var(--ink-muted);
+  color: var(--ink-secondary);
 }
 
 .home-cover__scroll {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--ink-muted);
+  color: var(--ink-secondary);
   letter-spacing: 0.08em;
 }
 
@@ -685,35 +691,71 @@ onBeforeUnmount(() => {
 }
 
 .home-closeup__figure {
+  position: relative;
   display: flex;
   flex-direction: column;
   margin: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
 }
 
 .home-closeup__stage {
+  position: relative;
+  isolation: isolate;
   display: grid;
   place-items: center;
   aspect-ratio: 5 / 5;
-  padding: clamp(1.5rem, 3vw, 2.5rem);
+  padding: clamp(1.75rem, 3.2vw, 2.75rem);
+  background-color: var(--surface-vitrine);
+  background-image: var(--surface-vitrine-spotlight);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+.home-closeup__stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.08), inset 0 -18px 36px oklch(8% 0.002 75 / 0.34);
 }
 
 .home-closeup__stage img {
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
   max-height: 420px;
   object-fit: contain;
-  filter: drop-shadow(0 20px 28px oklch(15% 0.02 165 / 0.16));
+  filter: drop-shadow(0 24px 32px oklch(6% 0.004 75 / 0.56));
 }
 
 .home-closeup__plaque {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: baseline;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-5);
+  padding: var(--space-3) var(--space-5) var(--space-3) calc(var(--space-5) + 2px);
   border-top: 1px solid var(--border-hairline);
-  background: var(--surface-elevated);
+  background-color: var(--surface-elevated);
+  box-shadow: var(--card-frame-sheen);
+}
+
+.home-closeup__plaque::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--accent-seal);
 }
 
 .home-closeup__plaque-type {
@@ -746,47 +788,62 @@ onBeforeUnmount(() => {
 .home-closeup__prompts {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-bottom: var(--space-3);
+  gap: var(--space-6);
+  margin-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-hairline);
 }
 
 .home-closeup__chip {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  min-height: 40px;
-  padding: 0 0.875rem;
-  border: 1px solid var(--border-hairline);
-  border-radius: var(--radius-pill);
-  background: var(--surface-elevated);
-  color: var(--ink-secondary);
-  font-size: var(--text-xs);
-  font-weight: 600;
+  min-height: 44px;
+  padding: 0 0.125rem;
+  border: 0;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
   cursor: pointer;
-  transition: border-color var(--duration-ui) var(--ease-curatorial),
-              background-color var(--duration-ui) var(--ease-curatorial),
-              color var(--duration-ui) var(--ease-curatorial);
+  transition: color var(--duration-ui) var(--ease-curatorial);
+}
+
+.home-closeup__chip::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--accent-seal);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--duration-ui) var(--ease-curatorial);
 }
 
 .home-closeup__chip:hover {
-  border-color: var(--border-strong);
   color: var(--ink-primary);
 }
 
 .home-closeup__chip.is-active {
-  border-color: var(--accent-bronze);
-  background: var(--accent-bronze-soft);
   color: var(--ink-primary);
+  font-weight: 600;
+}
+
+.home-closeup__chip.is-active::after {
+  transform: scaleX(1);
 }
 
 .home-closeup__prompt-detail {
-  min-height: 2.8em;
-  margin-bottom: var(--space-6);
-  padding-left: var(--space-4);
-  border-left: 2px solid var(--accent-bronze);
+  min-height: 3.4em;
+  max-width: 52ch;
+  margin-bottom: var(--space-7);
+  padding: 0;
+  border: 0;
+  background: transparent;
   font-size: var(--text-sm);
-  line-height: 1.7;
-  color: var(--ink-primary);
+  line-height: 1.8;
+  color: var(--ink-secondary);
 }
 
 .home-closeup__actions {
@@ -808,13 +865,18 @@ onBeforeUnmount(() => {
   color: var(--ink-primary);
   font-size: var(--text-sm);
   font-weight: 600;
+  box-shadow: var(--card-frame-sheen), var(--shadow-xs);
   transition: border-color var(--duration-ui) var(--ease-curatorial),
-              background-color var(--duration-ui) var(--ease-curatorial);
+              background-color var(--duration-ui) var(--ease-curatorial),
+              box-shadow var(--duration-ui) var(--ease-curatorial),
+              transform var(--duration-ui) var(--ease-curatorial);
 }
 
 .home-inline-primary:hover {
   border-color: var(--accent-jade);
-  background: var(--surface-subtle);
+  background: var(--surface-elevated);
+  box-shadow: var(--card-frame-sheen), var(--shadow-sm);
+  transform: translateY(-1px);
 }
 
 .home-inline-link {
@@ -832,9 +894,28 @@ onBeforeUnmount(() => {
   text-underline-offset: 5px;
 }
 
-/* ── Section 3: 1.35fr : 1fr : 1fr Theme Gallery ── */
+/* ── Section 3: Open Architectural Three-Column Theme Gallery (Full-bleed Limestone Band) ── */
 .home-themes {
-  padding-block: var(--space-4) clamp(4.5rem, 8vw, 6.5rem);
+  position: relative;
+  isolation: isolate;
+  margin-bottom: clamp(3.5rem, 6vw, 5.5rem);
+  padding-block: clamp(3.5rem, 6vw, 5.25rem);
+}
+
+.home-themes::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 100vw;
+  transform: translateX(-50%);
+  z-index: -1;
+  background:
+    linear-gradient(180deg, color-mix(in oklch, var(--surface-stone-band) 86%, transparent) 0%, color-mix(in oklch, var(--surface-stone-band) 52%, transparent) 100%);
+  border-top: 1px solid var(--border-hairline);
+  border-bottom: 1px solid var(--border-hairline);
+  pointer-events: none;
 }
 
 .home-section-heading {
@@ -843,44 +924,83 @@ onBeforeUnmount(() => {
   align-items: flex-end;
   gap: var(--space-8);
   margin-bottom: var(--space-8);
-  padding-bottom: var(--space-5);
-  border-bottom: 1px solid var(--border-hairline);
 }
 
 .home-section-heading h2 {
-  margin-top: var(--space-2);
-  font-size: clamp(1.75rem, 2.8vw, 2.35rem);
-  line-height: 1.25;
+  font-size: clamp(1.875rem, 3vw, 2.5rem);
+  line-height: 1.22;
 }
 
 .home-section-heading > p {
   max-width: 30ch;
   font-size: var(--text-sm);
   line-height: 1.75;
-  color: var(--ink-muted);
+  color: var(--ink-secondary);
 }
 
 .home-themes__grid {
   display: grid;
-  grid-template-columns: 1.35fr 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-6);
 }
 
 .home-theme {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
   align-content: start;
   gap: var(--space-4);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--ink-secondary);
+  transition: transform var(--duration-ui) var(--ease-curatorial);
+}
+
+.home-theme:hover {
+  transform: translateY(-2px);
 }
 
 .home-theme__media {
+  position: relative;
   grid-column: 1 / -1;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 1 / 1;
   display: grid;
   place-items: center;
-  padding: var(--space-4);
+  padding: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background-color: var(--surface-vitrine);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: border-color var(--duration-ui) var(--ease-curatorial),
+              box-shadow var(--duration-ui) var(--ease-curatorial);
+}
+
+.home-theme__media--panoramic {
+  background: linear-gradient(
+    180deg,
+    oklch(34% 0.003 75) 0%,
+    oklch(50% 0.003 75) 50%,
+    oklch(68% 0.003 75) 100%
+  );
+  padding: 0 var(--space-3);
+}
+
+.home-theme__media::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.18), inset 0 -1px 0 oklch(12% 0.01 72 / 0.14);
+}
+
+.home-theme:hover .home-theme__media {
+  border-color: color-mix(in oklch, var(--accent-bronze) 56%, var(--border-strong));
+  box-shadow: var(--shadow-md);
 }
 
 .home-theme__media img {
@@ -891,9 +1011,8 @@ onBeforeUnmount(() => {
 }
 
 .home-theme__copy {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-3);
+  display: grid;
+  gap: 0.25rem;
 }
 
 .home-theme__index {
@@ -934,46 +1053,30 @@ onBeforeUnmount(() => {
   }
 }
 
-/* ── Section 4: Curatorial Visit Invitation Banner ── */
+/* ── Section 4: Open Architectural Visit Invitation Band ── */
 .home-visit-wrap {
-  padding-bottom: clamp(4rem, 7vw, 6rem);
+  padding-bottom: clamp(4rem, 6.5vw, 5.5rem);
 }
 
 .home-visit {
   position: relative;
-  isolation: isolate;
-  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-8);
-  padding: clamp(2rem, 4vw, 3.25rem) clamp(1.75rem, 4vw, 3.5rem);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  background: var(--surface-spotlight), var(--surface-elevated);
-}
-
-.home-visit__wave {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  width: 100%;
-  height: 100%;
-  fill: none;
-  stroke: var(--accent-bronze);
-  stroke-width: 1;
-  opacity: 0.16;
-  pointer-events: none;
+  padding: clamp(2rem, 3.8vw, 3rem) 0;
+  background: transparent;
 }
 
 .home-visit__copy {
-  max-width: 52ch;
+  max-width: 58ch;
 }
 
 .home-visit__copy h2 {
   margin: var(--space-2) 0 var(--space-2);
   font-size: clamp(1.625rem, 2.6vw, 2.125rem);
   line-height: 1.28;
+  text-wrap: balance;
 }
 
 .home-visit__copy p:last-child {
@@ -996,11 +1099,14 @@ onBeforeUnmount(() => {
   font-size: var(--text-sm);
   font-weight: 600;
   white-space: nowrap;
-  transition: background-color var(--duration-ui) var(--ease-curatorial);
+  box-shadow: var(--button-tactile-sheen);
+  transition: background-color var(--duration-ui) var(--ease-curatorial),
+              transform var(--duration-fast) var(--ease-curatorial);
 }
 
 .home-visit__cta:hover {
   background: var(--accent-jade-hover);
+  transform: translateY(-1px);
 }
 
 /* ── Responsive ── */
@@ -1089,7 +1195,24 @@ onBeforeUnmount(() => {
   .home-cover__foot {
     grid-template-columns: 1fr;
     gap: var(--space-2);
-    padding-block: var(--space-3) var(--space-4);
+    margin-bottom: 3.6rem;
+    padding-block: var(--space-3);
+  }
+
+  .home-cover__ruler {
+    width: calc(100% - 2rem);
+    bottom: 10px;
+    padding-right: 0;
+  }
+
+  .home-closeup__prompts {
+    gap: var(--space-2) var(--space-4);
+  }
+
+  .home-closeup__chip {
+    min-width: 44px;
+    padding: 0 0.625rem;
+    justify-content: center;
   }
 
   .home-foot-link {
@@ -1181,31 +1304,59 @@ onBeforeUnmount(() => {
   }
 }
 
-/* Cursor-reactive vitrine light sheen on close-up plinth & invitation pass */
+/* Cursor-reactive "犹抱琵琶半遮面" smooth radial brocade reveal on close-up plinth, theme gallery & invitation pass */
 .home-closeup__figure,
+.home-themes,
 .home-visit {
   --surface-mx: 50%;
   --surface-my: 50%;
 }
 
 .home-closeup__figure::after,
+.home-themes::after,
 .home-visit::after {
   content: '';
   position: absolute;
   inset: 0;
+  z-index: 0;
   border-radius: inherit;
   pointer-events: none;
   opacity: 0;
-  background: radial-gradient(
-    360px circle at var(--surface-mx) var(--surface-my),
-    oklch(84% 0.085 80 / 0.16) 0%,
-    oklch(68% 0.075 166 / 0.05) 44%,
-    transparent 74%
+  background-image:
+    var(--pattern-brocade-lit),
+    radial-gradient(
+      360px circle at var(--surface-mx) var(--surface-my),
+      oklch(99% 0.020 88 / 0.44) 0%,
+      oklch(88% 0.058 82 / 0.14) 46%,
+      transparent 76%
+    );
+  background-size: 48px 48px, 100% 100%;
+  background-repeat: repeat, no-repeat;
+  -webkit-mask-image: radial-gradient(
+    340px circle at var(--surface-mx) var(--surface-my),
+    oklch(0% 0 0 / 1) 0%,
+    oklch(0% 0 0 / 0.66) 46%,
+    oklch(0% 0 0 / 0.16) 74%,
+    transparent 100%
+  );
+  mask-image: radial-gradient(
+    340px circle at var(--surface-mx) var(--surface-my),
+    oklch(0% 0 0 / 1) 0%,
+    oklch(0% 0 0 / 0.66) 46%,
+    oklch(0% 0 0 / 0.16) 74%,
+    transparent 100%
   );
   transition: opacity 280ms var(--ease-curatorial);
 }
 
+.home-themes > *,
+.home-visit > * {
+  position: relative;
+  z-index: 1;
+}
+
 .home-closeup__figure[data-ambient-lit="true"]::after,
+.home-themes[data-ambient-lit="true"]::after,
 .home-visit[data-ambient-lit="true"]::after {
   opacity: 1;
 }
@@ -1214,7 +1365,7 @@ onBeforeUnmount(() => {
 <style>
 html[data-theme="dark"] .museum-home .home-cover__veil {
   background:
-    radial-gradient(ellipse 56% 72% at 18% 46%, oklch(11% 0.004 82 / 0.80) 0%, oklch(11% 0.004 82 / 0.36) 56%, transparent 84%),
+    radial-gradient(ellipse 56% 72% at 18% 46%, oklch(11% 0.005 74 / 0.80) 0%, oklch(11% 0.005 74 / 0.36) 56%, transparent 84%),
     linear-gradient(180deg, transparent 72%, var(--surface-canvas) 100%);
 }
 
@@ -1222,8 +1373,8 @@ html[data-theme="dark"] .museum-home .home-cover__veil {
   html[data-theme="dark"] .museum-home .home-cover__veil {
     background: linear-gradient(
       180deg,
-      oklch(10% 0.01 165 / 0.90) 0%,
-      oklch(10% 0.01 165 / 0.72) 32%,
+      oklch(11% 0.005 74 / 0.90) 0%,
+      oklch(11% 0.005 74 / 0.72) 32%,
       transparent 58%,
       var(--surface-canvas) 96%
     );

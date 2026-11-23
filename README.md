@@ -1,55 +1,117 @@
-# 河洛数字博物馆 · Heluo Digital Museum
+<div align="center">
 
-> 把一件器物的纹理、尺度与故事，变成可以被重新发现的数字展览。
+<sub>HELUO DIGITAL MUSEUM · 河洛数字博物馆</sub>
 
-<p>
-  <a href="https://heluo.pocketbay.app/"><strong>访问线上展厅 →</strong></a>
-  ·
-  <a href="#展馆声景">本期曲目与试听 ↓</a>
-</p>
+# 河洛数字博物馆
 
-河洛数字博物馆是一个面向年轻文化探索者的双语数字博物馆：从馆藏检索、策展式阅读，到可交互的 3D 展厅与线下预约，用户可以先在线建立兴趣，再决定下一次真实到访。
+**把一件器物的纹理、尺度与故事，变成可以被重新发现的数字展览。**
 
 <p>
-  <img src="https://img.shields.io/badge/online-heluo.pocketbay.app-c99b5b?style=flat-square" alt="线上地址" />
-  <img src="https://img.shields.io/badge/frontend-Vue%203%20%2B%20TypeScript-42b883?style=flat-square" alt="前端技术" />
-  <img src="https://img.shields.io/badge/backend-Spring%20Boot%203-6db33f?style=flat-square" alt="后端技术" />
-  <img src="https://img.shields.io/badge/search-Chinese%20%2B%20English-b88a44?style=flat-square" alt="双语搜索" />
+  <a href="https://heluo.pocketbay.app/"><strong>线上展厅</strong></a>
+  &nbsp;·&nbsp;
+  <a href="#核心体验">核心体验</a>
+  &nbsp;·&nbsp;
+  <a href="#展馆声景-r4">展馆声景</a>
+  &nbsp;·&nbsp;
+  <a href="#页面掠影">页面掠影</a>
+  &nbsp;·&nbsp;
+  <a href="#本地启动">本地启动</a>
 </p>
 
-## 展馆声景
+<p>
+  <img src="https://img.shields.io/badge/Live-heluo.pocketbay.app-b88a44?style=flat-square" alt="线上地址" />
+  <img src="https://img.shields.io/badge/Frontend-Vue%203%20%2B%20TypeScript-42b883?style=flat-square" alt="前端技术" />
+  <img src="https://img.shields.io/badge/Backend-Spring%20Boot%203.5%20%2B%20Java%2017-6db33f?style=flat-square" alt="后端技术" />
+  <img src="https://img.shields.io/badge/3D%20%26%20Audio-Three.js%20%2B%20R4%20AAC-1c1b19?style=flat-square" alt="3D 与声景" />
+  <img src="https://img.shields.io/badge/Bilingual-中文%20%2B%20English-7d6b52?style=flat-square" alt="双语支持" />
+</p>
 
-**本期更新：背景配乐与交互音效。** 走进展厅、低头读一段展签、绕着青铜鼎端详，是三种不同的观看节奏。这一版为它们分别配了乐。首页新增中英双语曲目单，点曲名可前往对应场景；不打开声音，也能完整参观。
+</div>
 
-![深色首页的展馆曲目单，三行分别通往馆藏、水鸟铜器与青铜鼎](docs/showcase/gallery-score-r3.png)
+---
 
-| 曲目 | 参观场景 | 时长 | 录音 |
-| --- | --- | ---: | --- |
-| 01 · 入馆·河洛晨光 | 首页与馆藏漫游 | 1:38 | [试听 MP3](https://raw.githubusercontent.com/DiandianDD-996/heluo-digital-museum/main/frontend/public/media/audio/music-r3/home-r3.mp3) |
-| 02 · 水岸·静读 | 水鸟铜器展签与文物故事 | 1:42 | [试听 MP3](https://raw.githubusercontent.com/DiandianDD-996/heluo-digital-museum/main/frontend/public/media/audio/music-r3/reading-r3.mp3) |
-| 03 · 观器·温金 | 青铜鼎 3D 近观 | 1:48 | [试听 MP3](https://raw.githubusercontent.com/DiandianDD-996/heluo-digital-museum/main/frontend/public/media/audio/music-r3/bronze-r3.mp3) |
+**河洛数字博物馆**是一座面向当代文化探索者的双语（`zh-CN` / `en-US`）数字博物馆系统。它从「浏览器物」出发，把馆藏检索、策展式长文阅读、可交互 3D 青铜展厅、R4 展馆声景、AI 策展向导「洛笙」，以及线下预约、文创商城（模拟支付）与后台运营工作台串联成一条完整体验路径。
 
-首次进入默认静音。打开页首声音面板后，可以只留配乐、只留交互音效，或调整音量。沿用同一曲目的页面不会从头播放；换曲时声音渐变。按钮按下、页面切换和操作结果各有轻量反馈。
+> [!NOTE]
+> 独立部署的[线上演示站](https://heluo.pocketbay.app/)不一定与仓库最新提交同步；体验最新 **Heluo Editorial 2.0** 视觉系统、**R4 四乐章声景**与**洛笙 AI 向导 v2**，建议按[本地启动](#本地启动)章节运行。
 
-曲目使用竖琴、弦乐、长笛与钢琴等采样编排，并非古代礼乐复原。[录音来源、署名与许可](frontend/public/media/audio/music-r3/CREDITS.md)。
+<div align="center">
+  <a href="docs/showcase/home-dark-en.png">
+    <img src="docs/showcase/home-dark-en.png" alt="河洛数字博物馆英文深色首页：青铜鼎展廊、器物故事与策展入口" width="100%" />
+  </a>
+  <br />
+  <sub>河洛数字博物馆 · 英文深色展厅首页（采集自线上演示站）</sub>
+</div>
 
-## 线上体验
+---
 
-独立部署的[演示站](https://heluo.pocketbay.app/)不一定与仓库同步。试听本期录音可直接使用上表；体验本期完整交互请按下文在本地启动。
+## 核心体验
 
-建议从以下路径开始：
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>Heluo Editorial 2.0 视觉系统</h3>
+      <p>以当代亚洲博物馆画册与静谧展厅为蓝本，建立 8 层 <code>@layer</code> CSS 架构与 OKLCH 双色令牌：</p>
+      <ul>
+        <li><strong>双主题质感</strong>：浅色「缃色暖黄古宣 · 鎏金松烟」与深色「曜石暗房 · 丝绸钛金」。</li>
+        <li><strong>浑仪磁阵光点场</strong>：首屏 <code>PointerDotField</code> 结合空间避让遮罩、弹簧阻尼彗尾与星轨连线。</li>
+        <li><strong>零外部字体下载</strong>：依托系统衬线与等宽数字排印，全站可见字号 <code>&gt;= 12px</code>，触控热区 <code>&gt;= 44px</code>。</li>
+      </ul>
+    </td>
+    <td width="50%" valign="top">
+      <h3>可交互 3D 数字展厅</h3>
+      <p>基于 <strong>Three.js</strong> 打造《河洛青铜鼎 · 3D 数字重制展项》（编号 <code>01</code>）：</p>
+      <ul>
+        <li><strong>多维观察</strong>：支持自由旋转缩放、点云模式切换与耳 / 足 / 纹饰局部平滑聚焦（<code>focusPart</code>）。</li>
+        <li><strong>声画联动</strong>：进入暗房展柜或切换点云模式时，触发低频滤波与轻量立体声微音效。</li>
+        <li><strong>温和降级</strong>：在 WebGL 不可用或受限移动端环境自动切换至静态「三看点」图版，不阻断核心阅读。</li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>洛笙 · AI 策展向导 v2（可选扩展）</h3>
+      <p>全馆实时知识 Grounded 的双语策展讲解员与 3D 展柜交互副驾（详见 <a href="docs/luosheng/README.md">洛笙 v2 文档</a>）：</p>
+      <ul>
+        <li><strong>可控可追溯</strong>：支持中英自适应、SSE 真流式多轮对话与 3 个只读馆藏检索工具，每条回答附「依据与边界」抽屉。</li>
+        <li><strong>证据防线</strong>：青铜鼎 Tier-1 签名证据卡（v6 双语 9 卡）启用 SHA-256 校验、防回滚与 ADR-006 冲突拦截。</li>
+        <li><strong>诚实降级</strong>：默认通过开关关闭；无模型或触发运维暂停时自动切换为确定性「馆藏资料直出」。</li>
+      </ul>
+    </td>
+    <td width="50%" valign="top">
+      <h3>双语策展与运营闭环</h3>
+      <p>从前台文化发现到后台内容治理，覆盖数字博物馆第一版完整业务链路：</p>
+      <ul>
+        <li><strong>双语发现</strong>：藏品、文化专题（含《参观与数字导览须知》）与文创商品统一接入中英搜索链路。</li>
+        <li><strong>到访与文创</strong>：未来 14 天预约时段查询与预约管理、个人中心「文创账簿」、购物袋与模拟结算。</li>
+        <li><strong>后台工作台</strong>：内容、3D 展项、商品、预约时段与订单、用户、基础统计与操作日志统一管理。</li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
-1. 在 **Explore / 探索馆藏** 中浏览器物、主题和双语摘要；
-2. 打开 **3D Gallery / 数字展厅**，切换视角并观察器物细节；
-3. 通过 **Visit Booking / 预约参观** 查看参观信息和可用时段。
+---
+
+## 展馆声景 R4
+
+走进展厅、俯身读一段展签、绕着青铜器近观，是三种不同的观看节奏。项目为不同空间编排了 **R4 四乐章原创声景**，并配套**「十二律吕 · 青铜游标刻度」（`AcousticRuler`）**磨砂玻璃操控台与古琴丝弦包络动效（停帧零 `rAF` 消耗）。
+
+首次进入默认静音；开启声音后可独立控制配乐或交互音效，跨页沿用同一曲目时连续播放，换曲时等功率交叉淡化。
+
+| 序号 | 曲目 | 对应场景 | 时长 | 试听（AAC 96 kbps） |
+| :---: | --- | --- | :---: | --- |
+| `01` | **入馆 · 河洛晨光** | 首页与馆藏漫游 | `1:38` | [home-r4.m4a](https://raw.githubusercontent.com/DiandianDD-996/heluo-digital-museum/main/frontend/public/media/audio/music-r4/home-r4.m4a) |
+| `02` | **水岸 · 静读** | 水鸟铜器展签与专题长文 | `1:43` | [reading-r4.m4a](https://raw.githubusercontent.com/DiandianDD-996/heluo-digital-museum/main/frontend/public/media/audio/music-r4/reading-r4.m4a) |
+| `03` | **观器 · 温金** | 青铜鼎 3D 近观 | `1:48` | [bronze-r4.m4a](https://raw.githubusercontent.com/DiandianDD-996/heluo-digital-museum/main/frontend/public/media/audio/music-r4/bronze-r4.m4a) |
+| `04` | **温润 · 玉石** | 河图玉璧、彩陶与纹石展品 | `1:39` | [jade-r4.m4a](https://raw.githubusercontent.com/DiandianDD-996/heluo-digital-museum/main/frontend/public/media/audio/music-r4/jade-r4.m4a) |
+
+> 诚实声明：R4 曲目基于 **VSCO 2 CE** 与 **VCSL**（全部 `CC0 1.0 Universal`）声学采样进行当代编排，不宣称古代礼乐复原。详细采样来源、SHA-256 与许可全文见 [R4 声源与署名说明](frontend/public/media/audio/music-r4/CREDITS.md)。
+
+---
 
 ## 页面掠影
 
-深色展馆中的暖金灯光，让器物成为视觉中心。以下图片于 **2026-09-27 从线上网站重新采集**，以深色与英文界面为主，保留中文浅色作为对照，并展示真实登录后的商城与后台工作台。采用 1440 / 1680 像素宽的完整桌面页面，已关闭平台反馈广告；点击图片查看原尺寸。[截图来源与采集说明](docs/showcase/SOURCES.md)。
-
-### One object, a living story · 英文深色首页
-
-[![英文深色首页完整页面：新版中央青铜鼎展廊、器物故事与策展入口](docs/showcase/home-dark-en.png)](docs/showcase/home-dark-en.png)
+以下页面截图于 `2026-09-27` 采集自线上演示站（`1440px` / `1680px` 桌面视口，完整采集规范与校验和见 [截图来源说明](docs/showcase/SOURCES.md)）。点击任意图片可查看原尺寸。
 
 ### 同一座展馆，两种光线
 
@@ -62,123 +124,137 @@
     <td width="50%"><a href="docs/showcase/home-light-zh.png"><img src="docs/showcase/home-light-zh.png" alt="中文浅色首页完整页面：明亮展馆、器物介绍与主题入口" /></a></td>
     <td width="50%"><a href="docs/showcase/home-dark-zh.png"><img src="docs/showcase/home-dark-zh.png" alt="中文深色首页完整页面：深色展馆、器物介绍与主题入口" /></a></td>
   </tr>
+</table>
+
+### 探索馆藏、3D 展厅与文创商城
+
+<table>
   <tr>
-    <td colspan="2" align="center"><sub>中文浅色与深色 · 从顶部展廊到页尾的完整对照</sub></td>
+    <td width="33.3%" align="center"><strong>Explore · 探索馆藏</strong></td>
+    <td width="33.3%" align="center"><strong>3D Gallery · 青铜鼎展厅</strong></td>
+    <td width="33.3%" align="center"><strong>Museum Store · 文创商城</strong></td>
+  </tr>
+  <tr>
+    <td><a href="docs/showcase/explore-dark-en.png"><img src="docs/showcase/explore-dark-en.png" alt="英文深色 Explore 完整页面：馆藏、主题与延伸阅读" /></a></td>
+    <td><a href="docs/showcase/digital-exhibit-dark-en.png"><img src="docs/showcase/digital-exhibit-dark-en.png" alt="英文深色 3D 展厅：已加载实体模型与控制面板" /></a></td>
+    <td><a href="docs/showcase/shop-dark-en.png"><img src="docs/showcase/shop-dark-en.png" alt="英文深色文创商城完整页面：商品、购物袋与模拟结算" /></a></td>
   </tr>
 </table>
 
-### Explore · 英文深色馆藏
-
-从六件器物，到主题线索与延伸阅读，让浏览形成一条自然的发现路径。部分尚无译文的内容保留中文回退。
-
-[![英文深色 Explore 完整页面：馆藏、主题与延伸阅读](docs/showcase/explore-dark-en.png)](docs/showcase/explore-dark-en.png)
-
-### Museum Store · 英文深色文创商城
-
-把器物纹样带进日常：茶具、织物与文具，在统一的深色界面中呈现。
-
-[![英文深色文创商城完整页面：登录后的商品、购物袋与模拟结算](docs/showcase/shop-dark-en.png)](docs/showcase/shop-dark-en.png)
-
-### 3D Gallery · 让器物来到眼前
-
-真实加载的青铜鼎模型，配合多视角控件、器物来源与展项说明，呈现从浏览到近观的体验。
-
-[![英文深色 3D 展厅：已加载实体模型与完整控制面板](docs/showcase/digital-exhibit-dark-en.png)](docs/showcase/digital-exhibit-dark-en.png)
-
 <details>
-<summary>展开查看：英文深色展厅入口与预约完整页面</summary>
+<summary>展开查看：展厅入口、参观预约与后台管理工作台截图</summary>
 
-[![英文深色数字展厅入口](docs/showcase/gallery-dark-en.png)](docs/showcase/gallery-dark-en.png)
-
-[![英文深色预约参观完整页面](docs/showcase/booking-dark-en.png)](docs/showcase/booking-dark-en.png)
-
-</details>
-
-### Behind the scenes · 后台管理工作台
-
-前台负责讲故事，后台负责让内容持续更新。以下为管理员登录后的线上实页，展示内容编辑、发布状态、商品库存与 3D 展项管理。后台当前以中文为主。
+<br />
 
 <table>
-  <tr><td width="50%" align="center"><strong>内容管理 · 深色</strong></td><td width="50%" align="center"><strong>内容管理 · 浅色</strong></td></tr>
+  <tr>
+    <td width="50%" align="center"><strong>数字展厅入口（英文深色）</strong></td>
+    <td width="50%" align="center"><strong>预约参观（英文深色）</strong></td>
+  </tr>
+  <tr>
+    <td><a href="docs/showcase/gallery-dark-en.png"><img src="docs/showcase/gallery-dark-en.png" alt="英文深色数字展厅入口" /></a></td>
+    <td><a href="docs/showcase/booking-dark-en.png"><img src="docs/showcase/booking-dark-en.png" alt="英文深色预约参观完整页面" /></a></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><strong>后台内容管理（中文深色）</strong></td>
+    <td width="50%" align="center"><strong>后台内容管理（中文浅色）</strong></td>
+  </tr>
   <tr>
     <td><a href="docs/showcase/admin-content-dark-zh.png"><img src="docs/showcase/admin-content-dark-zh.png" alt="深色内容管理完整工作台" /></a></td>
     <td><a href="docs/showcase/admin-content-light-zh.png"><img src="docs/showcase/admin-content-light-zh.png" alt="浅色内容管理完整工作台" /></a></td>
   </tr>
+  <tr>
+    <td width="50%" align="center"><strong>商品运营（中文深色）</strong></td>
+    <td width="50%" align="center"><strong>3D 展项管理（中文深色）</strong></td>
+  </tr>
+  <tr>
+    <td><a href="docs/showcase/admin-products-dark-zh.png"><img src="docs/showcase/admin-products-dark-zh.png" alt="深色商品管理工作台" /></a></td>
+    <td><a href="docs/showcase/admin-exhibits-dark-zh.png"><img src="docs/showcase/admin-exhibits-dark-zh.png" alt="深色 3D 展项管理工作台" /></a></td>
+  </tr>
 </table>
-
-**商品运营 · 深色**
-
-[![深色商品管理：统计、库存、创建表单与完整商品列表](docs/showcase/admin-products-dark-zh.png)](docs/showcase/admin-products-dark-zh.png)
-
-<details>
-<summary>展开查看：深色 3D 展项管理</summary>
-
-[![深色 3D 展项管理完整工作台](docs/showcase/admin-exhibits-dark-zh.png)](docs/showcase/admin-exhibits-dark-zh.png)
 
 </details>
 
-## 当前实现
+---
 
-- 前台：馆藏/文章分类浏览、关键词搜索、详情、3D 展厅、预约、注册登录、个人中心、购物车、订单和模拟支付。
-- 后台：内容、3D 展项、用户、预约时段与预约、商品、订单、基础统计和操作日志。
-- 技术：Vue 3 + TypeScript + Vite、Spring Boot 3（Java 17）、MySQL 8、Flyway、Docker Compose。
-- 第一版边界：仅模拟支付；管理员不能公开注册；邮件在本地环境记录为开发邮件日志。
+## 技术栈与架构边界
 
-## 项目亮点
+| 维度 | 选型与实现 |
+| --- | --- |
+| **前端** | Vue 3 (`3.5`) + TypeScript + Vite (`7`) + Pinia + Vue Router + Three.js (`0.185`) + GSAP + Element Plus（后台按需） |
+| **后端** | Java 17 + Spring Boot `3.5.0`（Web / Security / Validation / Data JPA）+ Flyway + MySQL 8 |
+| **工程质量** | Vitest 单元测试、Playwright 端到端与视觉巡检、首屏 JS/CSS 包体与音频资源预算门禁 |
+| **部署** | Docker Compose（`deploy/compose.yaml`）+ Nginx（已为 `/api/v1/guide/chat/stream` 关闭 SSE 代理缓冲） |
+| **项目边界** | 课程与工程演示项目；商城仅支持**模拟支付**；管理员不可公开注册；邮件在本地通过 Mailpit 调试 |
 
-- **双语探索**：中文与英文标题、摘要统一进入搜索链路，界面语言切换后仍能连续发现内容。
-- **策展式叙事**：主页、Explore 和详情页以器物、主题路径和河洛文化线索组织内容，而不是简单的后台列表。
-- **可交互 3D 展厅**：支持模型旋转、缩放、视角切换，并为 WebGL 不可用或移动端场景准备了降级体验。
-- **从线上到线下**：浏览馆藏、预约参观、文创商城与模拟支付组成一条完整体验路径。
-- **可运营后台**：内容、展项、商品、预约、订单、统计与操作日志均有对应管理能力。
+> 部分 3D 模型与展馆声学采样基于 Cleveland Museum of Art、VSCO 2 CE 与 VCSL 的 `CC0` 开放资源，具体来源与授权以资产台账及展项说明为准。
 
-> 本项目为课程演示，商城仅模拟支付。内容包含概念展品与数字重制；部分模型基于 Cleveland Museum of Art 的 CC0 开放资源，具体来源以资产台账和展项说明为准。正式展示前需要核对史实文案和资产授权。
+---
 
-## 本地启动（推荐）
+## 本地启动
 
-前提：Docker Desktop 已启动。
+### 方式一：Docker Compose（推荐）
+
+前提：已安装并启动 Docker Desktop。
+
+```bash
+git clone https://github.com/DiandianDD-996/heluo-digital-museum.git
+cd heluo-digital-museum
+cp deploy/.env.example deploy/.env
+docker compose --env-file deploy/.env -f deploy/compose.yaml up --build -d
+docker compose --env-file deploy/.env -f deploy/compose.yaml ps
+```
+
+<details>
+<summary>Windows PowerShell 命令</summary>
 
 ```powershell
-Set-Location "C:\Users\Jie\Documents\博物馆"
+git clone https://github.com/DiandianDD-996/heluo-digital-museum.git
+Set-Location heluo-digital-museum
 Copy-Item "deploy\.env.example" "deploy\.env"
 docker compose --env-file deploy\.env -f deploy\compose.yaml up --build -d
 docker compose --env-file deploy\.env -f deploy\compose.yaml ps
 ```
 
-访问：
+</details>
 
-- 前台：<http://localhost:8088>
-- 健康检查：<http://localhost:8088/api/v1/health>
+服务启动后访问：
 
-管理员初始化信息由本机 `deploy\.env` 中的 `MUSEUM_BOOTSTRAP_ADMIN_*` 配置决定；该文件被 Git 忽略，不能提交。
+- **前台展厅**：<http://localhost:8088>
+- **健康检查**：<http://localhost:8088/api/v1/health>
+
+管理员初始账号由本机 `deploy/.env` 中的 `MUSEUM_BOOTSTRAP_ADMIN_*` 变量决定（`deploy/.env` 已被 Git 忽略，切勿提交）。如需开启洛笙 AI 向导，可在构建/运行环境中设置 `VITE_GUIDE_ENABLED=true` 与 `MUSEUM_GUIDE_ENABLED=true` 并注入模型密钥。
 
 停止服务：
 
-```powershell
-docker compose --env-file deploy\.env -f deploy\compose.yaml down
+```bash
+docker compose --env-file deploy/.env -f deploy/compose.yaml down
 ```
 
-## 本地开发与检查
+### 方式二：本地开发与校验
 
-```powershell
-# 前端
-Set-Location frontend
+```bash
+# 前端：类型检查、单元测试与生产构建（含包体与音频预算门禁）
+cd frontend
 pnpm install
 pnpm typecheck
 pnpm test
 pnpm build
 
-# 后端
-Set-Location ..\backend
+# 后端：Maven 测试套件
+cd ../backend
 mvn test
 ```
 
+---
+
 ## 项目文档
 
-- [项目状态与下一步](PROJECT_STATUS.md)
+- [项目当前状态与下一步](PROJECT_STATUS.md)
+- [设计系统规范（Heluo Editorial 2.0）](design.md)
+- [洛笙 AI 向导 v2（唯一事实入口）](docs/luosheng/README.md)
 - [需求追踪表](docs/01-requirements-traceability.md)
-- [数据模型与权限](docs/04-data-and-permissions.md)
-- [API 契约](docs/05-api-design.md)
+- [数据模型与权限边界](docs/04-data-and-permissions.md)
+- [API 接口契约](docs/05-api-design.md)
 - [测试与验收计划](docs/06-test-plan.md)
-
-未经用户确认，不提交或推送本项目的 Git 变更。
+- [展馆声景 R4 来源与许可](frontend/public/media/audio/music-r4/CREDITS.md)

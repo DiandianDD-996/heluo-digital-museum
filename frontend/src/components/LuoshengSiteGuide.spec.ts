@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import LuoshengSiteGuide from './LuoshengSiteGuide.vue'
 import { useLuoshengStore } from '../stores/luoshengStore'
 import { useLocale } from '../stores/locale'
+import { audioSystem } from '../lib/audioSystem'
 
 function makeSseResponse(events: string[]): Response {
   const encoder = new TextEncoder()
@@ -98,5 +99,46 @@ describe('LuoshengSiteGuide v2', () => {
     await wrapper.get('[data-testid="luosheng-fab"]').trigger('click')
     expect(wrapper.get('[data-testid="luosheng-drawer"]').text()).toContain('Curatorial Guide')
     wrapper.unmount()
+  })
+
+  it('ducks music softly when drawer opens, deepens while streaming, and releases on close or unmount', async () => {
+    const duckSpy = vi.spyOn(audioSystem, 'setFocusDuck')
+    let resolveFetch!: (value: Response) => void
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => new Promise<Response>((resolve) => {
+      resolveFetch = resolve
+    })))
+
+    const wrapper = mount(LuoshengSiteGuide, {
+      global: { plugins: [router] },
+    })
+
+    // Opening drawer ducks to 0.72
+    await wrapper.get('[data-testid="luosheng-fab"]').trigger('click')
+    await flushPromises()
+    expect(duckSpy).toHaveBeenLastCalledWith('luosheng', true, 0.72)
+
+    // Streaming drops deeper to 0.62
+    await wrapper.get('[data-testid="luosheng-input"]').setValue('介绍青铜鼎')
+    await wrapper.get('form.luosheng-composer').trigger('submit')
+    await flushPromises()
+    expect(duckSpy).toHaveBeenCalledWith('luosheng', true, 0.62)
+
+    // Finish stream -> returns to 0.72 while open
+    resolveFetch(makeSseResponse([
+      'event:done\ndata:{"requestId":"r2","text":"青铜鼎是礼器。","citations":[],"actions":[],"followUps":[],"boundaryNote":"","mode":"ai","degraded":false}\n\n',
+    ]))
+    await flushPromises()
+    expect(duckSpy).toHaveBeenLastCalledWith('luosheng', true, 0.72)
+
+    // Closing drawer releases duck
+    await wrapper.get('[data-testid="luosheng-close"]').trigger('click')
+    await flushPromises()
+    expect(duckSpy).toHaveBeenLastCalledWith('luosheng', false)
+
+    // Unmounting while open also releases duck cleanly
+    await wrapper.get('[data-testid="luosheng-fab"]').trigger('click')
+    await flushPromises()
+    wrapper.unmount()
+    expect(duckSpy).toHaveBeenLastCalledWith('luosheng', false)
   })
 })

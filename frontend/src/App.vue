@@ -4,6 +4,7 @@ import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { setUnauthorizedHandler } from './lib/api'
 import { User } from '@element-plus/icons-vue'
 import { musicDirector } from './lib/musicDirector'
+import { audioSystem } from './lib/audioSystem'
 import { installInteractionSounds, removeInteractionSounds } from './lib/interactionSound'
 import { useAuthStore } from './stores/auth'
 import { useLocale } from './stores/locale'
@@ -98,6 +99,11 @@ const PointerCursor = defineAsyncComponent(() => import('./components/PointerCur
 const LightPresetSwitcher = defineAsyncComponent(() => import('./components/LightPresetSwitcher.vue'))
 const siteGuideRoutes = ['home', 'explore', 'artifact-detail', 'article-detail', 'exhibits', 'exhibit-detail', 'appointment', 'shop']
 const lightSwitcherRoutes = ['explore', 'exhibits', 'appointment', 'shop']
+const showLightDebugDock = computed(() => (
+  !isAdminRoute.value
+  && lightSwitcherRoutes.includes(String(route.name))
+  && route.query.debugLights === '1'
+))
 const guideStore = guideEnabled ? useLuoshengStore() : null
 
 watch(() => route.fullPath, () => {
@@ -146,6 +152,7 @@ onBeforeUnmount(() => {
 musicDirector.setRoute(route.name, route.params.slug)
 musicDirector.init()
 watch([() => route.name, () => route.params.slug], ([name, slug]) => musicDirector.setRoute(name, slug))
+watch(isDark, (dark) => audioSystem.setThemeAcoustic(dark ? 'dark' : 'light'), { immediate: true })
 
 watch(() => route.path, async (_, previousPath) => {
   if (!previousPath) return
@@ -166,6 +173,7 @@ watchEffect(() => {
 
 <template>
   <div class="app-shell" :class="shellRouteClass">
+    <div v-if="!isAdminRoute" class="app-ambient-veil" aria-hidden="true"></div>
     <a class="skip-link" href="#main-content">{{ shellCopy.skip }}</a>
 
     <header v-if="!isAdminRoute" class="site-header" :class="{ 'is-scrolled': headerScrolled }" data-glass="light">
@@ -305,7 +313,7 @@ watchEffect(() => {
       </RouterLink>
     </nav>
 
-    <LightPresetSwitcher v-if="!isAdminRoute && lightSwitcherRoutes.includes(String(route.name))" />
+    <LightPresetSwitcher v-if="showLightDebugDock" />
     <SiteGuide v-if="SiteGuide && siteGuideRoutes.includes(String(route.name))" />
     <PointerCursor />
   </div>

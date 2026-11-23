@@ -20,7 +20,7 @@ describe('HomeView', () => {
 
     expect(wrapper.text()).toContain('从一件器物，走进河洛文明')
     expect(wrapper.text()).toContain('先在线近看一件青铜')
-    expect(wrapper.text()).toContain('策展手记')
+    expect(wrapper.text()).toContain('一鼎之间')
     expect(wrapper.text()).toContain('沿着河流阅读文明')
     expect(wrapper.find('.home-themes').exists()).toBe(true)
     expect(pointerSurfaceMounted).not.toHaveBeenCalled()
@@ -49,8 +49,12 @@ describe('HomeView', () => {
     expect(heroImage.attributes('fetchpriority')).toBe('high')
 
     const cardImages = wrapper.findAll('.home-theme img')
+    expect(cardImages[0]?.attributes('src')).toBe('/media/editorial/explore-bronze-jue-user-v2.webp')
     expect(cardImages[2]?.attributes('src')).toBe('/media/editorial/heluo-river-map-home-384w-v1.webp')
-    expect(cardImages.every(image => image.attributes('srcset')?.includes('192w'))).toBe(true)
+    expect(cardImages.every(image => {
+      const srcset = image.attributes('srcset') ?? ''
+      return srcset.includes('640w') && (srcset.includes('192w') || srcset.includes('320w'))
+    })).toBe(true)
     expect(cardImages.every(image => image.attributes('sizes') === '(max-width: 760px) 112px, (max-width: 1100px) 30vw, 380px')).toBe(true)
     expect(wrapper.get('.home-visit a').attributes('data-to')).toBe('/appointment')
     expect(wrapper.findAll('.home-primary')).toHaveLength(1)

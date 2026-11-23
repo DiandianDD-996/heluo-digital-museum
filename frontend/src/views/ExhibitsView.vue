@@ -35,7 +35,8 @@ const copy = computed(() => locale.value === 'en-US' ? {
   eyebrow: '3D DIGITAL EXHIBITION',
   title: 'Bring one object closer.',
   intro: 'Reconstruct bronze silhouettes and taotie reliefs in digital light. Rotate freely, inspect up close, or switch between solid bronze and point-cloud geometry.',
-  interaction: 'Capabilities',
+  interaction: 'Gallery specs',
+  headerSpecs: ['01 Interactive Masterpiece', 'Dual-Mode WebGL Stage', 'CC0 Public Provenance'],
   capabilities: ['360° Free Orbit', 'Aged-Bronze PBR', 'Point-Cloud Mode'],
   retry: 'Try again',
   loading: 'Loading digital exhibits',
@@ -48,11 +49,12 @@ const copy = computed(() => locale.value === 'en-US' ? {
   attributionPrefix: 'Model attribution:',
   attributionFallback: 'Reconstructed with reference to Cleveland Museum of Art CC0 public collection (1962.281).',
 } : {
-  eyebrow: '三维数字展厅',
+  eyebrow: '数字展厅',
   title: '把一件器物，拿到眼前。',
   intro: '以数字重塑青铜器型与饕餮纹样，自由旋转近观，或在实体与点云之间切换视角。',
-  interaction: '交互体验',
-  capabilities: ['360° 自由旋转', 'PBR 古铜材质', '粒子点云模式'],
+  interaction: '展厅信息',
+  headerSpecs: ['开放互动馆藏', '360° 自由观展', '公开馆藏溯源'],
+  capabilities: ['360° 自由旋转', '古铜质感细观', '点云结构透视'],
   retry: '重新加载',
   loading: '正在加载数字展项',
   emptyTitle: '展厅正在布展',
@@ -79,6 +81,14 @@ const displayItem = (item: ExhibitCard) => {
     }
   }
   return item
+}
+
+const formatSourceCredit = (credit: string | undefined) => {
+  if (!credit) return copy.value.attributionFallback
+  if (locale.value === 'zh-CN' && credit.includes('Cleveland Museum of Art')) {
+    return '克利夫兰艺术博物馆 · 1962.281 CC0 公开馆藏参考'
+  }
+  return credit
 }
 
 const coverFor = (item: ExhibitCard) => item.slug.includes('bronze-ding')
@@ -142,7 +152,7 @@ onBeforeUnmount(() => {
       <div class="exhibit-stats" data-motion="archive-stats">
         <span class="exhibit-stats__label">{{ copy.interaction }}</span>
         <div class="exhibit-stats__tags">
-          <span v-for="tag in copy.capabilities" :key="tag">{{ tag }}</span>
+          <span v-for="tag in copy.headerSpecs" :key="tag">{{ tag }}</span>
         </div>
       </div>
     </section>
@@ -196,7 +206,7 @@ onBeforeUnmount(() => {
               {{ copy.start }} <b aria-hidden="true">→</b>
             </span>
             <p class="exhibit-showcase__credit">
-              {{ copy.attributionPrefix }} {{ item.sourceCredit || copy.attributionFallback }}
+              {{ copy.attributionPrefix }} {{ formatSourceCredit(item.sourceCredit) }}
             </p>
           </div>
         </div>
@@ -298,30 +308,41 @@ onBeforeUnmount(() => {
 .exhibit-showcase {
   display: grid;
   grid-template-columns: minmax(0, 1.38fr) minmax(0, 1fr);
-  border: 1px solid var(--border-hairline);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   background: var(--surface-elevated);
+  box-shadow: var(--card-frame-sheen), var(--shadow-sm);
   overflow: hidden;
   transition: border-color var(--duration-ui) var(--ease-curatorial),
-              box-shadow var(--duration-ui) var(--ease-curatorial);
+              box-shadow var(--duration-ui) var(--ease-curatorial),
+              transform var(--duration-ui) var(--ease-curatorial);
 }
 
 .exhibit-showcase:hover {
-  border-color: var(--accent-bronze);
-  box-shadow: var(--shadow-md);
+  border-color: color-mix(in oklch, var(--accent-bronze) 56%, var(--border-strong));
+  box-shadow: var(--card-frame-sheen), var(--shadow-md);
+  transform: translateY(-2px);
 }
 
 .exhibit-showcase__media {
   position: relative;
+  width: 100%;
+  min-width: 0;
   min-height: 440px;
-  background: var(--surface-spotlight), var(--surface-darkroom);
+  background-color: var(--surface-vitrine);
+  background-image: var(--surface-vitrine-spotlight);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
   overflow: hidden;
 }
 
 .exhibit-showcase__media img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center 45%;
   transition: transform 520ms var(--ease-curatorial);
 }
 
@@ -402,11 +423,14 @@ onBeforeUnmount(() => {
   font-size: var(--text-sm);
   font-weight: 600;
   letter-spacing: 0.03em;
-  transition: background-color var(--duration-ui) var(--ease-curatorial);
+  box-shadow: var(--button-tactile-sheen);
+  transition: background-color var(--duration-ui) var(--ease-curatorial),
+              transform var(--duration-fast) var(--ease-curatorial);
 }
 
 .exhibit-showcase:hover .exhibit-showcase__cta {
   background: var(--accent-jade-hover);
+  transform: translateY(-1px);
 }
 
 .exhibit-showcase__credit {
@@ -422,8 +446,10 @@ onBeforeUnmount(() => {
   }
 
   .exhibit-showcase__media {
-    min-height: 300px;
-    aspect-ratio: 16 / 10;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    aspect-ratio: 4 / 3;
   }
 
   .exhibit-stats {

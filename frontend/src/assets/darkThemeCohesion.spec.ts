@@ -24,13 +24,16 @@ describe('dark theme cohesion contract (Heluo Editorial 2.0 Nocturne Gallery)', 
 
   it('defines Obsidian Silk OKLCH dark surface hierarchy and champagne-gold actions without muddy green or pure black', () => {
     const darkBlock = tokens.slice(tokens.indexOf('html[data-theme="dark"]'))
-    expect(darkBlock).toContain('--surface-canvas: oklch(13.5% 0.004 82)')
-    expect(darkBlock).toContain('--surface-subtle: oklch(17.5% 0.004 82)')
-    expect(darkBlock).toContain('--surface-elevated: oklch(21.5% 0.005 82)')
+    expect(darkBlock).toContain('--surface-canvas: oklch(15.5% 0.002 75)')
+    expect(darkBlock).toContain('--surface-subtle: oklch(18.2% 0.002 75)')
+    expect(darkBlock).toContain('--surface-elevated: oklch(20.8% 0.003 75)')
+    expect(darkBlock).toContain('--pattern-yunlei:')
+    expect(darkBlock).toContain('--pattern-brocade:')
+    expect(darkBlock).toContain('--pattern-plinth-lattice:')
     expect(darkBlock).toContain('--surface-spotlight:')
-    expect(darkBlock).toContain('--ink-primary: oklch(96% 0.006 86)')
-    expect(darkBlock).toContain('--accent-jade: oklch(75% 0.088 76)')
-    expect(darkBlock).toContain('--accent-jade-ink: oklch(14% 0.006 76)')
+    expect(darkBlock).toContain('--ink-primary: oklch(94.2% 0.004 82)')
+    expect(darkBlock).toContain('--accent-jade: oklch(81% 0.048 78)')
+    expect(darkBlock).toContain('--accent-jade-ink: oklch(16% 0.009 72)')
   })
 
   it('keeps the shared search single-layer and controls touch-sized across themes', () => {

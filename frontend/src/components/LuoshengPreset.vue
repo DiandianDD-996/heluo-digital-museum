@@ -61,29 +61,36 @@ const stops = computed(() => [
 ])
 
 const activeCaption = computed(() => {
-  if (!isEnglish.value) {
-    const matched = entries.value.find(item => item.cardId === CARD_BY_STOP[selectedStop.value])
-    if (matched?.text) return matched.text
-  }
+  const matched = entries.value.find(item => item.cardId === CARD_BY_STOP[selectedStop.value])
+  if (matched?.text) return matched.text
   return isEnglish.value ? FALLBACK_COPY[selectedStop.value].en : FALLBACK_COPY[selectedStop.value].zh
 })
 
 async function loadPresetEntries() {
   controller?.abort()
-  controller = new AbortController()
+  const request = new AbortController()
+  controller = request
+  entries.value = []
+  const targetLocale = isEnglish.value ? 'en-US' : 'zh-CN'
   try {
     const data = await apiGet<{ available: boolean; entries: PresetEntry[] }>(
-      `/guide/exhibits/${encodeURIComponent(props.exhibitSlug)}?locale=zh-CN`,
+      `/guide/exhibits/${encodeURIComponent(props.exhibitSlug)}?locale=${encodeURIComponent(targetLocale)}`,
       undefined,
-      { signal: controller.signal, timeoutMs: 5000 },
+      { signal: request.signal, timeoutMs: 5000 },
     )
-    if (!controller.signal.aborted && data.available) {
+    if (controller === request && !request.signal.aborted && data.available) {
       entries.value = data.entries
     }
   } catch {
-    // Graceful fallback to embedded captions when preset API is unavailable
+    // The current request already cleared stale captions before loading.
+  } finally {
+    if (controller === request) controller = undefined
   }
 }
+
+watch([locale, () => props.exhibitSlug], () => {
+  void loadPresetEntries()
+})
 
 watch(
   () => guideStore.pendingPlateAction,
@@ -118,7 +125,7 @@ function focusStopIn3D() {
     label: selectedStop.value,
   })
   if (route.path !== `/exhibits/${GUIDE_EXHIBIT_SLUG}`) {
-    void router.push(`/exhibits/${GUIDE_EXHIBIT_SLUG}`)
+    void router.push({ path: `/exhibits/${GUIDE_EXHIBIT_SLUG}`, query: { from: route.path } })
   } else {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }

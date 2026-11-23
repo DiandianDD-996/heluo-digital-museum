@@ -444,6 +444,23 @@ onBeforeUnmount(() => gsapContext?.revert())
     </header>
 
     <!-- Two-Column Boutique Grid: 1fr Product Showcase + 360px Sticky Bag -->
+    <div class="shop-mobile-bar">
+      <div class="shop-mobile-bar__summary">
+        <ShoppingBag class="shop-mobile-bar__icon" aria-hidden="true" />
+        <span>{{ shopCopy.bag }}</span>
+        <strong class="font-mono">{{ itemCount }} {{ shopCopy.unit }}</strong>
+      </div>
+      <button
+        class="mobile-cart-trigger"
+        type="button"
+        :aria-label="`${shopCopy.openCart}, ${itemCount} ${shopCopy.unit}`"
+        @click="mobileCartOpen = true"
+      >
+        <span>{{ shopCopy.openCart }}</span>
+        <span class="mobile-cart-trigger__badge font-mono">{{ itemCount }}</span>
+      </button>
+    </div>
+
     <div class="shop-layout">
       <section class="shop-content">
         <InlineStatus v-if="message" kind="success" :message="message" :announce="!mobileCartOpen" />
@@ -532,18 +549,6 @@ onBeforeUnmount(() => gsapContext?.revert())
         />
       </aside>
     </div>
-
-    <!-- Mobile / Tablet Floating Bag Trigger Bar -->
-    <button
-      class="mobile-cart-trigger"
-      type="button"
-      :aria-label="`${shopCopy.openCart}, ${itemCount} ${shopCopy.unit}`"
-      @click="mobileCartOpen = true"
-    >
-      <ShoppingBag aria-hidden="true" />
-      <span>{{ shopCopy.bag }}</span>
-      <span class="mobile-cart-trigger__badge font-mono">{{ itemCount }}</span>
-    </button>
 
     <BottomSheet
       :open="mobileCartOpen"
@@ -639,7 +644,7 @@ onBeforeUnmount(() => gsapContext?.revert())
   right: 0;
   bottom: -1px;
   height: 2px;
-  background: var(--accent-bronze);
+  background: var(--accent-seal);
   transform: scaleX(0);
   transform-origin: left;
   transition: transform var(--duration-ui) var(--ease-curatorial);
@@ -682,24 +687,35 @@ onBeforeUnmount(() => gsapContext?.revert())
 .product-card {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border-hairline);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   background: var(--surface-elevated);
+  box-shadow: var(--card-frame-sheen), var(--shadow-xs);
   overflow: hidden;
   transition: border-color var(--duration-ui) var(--ease-curatorial),
-              box-shadow var(--duration-ui) var(--ease-curatorial);
+              box-shadow var(--duration-ui) var(--ease-curatorial),
+              transform var(--duration-ui) var(--ease-curatorial);
 }
 
 .product-card:hover {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-sm);
+  border-color: color-mix(in oklch, var(--accent-bronze) 52%, var(--border-strong));
+  box-shadow: var(--card-frame-sheen), var(--shadow-md);
+  transform: translateY(-2px);
 }
 
 .product-image {
   position: relative;
   aspect-ratio: 4 / 5;
-  background: var(--surface-spotlight), var(--surface-plinth);
+  background: var(--surface-spotlight), var(--surface-stone-band);
   overflow: hidden;
+}
+
+.product-image::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.16), inset 0 -1px 0 oklch(12% 0.01 72 / 0.12);
 }
 
 .product-image img {
@@ -747,7 +763,7 @@ onBeforeUnmount(() => gsapContext?.revert())
   right: 0;
   bottom: 0;
   padding: var(--space-5) var(--space-4) var(--space-3);
-  background: linear-gradient(180deg, transparent, oklch(10% 0.01 165 / 0.78));
+  background: linear-gradient(180deg, transparent, oklch(12% 0.006 74 / 0.82));
   color: var(--ink-on-dark);
   font-size: var(--text-xs);
   line-height: 1.55;
@@ -817,10 +833,10 @@ onBeforeUnmount(() => gsapContext?.revert())
   display: grid;
   gap: var(--space-4);
   padding: var(--space-5);
-  border: 1px solid var(--border-hairline);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   background: var(--surface-elevated);
-  box-shadow: var(--shadow-xs);
+  box-shadow: var(--card-frame-sheen), var(--shadow-sm);
 }
 
 .cart-heading {
@@ -859,7 +875,11 @@ onBeforeUnmount(() => gsapContext?.revert())
   color: var(--ink-secondary);
 }
 
-/* ── Mobile Bag Trigger ── */
+/* ── Mobile Bag Bar (Docked in Flow / Sticky Subheader — Zero Card Occlusion) ── */
+.shop-mobile-bar {
+  display: none;
+}
+
 .mobile-cart-trigger {
   display: none;
 }
@@ -880,38 +900,73 @@ onBeforeUnmount(() => gsapContext?.revert())
     display: none;
   }
 
-  .mobile-cart-trigger {
-    position: fixed;
-    left: var(--space-4);
-    bottom: calc(74px + env(safe-area-inset-bottom, 0px));
-    z-index: 45;
+  .shop-intro {
+    margin-bottom: var(--space-4);
+  }
+
+  .shop-mobile-bar {
+    position: sticky;
+    top: 58px;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-bottom: var(--space-5);
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    background: color-mix(in oklch, var(--surface-canvas) 94%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: var(--shadow-xs);
+  }
+
+  .shop-mobile-bar__summary {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    min-height: 46px;
-    padding: 0 1.125rem;
+    min-width: 0;
+    font-size: var(--text-sm);
+    color: var(--ink-secondary);
+  }
+
+  .shop-mobile-bar__summary strong {
+    color: var(--ink-primary);
+    font-weight: 600;
+  }
+
+  .shop-mobile-bar__icon {
+    width: 17px;
+    height: 17px;
+    color: var(--accent-bronze);
+    flex-shrink: 0;
+  }
+
+  .mobile-cart-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 44px;
+    padding: 0 0.95rem;
     border: 1px solid var(--accent-jade);
     border-radius: var(--radius-pill);
     background: var(--accent-jade);
     color: var(--accent-jade-ink);
-    font-size: var(--text-sm);
+    font-size: var(--text-xs);
     font-weight: 600;
-    box-shadow: var(--shadow-md);
+    white-space: nowrap;
     cursor: pointer;
-  }
-
-  .mobile-cart-trigger svg {
-    width: 18px;
-    height: 18px;
+    flex-shrink: 0;
   }
 
   .mobile-cart-trigger__badge {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 22px;
-    height: 22px;
-    padding: 0 6px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
     border-radius: var(--radius-pill);
     background: color-mix(in oklch, var(--accent-jade-ink) 20%, transparent);
     font-size: var(--text-xs);

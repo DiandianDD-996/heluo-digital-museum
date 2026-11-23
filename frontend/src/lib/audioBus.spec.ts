@@ -542,3 +542,134 @@ describe('ambience scene contract', () => {
     expect(audioSystem.getAmbienceScene()).toBeNull()
   })
 })
+
+describe('iOS interruption recovery, smart focus ducking, acoustic filters and analyser tap', () => {
+  beforeEach(() => { localStorage.clear() })
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
+
+  it('resumes suspended or iOS interrupted contexts and reacts to statechange events', async () => {
+    const stateListeners: Array<() => void> = []
+    const resume = vi.fn(() => Promise.resolve())
+    const ctx = {
+      ...createStubContext(),
+      state: 'interrupted',
+      resume,
+      addEventListener: vi.fn((event: string, cb: () => void) => {
+        if (event === 'statechange') stateListeners.push(cb)
+      }),
+    }
+    const { audioSystem } = await loadSystem({ context: ctx })
+    audioSystem.enable()
+    expect(resume).toHaveBeenCalledOnce()
+
+    // Simulate interruption event while visible and enabled
+    const observedStates: string[] = []
+    const unsub = audioSystem.onContextStateChange(s => observedStates.push(s))
+    ctx.state = 'suspended'
+    stateListeners.forEach(fn => fn())
+    expect(resume).toHaveBeenCalledTimes(2)
+    expect(observedStates).toContain('suspended')
+    unsub()
+  })
+
+  it('coordinates focus ducking and narrative ducking via minimum depth without racing', async () => {
+    vi.useFakeTimers()
+    try {
+      const { audioSystem, stub } = await loadSystem()
+      audioSystem.enable()
+      const { duck } = busGains(stub!)
+
+      // Companion drawer opens -> depth 0.72
+      audioSystem.setFocusDuck('luosheng', true, 0.72)
+      stub!.advance(0.4)
+      expect(stub!.valueAt(duck.gain)).toBeCloseTo(0.72, 2)
+
+      // Streaming starts -> deeper 0.62
+      audioSystem.setFocusDuck('luosheng', true, 0.62)
+      stub!.advance(0.4)
+      expect(stub!.valueAt(duck.gain)).toBeCloseTo(0.62, 2)
+
+      // Narrative bell plays -> drops to 0.42, then releases back to 0.62 (NOT 1.0)
+      await audioSystem.playNarrative('discovery')
+      stub!.advance(0.25)
+      expect(stub!.valueAt(duck.gain)).toBeCloseTo(0.42, 2)
+      vi.advanceTimersByTime(950)
+      stub!.advance(2.0)
+      expect(stub!.valueAt(duck.gain)).toBeCloseTo(0.62, 2)
+
+      // Companion drawer closes -> returns to 1.0
+      audioSystem.setFocusDuck('luosheng', false)
+      stub!.advance(2.0)
+      expect(stub!.valueAt(duck.gain)).toBeCloseTo(1, 2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('inserts theme and pointcloud BiquadFilters and attaches read-only analyser side-tap', async () => {
+    const createdFilters: Array<{ type: string, frequency: StubAudioParam, gain: StubAudioParam, Q: { value: number }, connections: unknown[], connect: (t: unknown) => unknown }> = []
+    const createdAnalysers: Array<{ fftSize: number, minDecibels: number, maxDecibels: number, smoothingTimeConstant: number, connections: unknown[], connect: (t: unknown) => unknown }> = []
+    const baseCtx = createStubContext()
+    const richCtx = {
+      ...baseCtx,
+      createBiquadFilter() {
+        const f = {
+          type: 'lowpass',
+          frequency: createStubParam(350),
+          gain: createStubParam(0),
+          Q: { value: 1 },
+          connections: [] as unknown[],
+          connect(target: unknown) { f.connections.push(target); return target },
+        }
+        createdFilters.push(f)
+        return f
+      },
+      createAnalyser() {
+        const a = {
+          fftSize: 2048,
+          minDecibels: -100,
+          maxDecibels: -30,
+          smoothingTimeConstant: 0.8,
+          connections: [] as unknown[],
+          connect(target: unknown) { a.connections.push(target); return target },
+        }
+        createdAnalysers.push(a)
+        return a
+      },
+    }
+
+    const { audioSystem } = await loadSystem({ context: richCtx })
+    audioSystem.enable()
+
+    const { master, music, duck } = busGains(richCtx)
+    expect(createdFilters).toHaveLength(2)
+    expect(music.connections).toContain(createdFilters[0])
+    expect(createdFilters[0]!.connections).toContain(createdFilters[1])
+    expect(createdFilters[1]!.connections).toContain(duck)
+    expect(duck.connections).toContain(master)
+
+    audioSystem.setThemeAcoustic('dark')
+    expect(createdFilters[0]!.gain.linearRampToValueAtTime).toHaveBeenCalledWith(-1.2, expect.any(Number))
+
+    audioSystem.setSpaceAcoustic('pointcloud')
+    expect(createdFilters[1]!.gain.linearRampToValueAtTime).toHaveBeenCalledWith(-3.5, expect.any(Number))
+
+    audioSystem.setSpaceAcoustic('default')
+    expect(createdFilters[1]!.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0, expect.any(Number))
+
+    const analyser = audioSystem.acquireMusicAnalyser()
+    expect(analyser).not.toBeNull()
+    expect(createdAnalysers).toHaveLength(1)
+    expect(duck.connections).toContain(createdAnalysers[0])
+    // Read-only tap: analyser must NOT connect to destination or master
+    expect(createdAnalysers[0]!.connections).toHaveLength(0)
+
+    // Reusing analyser increments consumer count without duplicating node
+    expect(audioSystem.acquireMusicAnalyser()).toBe(analyser)
+    expect(createdAnalysers).toHaveLength(1)
+    expect(audioSystem.getAnalyserConsumerCount()).toBe(2)
+    audioSystem.releaseMusicAnalyser()
+    audioSystem.releaseMusicAnalyser()
+    expect(audioSystem.getAnalyserConsumerCount()).toBe(0)
+  })
+})

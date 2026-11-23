@@ -11,7 +11,7 @@
     main{max-width:1060px;margin:auto;padding:52px 32px 36px}header{display:flex;gap:32px;align-items:end;justify-content:space-between;margin-bottom:32px}
     .brand{font-size:12px;letter-spacing:.22em;color:var(--muted);margin:0 0 10px}h1{font:normal clamp(30px,4vw,44px)/1.3 var(--display);letter-spacing:.09em;margin:0}header p{max-width:390px;margin:0;color:var(--muted)}
     button,a,input,audio{touch-action:manipulation}button{font:inherit;cursor:pointer}button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid var(--bronze);outline-offset:4px}a{color:var(--ink);text-underline-offset:4px}
-    .tracks{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 0 22px}.track{text-align:left;padding:20px 22px;border:1px solid var(--line);border-radius:10px;background:transparent;color:var(--ink);min-height:110px}.track[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+    .tracks{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:0 0 22px}.track{text-align:left;padding:20px 22px;border:1px solid var(--line);border-radius:10px;background:transparent;color:var(--ink);min-height:110px}.track[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}.track:disabled{opacity:.45;cursor:not-allowed}
     .track small{display:block;font-size:12px;letter-spacing:.12em;margin-bottom:7px}.track strong{display:block;font:normal 21px/1.45 var(--display)}.track .mood{display:block;font-size:12px;margin-top:7px;opacity:.8}
     .listening{background:var(--paper);border:1px solid var(--line);border-radius:14px;overflow:hidden}.player{padding:28px 30px 24px}.player-head{display:flex;justify-content:space-between;gap:20px;align-items:start}.player-head h2{font:normal 26px/1.4 var(--display);margin:0 0 6px}.description{color:var(--muted);max-width:650px;margin:0}.duration{font:14px var(--utility);white-space:nowrap;color:var(--bronze);padding-top:10px}
     fieldset{padding:0;border:0;margin:24px 0 10px}legend{font-size:12px;color:var(--muted);margin-bottom:8px}.modes{display:flex;flex-wrap:wrap;gap:10px}.modes label{display:inline-flex;gap:8px;align-items:center;padding:9px 12px;border:1px solid var(--line);border-radius:6px;cursor:pointer;min-height:44px}.modes input{accent-color:var(--ink);width:16px;height:16px}.mode-note{font-size:13px;color:var(--muted);margin:0 0 16px;min-height:24px}audio{display:block;width:100%;margin-top:10px;min-height:54px}
@@ -19,7 +19,7 @@
     .timeline{border-top:1px solid var(--line);padding:20px 30px 25px}.caption{font-size:12px;color:var(--muted);margin:0 0 12px}.sections{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px}.section{border:0;border-top:3px solid var(--line);background:transparent;text-align:left;padding:9px 4px 4px;color:var(--muted);min-height:60px;font-size:12px}.section[aria-current="true"]{border-color:var(--bronze);color:var(--ink)}.section time{display:block;font:13px var(--utility);margin-bottom:5px}.section:hover{background:var(--mist)}
     .context{display:grid;grid-template-columns:180px 1fr;gap:30px;padding:26px 30px 30px;border-top:1px solid var(--line)}.context h3{font:normal 18px/1.55 var(--display);margin:0 0 5px}.context small{color:var(--muted);font-size:12px}.context p{margin:0 0 14px}.context p:last-child{margin:0}.context-copy{max-width:710px;color:var(--muted);font-size:14px;line-height:1.95}
     footer{margin-top:22px;color:var(--muted);font-size:12px}footer p{margin:4px 0}.feedback{color:var(--ink);font-size:14px;margin-bottom:10px}code{font-family:var(--utility)}
-    @media(max-width:650px){main{padding:28px 18px}header{display:block}header p{margin-top:18px}.tracks{gap:7px}.track{padding:14px 10px;min-height:116px}.track strong{font-size:17px}.track small,.track .mood{font-size:11px;letter-spacing:0}.player,.timeline{padding:22px 18px}.player-head h2{font-size:23px}.duration{font-size:12px}.context{grid-template-columns:1fr;gap:14px;padding:22px 18px}.sections{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.section{font-size:11px;padding-right:2px;overflow-wrap:anywhere}.status-row{align-items:start}.modes label{font-size:13px}}
+    @media(max-width:650px){main{padding:28px 18px}header{display:block}header p{margin-top:18px}.tracks{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.track{padding:14px 10px;min-height:116px}.track strong{font-size:17px}.track small,.track .mood{font-size:11px;letter-spacing:0}.player,.timeline{padding:22px 18px}.player-head h2{font-size:23px}.duration{font-size:12px}.context{grid-template-columns:1fr;gap:14px;padding:22px 18px}.sections{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.section{font-size:11px;padding-right:2px;overflow-wrap:anywhere}.status-row{align-items:start}.modes label{font-size:13px}}
   </style>
 </head>
 <body>
@@ -48,7 +48,7 @@
   <footer>
     <p class="feedback">建议先完整听一首，再回听让你记住或分心的乐句；也可以切换旧版，比较主题、层次与整体走向。</p>
     <p>原创采样编排试听稿 · 使用已核实的录音音源制作。具体曲目尚待听感确认，未替换网站配乐。</p>
-    <p>录音音源：VSCO 2 CE，CC0。Sam Gossner / Versilian Studios、Simon Dalzell / Ivy Audio；切样 Elan Hickler / Soundemote。<a href="source-samples/SOURCE-LICENSE.md">来源记录</a></p>
+    <p>录音音源：VSCO 2 CE 与 VCSL，均采用 CC0 1.0 许可。Sam Gossner / Versilian Studios、Simon Dalzell / Ivy Audio、Elan Hickler / Soundemote 及 VCSL 贡献者。<a href="source-samples/SOURCE-LICENSE.md">R1–R3 来源记录</a> · <a href="source-samples-r4/SOURCE-LICENSE.md">R4 东方音色审计</a></p>
   </footer>
 </main>
 <script>
@@ -56,13 +56,14 @@
   const scenes = {
     home: {label:'首页迎宾',mood:'明朗 · 舒展 · 从容',heading:'进入展馆',caption:'听欢迎感与主题展开',paragraphs:['让音乐伴随进入展馆的第一眼。可以先记住最初的旋律，再听它怎样经过不同声部的回应，渐渐打开空间。','完整听过之后，留意哪一句留下了印象，以及主题带着变化回来的时候，是否自然、亲近。']},
     reading: {label:'水鸟阅读',mood:'清润 · 连贯 · 有呼吸',heading:'观察入口｜先看姿态',caption:'配合正文阅读，感受注意力',paragraphs:['这是一件由项目组自主创作的概念展品，并非真实馆藏复原。水鸟昂首而立，细长颈部把视线从足部引向头部，收拢的双翼则让身体保持稳定。观看它时，可以先不判断它属于哪个年代，只留意一条曲线怎样让金属显得轻盈，又怎样在静止中保留欲行、欲飞的张力。','青铜通常给人厚重、坚固的印象，水鸟却代表水岸、迁徙与季节变化。创作把两种相反感受放在一起：坚硬材料承载柔软羽翼，稳定足部托起向前伸展的长颈。表面的河流旋纹不是对古代纹样的复制，而是用连续线条提示羽毛、水波与时间流动。']},
-    bronze: {label:'青铜鼎近观',mood:'温厚 · 清楚 · 有纵深',heading:'沿着器形听',caption:'听主题、展开与回归',paragraphs:['把注意力放在器腹的转折、足部的支撑和纹样的走向。跟随弦乐的线条，听拨弦如何回应，也听主题在展开之后如何回来。','这里希望有器物的分量，也有靠近它的温度。留意让你记住的乐句，和中段层次打开之后，声音是否仍然清楚、适合静静观察。']}
+    bronze: {label:'青铜鼎近观',mood:'温厚 · 清楚 · 有纵深',heading:'沿着器形听',caption:'听主题、展开与回归',paragraphs:['把注意力放在器腹的转折、足部的支撑和纹样的走向。跟随弦乐的线条，听拨弦如何回应，也听主题在展开之后如何回来。','这里希望有器物的分量，也有靠近它的温度。留意让你记住的乐句，和中段层次打开之后，声音是否仍然清楚、适合静静观察。']},
+    jade: {label:'玉石与彩陶（R4 新增）',mood:'清透 · 温润 · 高呼吸',heading:'观玉听磬',caption:'近场竖琴、钢琴泛音与玉磬清音',paragraphs:['专为玉璧、玉猪龙、河图石与彩陶等温润材质展品谱写的第四乐章。近场竖琴勾勒轮廓，稀疏的高音钢琴泛音与轻柔中提琴托出空间深度。','每逢句读留白处缀入清透玉磬与丝弦拨音，适合放慢目光凝视器壁包浆与天然纹理。']}
   };
   const audio = document.querySelector('#audio');
   const requestedRevision = new URL(location.href).searchParams.get('revision');
   let revision = report.revisions.some(item => item.id === requestedRevision) ? requestedRevision : report.defaultRevision;
   const initialTracks = report.revisions.find(item => item.id === revision).tracks;
-  let selected = initialTracks.find(track => track.id === report.defaultTrack) || initialTracks[0];
+  let selected = initialTracks.find(track => track.id === report.defaultTrack) || (revision !== 'r1' && initialTracks.find(track => track.id === 'bronze')) || initialTracks[0];
   let mode = 'scene';
   let version = 0;
   let loading = false;
@@ -103,10 +104,27 @@
     audio.load();
   }
 
+  function syncTrackAvailability() {
+    const revTracks = report.revisions.find(item => item.id === revision).tracks;
+    document.querySelectorAll('.track').forEach(button => {
+      const available = revTracks.some(track => track.id === button.dataset.id);
+      button.disabled = !available;
+      button.title = available ? '' : '该曲目仅在 R4 编曲版本中提供';
+    });
+  }
+
   function selectTrack(id, preserveTime = false) {
-    selected = report.revisions.find(item => item.id === revision).tracks.find(track => track.id === id);
-    const scene = scenes[id];
-    document.querySelectorAll('.track').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.id === id)));
+    const revTracks = report.revisions.find(item => item.id === revision).tracks;
+    let fallbackNotice = '';
+    selected = revTracks.find(track => track.id === id);
+    if (!selected) {
+      selected = revTracks.find(track => track.id === 'bronze') || revTracks[0];
+      fallbackNotice = '所选旧版未含《温润·玉石》，已切换至《观器·温金》。';
+    }
+    syncTrackAvailability();
+    const activeId = selected.id;
+    const scene = scenes[activeId];
+    document.querySelectorAll('.track').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.id === activeId)));
     document.querySelector('#title').textContent = selected.title;
     document.querySelector('#description').textContent = selected.description;
     document.querySelector('#context-title').textContent = scene.heading;
@@ -127,6 +145,7 @@
       return button;
     }));
     loadAudio(preserveTime);
+    if (fallbackNotice) status(fallbackNotice);
   }
 
   for (const track of report.tracks) {

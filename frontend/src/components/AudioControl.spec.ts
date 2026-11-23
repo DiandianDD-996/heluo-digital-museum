@@ -2,6 +2,7 @@ import { nextTick } from 'vue'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { VolumeTier } from '../lib/audioSystem'
+import type { MusicTrack } from '../lib/audioScenes'
 
 vi.mock('../stores/audio', async () => {
   const { computed, ref } = await import('vue')
@@ -9,8 +10,11 @@ vi.mock('../stores/audio', async () => {
   const sfxEnabled = ref(true)
   const musicEnabled = ref(true)
   const volumeTier = ref<VolumeTier>('normal')
+  const isPaused = ref(false)
+  const currentTrack = ref<MusicTrack | null>('home')
+  const manualTrack = ref<MusicTrack | null>(null)
   const state = {
-    enabled, sfxEnabled, musicEnabled, volumeTier,
+    enabled, sfxEnabled, musicEnabled, volumeTier, isPaused, currentTrack, manualTrack,
     isAudible: computed(() => enabled.value && volumeTier.value !== 'silent'),
     isSfxOn: computed(() => sfxEnabled.value),
     isMusicOn: computed(() => musicEnabled.value),
@@ -20,6 +24,11 @@ vi.mock('../stores/audio', async () => {
     setSfxEnabled: vi.fn((value: boolean) => { sfxEnabled.value = value }),
     setMusicEnabled: vi.fn((value: boolean) => { musicEnabled.value = value }),
     setVolumeTier: vi.fn((value: VolumeTier) => { volumeTier.value = value }),
+    setManualTrack: vi.fn((track: MusicTrack | null) => {
+      manualTrack.value = track
+      if (track) currentTrack.value = track
+    }),
+    resumePlayback: vi.fn(() => { isPaused.value = false }),
   }
   return { useAudio: () => state }
 })
@@ -28,7 +37,22 @@ import AudioControl from './AudioControl.vue'
 import { useAudio } from '../stores/audio'
 import { useLocale } from '../stores/locale'
 
-const audio = useAudio()
+const audio = useAudio() as unknown as {
+  enabled: { value: boolean }
+  sfxEnabled: { value: boolean }
+  musicEnabled: { value: boolean }
+  volumeTier: { value: VolumeTier }
+  isPaused: { value: boolean }
+  currentTrack: { value: MusicTrack | null }
+  manualTrack: { value: MusicTrack | null }
+  enable: ReturnType<typeof vi.fn>
+  toggle: ReturnType<typeof vi.fn>
+  setSfxEnabled: ReturnType<typeof vi.fn>
+  setMusicEnabled: ReturnType<typeof vi.fn>
+  setVolumeTier: ReturnType<typeof vi.fn>
+  setManualTrack: ReturnType<typeof vi.fn>
+  resumePlayback: ReturnType<typeof vi.fn>
+}
 let wrapper: VueWrapper | undefined
 
 function render() {
@@ -41,6 +65,9 @@ beforeEach(() => {
   audio.sfxEnabled.value = true
   audio.musicEnabled.value = true
   audio.volumeTier.value = 'normal'
+  audio.isPaused.value = false
+  audio.currentTrack.value = 'home'
+  audio.manualTrack.value = null
   useLocale().locale.value = 'zh-CN'
   vi.clearAllMocks()
 })
@@ -180,5 +207,45 @@ describe('AudioControl interactions', () => {
     const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
     document.dispatchEvent(event)
     expect(event.defaultPrevented).toBe(false)
+  })
+
+  it('displays curatorial track placard, allows manual track switching and auto reset, and toggles CC0 sound notes', async () => {
+    audio.enabled.value = true
+    const control = render()
+    await control.get('.audio-toggle').trigger('click')
+
+    // Track placard shows active movement
+    expect(control.get('[data-testid="audio-track-placard"]').text()).toContain('入馆·河洛晨光')
+
+    // Manual track pills: Auto, home, reading, bronze, jade
+    const trackBtns = control.findAll('.audio-panel__track-btn')
+    expect(trackBtns).toHaveLength(5)
+    expect(trackBtns[0]?.classes()).toContain('is-active')
+
+    await trackBtns[4]?.trigger('click')
+    expect(audio.setManualTrack).toHaveBeenCalledWith('jade')
+    expect(trackBtns[4]?.classes()).toContain('is-active')
+    expect(control.get('[data-testid="audio-track-placard"]').text()).toContain('温润·玉石')
+
+    await trackBtns[3]?.trigger('click')
+    expect(audio.setManualTrack).toHaveBeenCalledWith('bronze')
+    expect(trackBtns[3]?.classes()).toContain('is-active')
+    expect(control.get('[data-testid="audio-track-placard"]').text()).toContain('观器·温金')
+
+    await trackBtns[0]?.trigger('click')
+    expect(audio.setManualTrack).toHaveBeenCalledWith(null)
+
+    // Paused state surface & resume
+    audio.isPaused.value = true
+    await nextTick()
+    expect(control.get('[data-testid="audio-track-placard"]').text()).toContain('已暂停 · 点击继续')
+    await control.get('.audio-panel__resume').trigger('click')
+    expect(audio.resumePlayback).toHaveBeenCalledOnce()
+
+    // Collapsible CC0 sound notes
+    const notes = control.get('.audio-panel__notes')
+    expect(notes.text()).toContain('VSCO 2 CE')
+    expect(notes.text()).toContain('VCSL')
+    expect(notes.text()).toContain('Sam Gossner')
   })
 })

@@ -43,9 +43,9 @@ export interface ParticleSystemOptions {
 /** Material-tuned presets shared with the `v-artifact-awaken` directive so
  *  bronze, jade and ink cards each get a visually distinct "awakening". */
 export const MATERIAL_PARTICLE_PRESETS: Record<'bronze' | 'jade' | 'ink', ParticleSystemOptions> = {
-  bronze: { colorHue: { min: 32, max: 42 }, saturation: 62, lightness: 58, particleSize: { min: 2, max: 4.5 }, sparkleChance: 0.3, curlAmount: { min: 4, max: 9 } },
-  jade: { colorHue: { min: 152, max: 172 }, saturation: 45, lightness: 64, particleSize: { min: 1.6, max: 3.6 }, sparkleChance: 0.4, curlAmount: { min: 3, max: 7 } },
-  ink: { colorHue: { min: 200, max: 222 }, saturation: 30, lightness: 42, particleSize: { min: 2, max: 4 }, sparkleChance: 0.12, curlAmount: { min: 5, max: 11 } },
+  bronze: { colorHue: { min: 35, max: 43 }, saturation: 52, lightness: 68, particleSize: { min: 1.8, max: 4.0 }, sparkleChance: 0.34, curlAmount: { min: 4, max: 9 } },
+  jade: { colorHue: { min: 40, max: 52 }, saturation: 34, lightness: 78, particleSize: { min: 1.5, max: 3.4 }, sparkleChance: 0.42, curlAmount: { min: 3, max: 7 } },
+  ink: { colorHue: { min: 32, max: 44 }, saturation: 28, lightness: 66, particleSize: { min: 1.8, max: 3.8 }, sparkleChance: 0.18, curlAmount: { min: 5, max: 11 } },
 }
 
 export class ParticleSystem {

@@ -10,6 +10,7 @@ import {
   type GuideLocale,
   type GuideMessage,
 } from '../lib/guideTypes'
+import { audioSystem } from '../lib/audioSystem'
 import { useLocale } from '../stores/locale'
 import { useLuoshengStore } from '../stores/luoshengStore'
 
@@ -294,8 +295,22 @@ function paragraphsOf(text: string): string[] {
   return text.split(/\n+/).map(line => line.trim()).filter(Boolean)
 }
 
+watch(
+  [() => store.open, streaming],
+  ([isOpen, isStreaming]) => {
+    if (!isOpen) {
+      audioSystem.setFocusDuck('luosheng', false)
+    } else if (isStreaming) {
+      audioSystem.setFocusDuck('luosheng', true, 0.62)
+    } else {
+      audioSystem.setFocusDuck('luosheng', true, 0.72)
+    }
+  },
+)
+
 onBeforeUnmount(() => {
   stopGeneration()
+  audioSystem.setFocusDuck('luosheng', false)
 })
 </script>
 

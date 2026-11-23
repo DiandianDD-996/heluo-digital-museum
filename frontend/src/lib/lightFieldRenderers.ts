@@ -371,13 +371,13 @@ function drawCelestial(ctx: CanvasRenderingContext2D, runtime: LightFieldRuntime
     const lensR = Math.min(radius * 1.28, 285)
     const lens = ctx.createRadialGradient(smoothX, smoothY, 0, smoothX, smoothY, lensR)
     if (isImage) {
-      lens.addColorStop(0, `rgba(18, 26, 23, ${((dark ? 0.42 : 0.34) * presence).toFixed(3)})`)
-      lens.addColorStop(0.52, `rgba(22, 30, 26, ${((dark ? 0.22 : 0.16) * presence).toFixed(3)})`)
-      lens.addColorStop(1, 'rgba(18, 26, 23, 0)')
+      lens.addColorStop(0, `rgba(22, 20, 18, ${((dark ? 0.38 : 0.22) * presence).toFixed(3)})`)
+      lens.addColorStop(0.52, `rgba(26, 23, 20, ${((dark ? 0.18 : 0.10) * presence).toFixed(3)})`)
+      lens.addColorStop(1, 'rgba(22, 20, 18, 0)')
     } else {
-      lens.addColorStop(0, `rgba(182, 134, 48, ${((dark ? 0.18 : 0.14) * presence).toFixed(3)})`)
-      lens.addColorStop(0.55, `rgba(26, 108, 86, ${(0.06 * presence).toFixed(3)})`)
-      lens.addColorStop(1, 'rgba(26, 108, 86, 0)')
+      lens.addColorStop(0, `rgba(212, 174, 108, ${((dark ? 0.16 : 0.14) * presence).toFixed(3)})`)
+      lens.addColorStop(0.55, `rgba(186, 152, 96, ${(0.05 * presence).toFixed(3)})`)
+      lens.addColorStop(1, 'rgba(186, 152, 96, 0)')
     }
     ctx.beginPath()
     ctx.arc(smoothX, smoothY, lensR, 0, TAU)
@@ -387,8 +387,8 @@ function drawCelestial(ctx: CanvasRenderingContext2D, runtime: LightFieldRuntime
     // Warm gilded core bloom inside the optical lens
     const coreR = lensR * 0.48
     const core = ctx.createRadialGradient(smoothX, smoothY, 0, smoothX, smoothY, coreR)
-    core.addColorStop(0, `rgba(248, 212, 128, ${((dark ? 0.34 : 0.26) * presence).toFixed(3)})`)
-    core.addColorStop(0.5, `rgba(116, 198, 172, ${((dark ? 0.12 : 0.09) * presence).toFixed(3)})`)
+    core.addColorStop(0, `rgba(255, 246, 224, ${((dark ? 0.28 : 0.32) * presence).toFixed(3)})`)
+    core.addColorStop(0.5, `rgba(224, 190, 132, ${((dark ? 0.12 : 0.11) * presence).toFixed(3)})`)
     core.addColorStop(1, 'rgba(248, 212, 128, 0)')
     ctx.beginPath()
     ctx.arc(smoothX, smoothY, coreR, 0, TAU)
@@ -398,9 +398,9 @@ function drawCelestial(ctx: CanvasRenderingContext2D, runtime: LightFieldRuntime
     // Precision astrolabe golden orbital arcs gently rotating around pointer
     const rot = timeMs * 0.00045
     ctx.strokeStyle = dark
-      ? `rgba(250, 216, 136, ${(0.52 * presence).toFixed(3)})`
-      : `rgba(232, 180, 68, ${(0.56 * presence).toFixed(3)})`
-    ctx.lineWidth = 1.1
+      ? `rgba(244, 216, 158, ${(0.48 * presence).toFixed(3)})`
+      : `rgba(204, 162, 88, ${(0.46 * presence).toFixed(3)})`
+    ctx.lineWidth = 1.0
     ctx.beginPath()
     ctx.arc(smoothX, smoothY, 54, rot, rot + Math.PI * 0.62)
     ctx.stroke()
@@ -409,18 +409,18 @@ function drawCelestial(ctx: CanvasRenderingContext2D, runtime: LightFieldRuntime
     ctx.stroke()
 
     ctx.strokeStyle = dark
-      ? `rgba(128, 212, 188, ${(0.34 * presence).toFixed(3)})`
-      : `rgba(88, 186, 158, ${(0.38 * presence).toFixed(3)})`
+      ? `rgba(218, 192, 148, ${(0.28 * presence).toFixed(3)})`
+      : `rgba(186, 152, 96, ${(0.28 * presence).toFixed(3)})`
     ctx.lineWidth = 0.85
     ctx.beginPath()
     ctx.arc(smoothX, smoothY, 96, -rot * 0.7, -rot * 0.7 + Math.PI * 0.45)
     ctx.stroke()
   }
 
-  // 2. Quiet refined star-lattice baseline
+  // 2. Quiet refined star-lattice baseline (warm silver-sand & brushed champagne, zero murky green)
   ctx.globalAlpha = heading ? 0.36 : 1
-  const jadeBase = dark ? 'rgba(104, 168, 148, .22)' : isImage ? 'rgba(22, 88, 72, .26)' : 'rgba(24, 96, 78, .22)'
-  const goldBase = dark ? 'rgba(224, 184, 108, .44)' : isImage ? 'rgba(196, 146, 52, .46)' : 'rgba(184, 134, 42, .42)'
+  const jadeBase = dark ? 'rgba(208, 190, 158, .16)' : isImage ? 'rgba(182, 158, 120, .20)' : 'rgba(176, 152, 116, .18)'
+  const goldBase = dark ? 'rgba(234, 206, 154, .34)' : isImage ? 'rgba(202, 162, 92, .34)' : 'rgba(194, 154, 84, .32)'
 
   ctx.beginPath()
   for (let i = 0; i < points.length; i += 1) {
@@ -500,8 +500,8 @@ function drawCelestial(ctx: CanvasRenderingContext2D, runtime: LightFieldRuntime
         if (jd.activity < 0.42) continue
         const dist = Math.hypot(hub.x - jd.x, hub.y - jd.y)
         if (dist > 64) continue
-        const a = (1 - dist / 64) * jd.activity * presence * 0.54
-        ctx.strokeStyle = dark ? `rgba(130, 218, 192, ${a.toFixed(3)})` : `rgba(82, 192, 160, ${a.toFixed(3)})`
+        const a = (1 - dist / 64) * jd.activity * presence * 0.46
+        ctx.strokeStyle = dark ? `rgba(238, 218, 180, ${a.toFixed(3)})` : `rgba(204, 168, 106, ${a.toFixed(3)})`
         ctx.beginPath()
         ctx.moveTo(hub.x, hub.y)
         ctx.lineTo(jd.x, jd.y)
@@ -511,7 +511,7 @@ function drawCelestial(ctx: CanvasRenderingContext2D, runtime: LightFieldRuntime
     }
   }
 
-  // 4. Awakened jade & champagne-gold stars with crisp glow
+  // 4. Awakened pearl-ivory & champagne-gold stars with crisp glow (zero green dots!)
   ctx.globalAlpha = heading ? 0.84 : 1
   if (awakenedJade.length > 0) {
     ctx.beginPath()
@@ -521,9 +521,9 @@ function drawCelestial(ctx: CanvasRenderingContext2D, runtime: LightFieldRuntime
       ctx.moveTo(p.x + r, p.y)
       ctx.arc(p.x, p.y, r, 0, TAU)
     }
-    ctx.shadowColor = dark ? 'rgba(104, 218, 184, .64)' : 'rgba(28, 168, 130, .54)'
-    ctx.shadowBlur = 8
-    ctx.fillStyle = dark ? 'rgba(148, 232, 206, .96)' : 'rgba(42, 178, 140, .96)'
+    ctx.shadowColor = dark ? 'rgba(242, 218, 172, .56)' : 'rgba(212, 174, 106, .52)'
+    ctx.shadowBlur = 7
+    ctx.fillStyle = dark ? 'rgba(248, 236, 212, .92)' : 'rgba(232, 200, 142, .92)'
     ctx.fill()
     ctx.shadowBlur = 0
     ctx.shadowColor = 'transparent'
@@ -537,9 +537,9 @@ function drawCelestial(ctx: CanvasRenderingContext2D, runtime: LightFieldRuntime
       ctx.moveTo(p.x + r, p.y)
       ctx.arc(p.x, p.y, r, 0, TAU)
     }
-    ctx.shadowColor = dark ? 'rgba(255, 216, 128, .85)' : 'rgba(232, 174, 48, .78)'
-    ctx.shadowBlur = 9
-    ctx.fillStyle = dark ? 'rgba(255, 234, 168, 1)' : 'rgba(246, 194, 62, 1)'
+    ctx.shadowColor = dark ? 'rgba(255, 224, 152, .82)' : 'rgba(218, 174, 88, .74)'
+    ctx.shadowBlur = 8
+    ctx.fillStyle = dark ? 'rgba(255, 244, 214, 1)' : 'rgba(224, 180, 96, 1)'
     ctx.fill()
     ctx.shadowBlur = 0
     ctx.shadowColor = 'transparent'
@@ -571,11 +571,11 @@ function drawLuoshui(ctx: CanvasRenderingContext2D, runtime: LightFieldRuntime) 
   const heading = variant === 'heading'
   const isImage = variant === 'image'
 
-  // Exquisite Song Ru-Ware Celadon × Champagne Rose-Gold × Pearl Moonlight palette
-  const pearl: readonly [number, number, number] = dark ? [255, 250, 238] : [255, 249, 236]
-  const champagne: readonly [number, number, number] = dark ? [236, 202, 144] : [188, 136, 54]
-  const bronzeRose: readonly [number, number, number] = dark ? [190, 140, 88] : [142, 96, 44]
-  const ruCeladon: readonly [number, number, number] = dark ? [154, 194, 186] : [46, 118, 108]
+  // Exquisite Moonlit Pearl × Brushed Champagne Gold × Warm Silver-Sand palette
+  const pearl: readonly [number, number, number] = dark ? [255, 251, 242] : [255, 252, 245]
+  const champagne: readonly [number, number, number] = dark ? [232, 204, 154] : [198, 156, 82]
+  const bronzeRose: readonly [number, number, number] = dark ? [188, 152, 102] : [164, 124, 66]
+  const ruCeladon: readonly [number, number, number] = dark ? [220, 204, 176] : [186, 162, 124]
 
   // Derive smooth glide heading from recent trail so water caustics flow naturally with cursor direction
   let glideAngle = timeMs * 0.00028
@@ -900,8 +900,8 @@ function drawSpotlight(ctx: CanvasRenderingContext2D, runtime: LightFieldRuntime
       if (alpha < 0.04) continue
       const r = m.size * (0.7 + cone * 0.72)
       ctx.fillStyle = m.gold
-        ? `rgba(255, 238, 178, ${clamp01(alpha).toFixed(3)})`
-        : `rgba(156, 232, 206, ${clamp01(alpha * 0.8).toFixed(3)})`
+        ? `rgba(255, 242, 202, ${clamp01(alpha).toFixed(3)})`
+        : `rgba(242, 224, 188, ${clamp01(alpha * 0.82).toFixed(3)})`
       ctx.beginPath()
       ctx.arc(m.x, m.y, r, 0, TAU)
       ctx.fill()
@@ -1033,8 +1033,8 @@ function drawKintsugi(ctx: CanvasRenderingContext2D, runtime: LightFieldRuntime)
       }
     } else {
       ctx.fillStyle = dark
-        ? `rgba(128, 218, 190, ${(alpha * 0.88).toFixed(3)})`
-        : `rgba(34, 148, 118, ${(alpha * 0.86).toFixed(3)})`
+        ? `rgba(236, 216, 180, ${(alpha * 0.86).toFixed(3)})`
+        : `rgba(204, 168, 106, ${(alpha * 0.84).toFixed(3)})`
       ctx.beginPath()
       ctx.arc(0, 0, size * 0.9, 0, TAU)
       ctx.fill()
@@ -1053,14 +1053,14 @@ function drawRipples(ctx: CanvasRenderingContext2D, runtime: LightFieldRuntime, 
     const progress = clamp01(rip.age / rip.maxAge)
     const eased = 1 - Math.pow(1 - progress, 3)
     const r = 12 + rip.maxRadius * eased
-    const alpha = Math.pow(1 - progress, 1.45) * (dark ? 0.74 : 0.68)
+    const alpha = Math.pow(1 - progress, 1.45) * (dark ? 0.70 : 0.64)
     if (alpha < 0.02) continue
 
     if (preset === 'luoshui') {
       // Feathered organic silk-water ripple waves (broken doubly-tapered arcs, never harsh full rings)
-      const champagneCol: readonly [number, number, number] = dark ? [238, 208, 154] : [192, 142, 62]
-      const celadonCol: readonly [number, number, number] = dark ? [158, 196, 188] : [52, 124, 114]
-      const pearlCol: readonly [number, number, number] = [255, 250, 238]
+      const champagneCol: readonly [number, number, number] = dark ? [236, 208, 158] : [198, 154, 78]
+      const celadonCol: readonly [number, number, number] = dark ? [220, 202, 172] : [184, 158, 118]
+      const pearlCol: readonly [number, number, number] = [255, 251, 242]
       const drift = progress * 0.9
 
       drawFeatheredSilkArc(
@@ -1089,23 +1089,21 @@ function drawRipples(ctx: CanvasRenderingContext2D, runtime: LightFieldRuntime, 
       continue
     }
 
-    ctx.shadowColor = 'rgba(248, 206, 112, .52)'
+    ctx.shadowColor = 'rgba(238, 204, 136, .48)'
     ctx.shadowBlur = 8
     ctx.strokeStyle = dark
-      ? `rgba(255, 228, 154, ${alpha.toFixed(3)})`
-      : `rgba(226, 168, 44, ${alpha.toFixed(3)})`
-    ctx.lineWidth = 1.65
+      ? `rgba(248, 224, 172, ${alpha.toFixed(3)})`
+      : `rgba(212, 168, 86, ${alpha.toFixed(3)})`
+    ctx.lineWidth = 1.5
     ctx.beginPath()
     ctx.arc(rip.x, rip.y, r, 0, TAU)
     ctx.stroke()
 
     if (preset === 'celestial' || preset === 'kintsugi') {
       const r2 = Math.max(8, r * 0.72)
-      const alpha2 = alpha * 0.64
-      ctx.strokeStyle = preset === 'kintsugi'
-        ? `rgba(255, 240, 190, ${alpha2.toFixed(3)})`
-        : `rgba(116, 222, 192, ${alpha2.toFixed(3)})`
-      ctx.lineWidth = 1.15
+      const alpha2 = alpha * 0.62
+      ctx.strokeStyle = `rgba(255, 246, 224, ${alpha2.toFixed(3)})`
+      ctx.lineWidth = 1.1
       ctx.beginPath()
       ctx.arc(rip.x, rip.y, r2, 0, TAU)
       ctx.stroke()

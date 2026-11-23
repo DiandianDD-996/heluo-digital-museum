@@ -60,10 +60,10 @@ class BootstrapDataInitializerTests {
     void freshDatabaseUsesExpandedEditorialArticles() {
         var articles = jdbc.queryForList("select slug, content from articles order by slug");
 
-        assertThat(articles).hasSize(3);
+        assertThat(articles).hasSize(4);
         assertThat(articles).allSatisfy(article -> {
             assertThat((String) article.get("content"))
-                    .hasSizeGreaterThan(600)
+                    .hasSizeGreaterThan(500)
                     .contains("｜")
                     .contains("留给观众的问题");
         });

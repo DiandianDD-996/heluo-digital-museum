@@ -275,12 +275,12 @@ describe('PointerDotField', () => {
     document.documentElement.dataset.theme = 'dark'
     const wrapper = mount(PointerDotField, { attachTo: document.body })
     await nextTick()
-    expect(contextStub.fillStyle).toBe('rgba(224, 184, 108, .44)')
+    expect(contextStub.fillStyle).toBe('rgba(234, 206, 154, .34)')
 
     document.documentElement.dataset.theme = 'light'
     window.dispatchEvent(new CustomEvent('heluo:theme-change', { detail: 'light' }))
     await vi.waitFor(() => {
-      expect(contextStub.fillStyle).toBe('rgba(184, 134, 42, .42)')
+      expect(contextStub.fillStyle).toBe('rgba(194, 154, 84, .32)')
     })
     wrapper.unmount()
   })

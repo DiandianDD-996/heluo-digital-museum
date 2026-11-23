@@ -117,7 +117,16 @@ class GuideEvidenceVisibilityTests {
                 repoContent.resolve("minimum-release-version.txt"),
                 repoContent.resolve("ding.zh-CN.sha256"));
         var repoReader = new GuideEvidenceReader(repoSource, visibility);
-        assertThat(repoReader.listPublished("heluo-bronze-ding-3d", "zh-CN")).hasSize(8);
+        var zhCards = repoReader.listPublished("heluo-bronze-ding-3d", "zh-CN");
+        assertThat(zhCards).hasSize(9);
+        assertThat(zhCards).filteredOn(c -> c.claim() != null).hasSize(4);
+
+        var enRepoSource = new GuideEvidenceFileSource(
+                repoContent.resolve("ding.en-US.json"),
+                repoContent.resolve("minimum-release-version.txt"),
+                repoContent.resolve("ding.en-US.sha256"));
+        var enRepoReader = new GuideEvidenceReader(enRepoSource, visibility);
+        assertThat(enRepoReader.listPublished("heluo-bronze-ding-3d", "en-US")).hasSize(9);
 
         // Copy to tempDir and verify tampering / rollback rejection
         byte[] bytes = Files.readAllBytes(repoContent.resolve("ding.zh-CN.json"));
@@ -125,12 +134,12 @@ class GuideEvidenceVisibilityTests {
         Path minVer = tempDir.resolve("min.txt");
         Path digest = tempDir.resolve("ding.sha256");
         Files.write(pack, bytes);
-        Files.writeString(minVer, "5\n", StandardCharsets.US_ASCII);
+        Files.writeString(minVer, "6\n", StandardCharsets.US_ASCII);
         Files.writeString(digest, HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes)) + "\n",
                 StandardCharsets.US_ASCII);
 
         var tempSource = new GuideEvidenceFileSource(pack, minVer, digest);
-        assertThat(tempSource.current("heluo-bronze-ding-3d", "zh-CN")).hasSize(8);
+        assertThat(tempSource.current("heluo-bronze-ding-3d", "zh-CN")).hasSize(9);
 
         // Rollback check
         Files.writeString(minVer, "99\n", StandardCharsets.US_ASCII);

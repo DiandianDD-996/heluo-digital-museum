@@ -6,16 +6,16 @@
       "artifactSlug": "heluo-bronze-ding",
       "locale": "zh-CN",
       "plates": [
-        {"stop":"ear","cardId":"LS-DING-EARS","revision":2,"corrections":["鼎耳","耳朵","耳"],"elliptical":true},
-        {"stop":"feet","cardId":"LS-DING-FEET","revision":2,"corrections":["鼎足","三足","脚","腿"],"elliptical":true},
-        {"stop":"motif","cardId":"LS-DING-MOTIF","revision":3,"corrections":["纹样","花纹","器腹"],"elliptical":false}
+        {"stop":"ear","cardId":"LS-DING-EARS","revision":3,"corrections":["鼎耳","耳朵","耳"],"elliptical":true},
+        {"stop":"feet","cardId":"LS-DING-FEET","revision":3,"corrections":["鼎足","三足","脚","腿"],"elliptical":true},
+        {"stop":"motif","cardId":"LS-DING-MOTIF","revision":4,"corrections":["纹样","花纹","器腹"],"elliptical":false}
       ],
       "factSources": {
-        "PROVENANCE": {"cardId":"LS-DING-SOURCE","revision":3},
-        "PERIOD": {"cardId":"LS-DING-PERIOD","revision":2},
-        "SIZE": {"cardId":"LS-DING-SIZE","revision":2}
+        "PROVENANCE": {"cardId":"LS-DING-SOURCE","revision":4},
+        "PERIOD": {"cardId":"LS-DING-PERIOD","revision":3},
+        "SIZE": {"cardId":"LS-DING-SIZE","revision":3}
       },
-      "topicCardIds": ["LS-DING-EARS", "LS-DING-FEET", "LS-DING-MOTIF"]
+      "topicCardIds": ["LS-DING-EARS", "LS-DING-FEET", "LS-DING-MOTIF", "LS-DING-POINTCLOUD"]
     }
   ]
 }

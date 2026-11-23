@@ -86,6 +86,20 @@
     outline-offset: 2px;
   }
 
+  /* Theme browser selection, caret, and scrollbars from the museum palette */
+  ::selection {
+    background: color-mix(in oklch, var(--accent-bronze) 24%, transparent);
+    color: var(--ink-primary);
+  }
+
+  :where(input, textarea, [contenteditable="true"]) {
+    caret-color: var(--accent-bronze);
+  }
+
+  html {
+    scrollbar-color: var(--border-strong) transparent;
+  }
+
   /* Accessible visually hidden helper */
   .sr-only {
     position: absolute;

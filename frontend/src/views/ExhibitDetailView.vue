@@ -6,8 +6,10 @@ import { Box, Connection, InfoFilled, VideoPlay } from '@element-plus/icons-vue'
 import { qualityLabel, type PointCloudQuality } from '../lib/pointCloudQuality'
 import { apiGet } from '../lib/api'
 import BottomSheet from '../components/BottomSheet.vue'
+import AcousticRuler from '../components/AcousticRuler.vue'
 import { GUIDE_ARTIFACT_SLUG, GUIDE_EXHIBIT_SLUG, type GuidePartName } from '../lib/guideTypes'
 import { useLocale } from '../stores/locale'
+import { useAudio } from '../stores/audio'
 import { guideEnabled, useLuoshengStore } from '../stores/luoshengStore'
 import { createGsapContext, isConstrainedGsapReveal, shouldRunGsapReveal } from '../lib/gsap'
 import { audioSystem } from '../lib/audioSystem'
@@ -50,9 +52,27 @@ const route = useRoute()
 const LuoshengPreset = guideEnabled
   ? defineAsyncComponent(() => import('../components/LuoshengPreset.vue')) : null
 const { locale } = useLocale()
+const audio = useAudio()
 const exhibit = ref<Exhibit | null>(null)
 const loading = ref(true)
 const guideStore = guideEnabled ? useLuoshengStore() : null
+
+const DARKROOM_INVITE_DISMISSED_KEY = 'museum-audio-darkroom-invite-dismissed'
+function readInviteDismissed(): boolean {
+  try {
+    return typeof localStorage !== 'undefined' && localStorage.getItem(DARKROOM_INVITE_DISMISSED_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+const inviteDismissed = ref(readInviteDismissed())
+let lastPartFocusSfxAt = 0
+
+const PART_FOCUS_AUDIO: Record<GuidePartName, { rate: number; volume: number; pan: number }> = {
+  ear: { rate: 1.14, volume: 0.16, pan: -0.22 },
+  motif: { rate: 1.0, volume: 0.18, pan: 0 },
+  feet: { rate: 0.84, volume: 0.18, pan: 0.22 },
+}
 
 watch([exhibit, loading], ([item, pending]) => {
   if (!guideStore || pending || !item || route.name !== 'exhibit-detail' || route.params.slug !== item.slug) return
@@ -73,6 +93,7 @@ watch([exhibit, loading], ([item, pending]) => {
 
 const error = ref('')
 const viewer = ref<ViewerController | null>(null)
+const acousticRulerRef = ref<InstanceType<typeof AcousticRuler> | null>(null)
 const displayMode = ref<'solid' | 'points'>('solid')
 const renderQuality = ref<PointCloudQuality>('medium')
 const activeView = ref<ViewName>('front')
@@ -201,9 +222,29 @@ const copy = computed(() => locale.value === 'zh-CN' ? {
 })
 
 const displayTitle = computed(() => exhibit.value?.title || copy.value.title)
-const headerBadge = computed(() => `EXHIBIT ${exhibit.value?.displayNo || '01'}`)
+const headerBadge = computed(() => {
+  if (exhibit.value?.slug === 'heluo-bronze-ding-3d') return 'EXHIBIT 01'
+  return `EXHIBIT ${exhibit.value?.displayNo || '01'}`
+})
+const fromArtifactPath = computed(() => {
+  const from = typeof route.query?.from === 'string' ? route.query.from : ''
+  return from.startsWith('/artifacts/') ? from : ''
+})
+const backDestination = computed(() => fromArtifactPath.value || '/exhibits')
+const backLabel = computed(() => {
+  if (!fromArtifactPath.value) return copy.value.back
+  return locale.value === 'en-US' ? 'Back to artifact' : '返回器物档案'
+})
+const localizedSourceCredit = computed(() => {
+  const raw = exhibit.value?.sourceCredit
+  if (!raw) return copy.value.unknownSource
+  if (locale.value === 'zh-CN' && raw.includes('Cleveland Museum of Art')) {
+    return '克利夫兰艺术博物馆 · 1962.281 CC0 公开馆藏参考'
+  }
+  return raw
+})
 const exhibitFacts = computed(() => [
-  { label: copy.value.factLabels[0], value: exhibit.value?.sourceCredit || copy.value.unknownSource },
+  { label: copy.value.factLabels[0], value: localizedSourceCredit.value },
   { label: copy.value.factLabels[1], value: exhibit.value?.licenseLabel || copy.value.material },
   { label: copy.value.factLabels[2], value: exhibit.value?.collectionLocation || exhibit.value?.summary || copy.value.noDescription },
 ])
@@ -228,6 +269,35 @@ const formattedModelSize = computed(() => {
   if (!bytes || bytes <= 0) return ''
   return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(2)} MB` : `${Math.ceil(bytes / 1024)} KB`
 })
+const showDarkroomInvite = computed(() => (
+  !audio.enabled.value && !inviteDismissed.value && !loading.value && Boolean(exhibit.value)
+))
+const darkroomInviteCopy = computed(() => {
+  const isBronze = exhibit.value?.slug === 'heluo-bronze-ding-3d'
+  if (locale.value === 'en-US') {
+    return {
+      text: isBronze ? 'Enable darkroom soundscape · Warm Bronze' : 'Enable darkroom soundscape · Quiet Reading',
+      enable: 'Enable',
+      dismiss: 'Dismiss soundscape invitation',
+    }
+  }
+  return {
+    text: isBronze ? '开启暗房声景 ·《观器·温金》' : '开启暗房声景 ·《水岸·静读》',
+    enable: '开启',
+    dismiss: '关闭声景邀请',
+  }
+})
+
+function acceptDarkroomInvite() {
+  audio.enable()
+}
+
+function dismissDarkroomInvite() {
+  inviteDismissed.value = true
+  try {
+    localStorage.setItem(DARKROOM_INVITE_DISMISSED_KEY, 'true')
+  } catch { /* Non-fatal if storage is blocked. */ }
+}
 
 function revealExhibitShell() {
   if (!shouldRunGsapReveal() || !root.value || !exhibit.value) return
@@ -317,6 +387,7 @@ function handleViewerState(state: ViewerRuntimeState) {
   if (state === 'ready' && !discoveryCued) {
     discoveryCued = true
     void audioSystem.playNarrative('discovery', { volume: 0.26 })
+    acousticRulerRef.value?.triggerRipple(0.5, 0.55)
   }
   if (state === 'ready' || state === 'error') clearModelPreload()
   if (state !== 'error') viewerRuntimeError.value = ''
@@ -405,10 +476,32 @@ watch(
   { immediate: true },
 )
 
+const PART_RIPPLE_POS: Record<GuidePartName, number> = {
+  ear: 0.34,
+  motif: 0.5,
+  feet: 0.66,
+}
+
 function selectMode(mode: 'solid' | 'points') {
   if (!viewerInteractive.value || (mode === 'points' && pointCloudLoading.value)) return
+  if (mode !== displayMode.value) {
+    acousticRulerRef.value?.triggerRipple(0.5, 0.65)
+  }
   viewer.value?.setMode(mode)
 }
+
+function handlePartFocus(part: GuidePartName) {
+  const now = Date.now()
+  if (now - lastPartFocusSfxAt >= 180) {
+    lastPartFocusSfxAt = now
+    void audioSystem.playInteraction('awaken-bronze', PART_FOCUS_AUDIO[part])
+  }
+  acousticRulerRef.value?.triggerRipple(PART_RIPPLE_POS[part], 0.9)
+}
+
+watch(displayMode, (mode) => {
+  audioSystem.setSpaceAcoustic(mode === 'points' ? 'pointcloud' : 'default')
+}, { immediate: true })
 
 function togglePointCloud() { selectMode(displayMode.value === 'points' ? 'solid' : 'points') }
 function chooseView(view: ViewName) { if (!viewerInteractive.value) return; activeView.value = view; viewer.value?.setView(view, { animated: true }) }
@@ -417,6 +510,7 @@ function reset() { if (!viewerInteractive.value) return; activeView.value = 'fro
 onMounted(load)
 watch(() => route.params.slug, load)
 onBeforeUnmount(() => {
+  audioSystem.setSpaceAcoustic('default')
   gsapContext?.revert()
   clearModelPreload()
 })
@@ -434,7 +528,7 @@ onBeforeUnmount(() => {
     <section class="exhibit-scene" :data-display-mode="displayMode">
       <!-- Module 1: Frameless Top Floating Bar -->
       <header class="darkroom-topbar" data-motion="scene-label">
-        <RouterLink class="darkroom-back" to="/exhibits">← {{ copy.back }}</RouterLink>
+        <RouterLink class="darkroom-back" :to="backDestination">← {{ backLabel }}</RouterLink>
         <div class="darkroom-title">
           <span class="font-mono">{{ headerBadge }}</span>
           <i aria-hidden="true">·</i>
@@ -464,6 +558,37 @@ onBeforeUnmount(() => {
         </div>
       </header>
 
+      <Transition name="audio-panel">
+        <div
+          v-if="showDarkroomInvite"
+          class="darkroom-invite"
+          data-glass="dark"
+          data-testid="darkroom-audio-invite"
+          role="region"
+          :aria-label="darkroomInviteCopy.text"
+        >
+          <button
+            type="button"
+            class="darkroom-invite__enable"
+            data-testid="darkroom-invite-enable"
+            @click="acceptDarkroomInvite"
+          >
+            <span class="darkroom-invite__dot" aria-hidden="true"></span>
+            <span>{{ darkroomInviteCopy.text }}</span>
+            <em>{{ darkroomInviteCopy.enable }}</em>
+          </button>
+          <button
+            type="button"
+            class="darkroom-invite__dismiss"
+            data-testid="darkroom-invite-dismiss"
+            :aria-label="darkroomInviteCopy.dismiss"
+            @click="dismissDarkroomInvite"
+          >
+            ×
+          </button>
+        </div>
+      </Transition>
+
       <!-- Full-bleed Studio Darkroom 3D Stage -->
       <div class="exhibit-viewer-wrap" :data-viewer-state="viewerRuntimeState">
         <ThreeExhibitViewer
@@ -477,6 +602,7 @@ onBeforeUnmount(() => {
           initial-mode="solid"
           @mode-change="displayMode = $event"
           @view-change="activeView = $event"
+          @part-focus="handlePartFocus"
           @quality-change="renderQuality = $event"
           @state-change="handleViewerState"
           @point-cloud-state="handlePointCloudState"
@@ -623,7 +749,6 @@ onBeforeUnmount(() => {
               :disabled="!viewerInteractive"
               @click="chooseView(view.key)"
             >
-              <img :src="view.thumbnail || exhibit.coverImageUrl" alt="" />
               <span>{{ view.label }}</span>
             </button>
           </div>
@@ -638,6 +763,16 @@ onBeforeUnmount(() => {
           <button data-motion="exhibit-tool" type="button" :aria-label="copy.tools[3]" :title="copy.tools[3]" :disabled="!viewerInteractive" @click="reset">◇</button>
         </div>
       </section>
+
+      <div class="exhibit-scene__ruler">
+        <AcousticRuler
+          ref="acousticRulerRef"
+          variant="darkroom"
+          :visual-mode="displayMode"
+          :show-placard="false"
+          :default-track="exhibit.slug === 'heluo-bronze-ding-3d' ? 'bronze' : 'reading'"
+        />
+      </div>
     </section>
 
     <LuoshengPreset
@@ -847,11 +982,77 @@ onBeforeUnmount(() => {
   display: none;
 }
 
+.darkroom-invite {
+  position: absolute;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 18;
+  display: inline-flex;
+  align-items: center;
+  max-width: calc(100% - 1.5rem);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-md);
+  color: var(--ink-on-dark);
+}
+
+.darkroom-invite__enable {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0 0.75rem 0 1rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.darkroom-invite__enable em {
+  font-style: normal;
+  font-weight: 600;
+  color: oklch(84% 0.058 78);
+  padding-left: 0.25rem;
+}
+
+.darkroom-invite__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: oklch(81% 0.048 78);
+  flex-shrink: 0;
+}
+
+.darkroom-invite__dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--glass-dark-border);
+  background: transparent;
+  color: var(--ink-on-dark-muted);
+  font-size: var(--text-md);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.darkroom-invite__dismiss:hover {
+  color: var(--ink-on-dark);
+}
+
 /* ── Module 2: Centered Floating Pill Dock ── */
 .exhibit-dock {
   position: absolute;
   left: 50%;
-  bottom: var(--space-5);
+  bottom: 54px;
   transform: translateX(-50%);
   z-index: 20;
   display: flex;
@@ -861,6 +1062,14 @@ onBeforeUnmount(() => {
   padding: 6px 10px;
   border-radius: var(--radius-pill);
   box-shadow: var(--shadow-lg);
+}
+
+.exhibit-scene__ruler {
+  position: absolute;
+  inset-inline: clamp(20px, 4vw, 56px);
+  bottom: 10px;
+  z-index: 4;
+  pointer-events: none;
 }
 
 .dock-divider {
@@ -877,7 +1086,7 @@ onBeforeUnmount(() => {
   padding: 3px;
   border: 1px solid var(--glass-dark-border);
   border-radius: var(--radius-pill);
-  background: oklch(10% 0.010 165 / 0.65);
+  background: oklch(11% 0.005 74 / 0.68);
 }
 
 .dock-mode-switch button {
@@ -904,8 +1113,8 @@ onBeforeUnmount(() => {
 }
 
 .dock-mode-switch button.active {
-  background: oklch(72% 0.092 75);
-  color: oklch(14% 0.014 165);
+  background: oklch(81% 0.048 78);
+  color: oklch(14% 0.006 74);
 }
 
 .dock-mode-switch button:disabled {
@@ -922,9 +1131,9 @@ onBeforeUnmount(() => {
 .view-switcher button {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  justify-content: center;
   min-height: 36px;
-  padding: 3px 0.7rem 3px 4px;
+  padding: 0 0.75rem;
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
   background: transparent;
@@ -936,14 +1145,6 @@ onBeforeUnmount(() => {
   transition: border-color var(--duration-fast) var(--ease-curatorial),
               background-color var(--duration-fast) var(--ease-curatorial),
               color var(--duration-fast) var(--ease-curatorial);
-}
-
-.view-switcher button img {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  object-fit: cover;
-  background: oklch(14% 0.01 165);
 }
 
 .view-switcher button:hover:not(:disabled) {
@@ -1133,26 +1334,26 @@ onBeforeUnmount(() => {
   padding: 0 0.625rem;
   border: 1px solid var(--glass-dark-border);
   border-radius: var(--radius-xs);
-  background: oklch(18% 0.012 165 / 0.7);
+  background: oklch(18% 0.006 74 / 0.72);
   color: var(--ink-on-dark-muted);
   font-size: var(--text-xs);
 }
 
 .tour-route li.active span,
 .tour-route li button {
-  border-color: oklch(72% 0.092 75 / 0.55);
+  border-color: oklch(78% 0.052 76 / 0.55);
   color: var(--ink-on-dark);
 }
 
 .tour-route li button {
   cursor: pointer;
-  background: oklch(72% 0.092 75 / 0.2);
+  background: oklch(78% 0.052 76 / 0.18);
   font-weight: 600;
 }
 
 .tour-route li button:hover:not(:disabled) {
-  background: oklch(72% 0.092 75);
-  color: oklch(14% 0.014 165);
+  background: oklch(81% 0.048 78);
+  color: oklch(14% 0.006 74);
 }
 
 .exhibit-panel-actions {
@@ -1176,8 +1377,8 @@ onBeforeUnmount(() => {
 }
 
 .panel-cta-primary {
-  background: oklch(72% 0.092 75);
-  color: oklch(14% 0.014 165);
+  background: oklch(81% 0.048 78);
+  color: oklch(14% 0.006 74);
 }
 
 .panel-cta-secondary {
@@ -1227,7 +1428,7 @@ onBeforeUnmount(() => {
   padding: var(--space-6);
   border: 1px solid var(--glass-dark-border);
   border-radius: var(--radius-lg);
-  background: oklch(12% 0.012 165 / 0.84);
+  background: oklch(13% 0.005 74 / 0.86);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   text-align: center;
@@ -1279,9 +1480,9 @@ onBeforeUnmount(() => {
 }
 
 .viewer-poster-start {
-  border: 1px solid oklch(72% 0.092 75);
-  background: oklch(72% 0.092 75);
-  color: oklch(14% 0.014 165);
+  border: 1px solid oklch(81% 0.048 78);
+  background: oklch(81% 0.048 78);
+  color: oklch(14% 0.006 74);
 }
 
 .viewer-poster-info {
@@ -1368,12 +1569,25 @@ onBeforeUnmount(() => {
 @media (max-width: 760px) {
   .exhibit-scene {
     height: calc(100dvh - 64px - 60px);
-    min-height: 520px;
+    min-height: 460px;
   }
 
   .darkroom-topbar {
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: var(--space-2);
     padding: var(--space-3) var(--space-3);
+  }
+
+  .darkroom-back,
+  .mobile-exhibit-info-trigger {
+    white-space: nowrap;
+    padding: 0 0.7rem;
+  }
+
+  .darkroom-title {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   .darkroom-title span,
@@ -1386,6 +1600,21 @@ onBeforeUnmount(() => {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .darkroom-invite {
+    top: 74px;
+    max-width: calc(100% - 1.5rem);
+  }
+
+  .darkroom-invite__enable {
+    min-height: 38px;
+    padding: 0 0.7rem;
+  }
+
+  .darkroom-invite__dismiss {
+    width: 38px;
+    height: 38px;
   }
 
   .darkroom-drawer-toggle,
@@ -1401,11 +1630,16 @@ onBeforeUnmount(() => {
   .exhibit-dock {
     left: var(--space-3);
     right: var(--space-3);
-    bottom: var(--space-3);
+    bottom: 36px;
     transform: none;
     max-width: none;
     gap: var(--space-2);
     padding: 8px;
+  }
+
+  .exhibit-scene__ruler {
+    inset-inline: var(--space-3);
+    bottom: 6px;
   }
 
   .view-switcher {
@@ -1426,6 +1660,26 @@ onBeforeUnmount(() => {
     padding: 0 0.65rem;
   }
 }
+
+@media (max-width: 760px) and (max-height: 700px) {
+  .darkroom-topbar {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .darkroom-invite {
+    top: 68px;
+  }
+
+  .exhibit-dock {
+    bottom: 30px;
+    gap: 4px;
+    padding: 6px;
+  }
+
+  .exhibit-scene__ruler {
+    bottom: 4px;
+  }
+}
 </style>
 
 <style>
@@ -1437,7 +1691,7 @@ html[data-theme="dark"] .immersive-exhibit .exhibit-scene[data-display-mode="poi
 }
 
 html[data-theme="dark"] .immersive-exhibit .darkroom-topbar {
-  background: linear-gradient(180deg, oklch(12% 0.012 165 / 0.68) 0%, transparent 100%);
+  background: linear-gradient(180deg, oklch(12% 0.005 74 / 0.68) 0%, transparent 100%);
 }
 
 html[data-theme="dark"] .immersive-exhibit .darkroom-back {
@@ -1447,7 +1701,7 @@ html[data-theme="dark"] .immersive-exhibit .darkroom-back {
 }
 
 html[data-theme="dark"] .immersive-exhibit .darkroom-title {
-  background: oklch(18% 0.014 165 / 0.62);
+  background: oklch(18% 0.006 74 / 0.66);
   border-color: var(--glass-dark-border);
   color: var(--ink-on-dark);
 }

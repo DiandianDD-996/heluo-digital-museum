@@ -70,7 +70,7 @@ describe('recorded museum music playback', () => {
   it('calls play synchronously and routes the stream into the supplied bus', async () => {
     const { start, media, gains, sources, destination, player } = setup()
     start('home')
-    expect(media[0]?.src).toBe('/media/audio/music-r3/home-r3.mp3')
+    expect(media[0]?.src).toBe('/media/audio/music-r4/home-r4.m4a')
     expect(media[0]?.play).toHaveBeenCalledOnce()
     expect(media[0]?.loop).toBe(true)
     expect(sources[0]?.connect).toHaveBeenCalledWith(gains[0])
@@ -280,5 +280,70 @@ describe('recorded museum music playback', () => {
     expect(media[0]?.load).toHaveBeenCalledOnce()
     expect(player.inspect().mediaCount).toBe(0)
     expect(failure).toHaveBeenCalledOnce()
+  })
+
+  it('uses equal-power sine/cosine curves during crossfade when setValueCurveAtTime is supported and falls back cleanly on error', async () => {
+    const media: FakeMedia[] = []
+    const curves: { index: number, curve: Float32Array, startTime: number, duration: number }[] = []
+    const gains: Array<{ gain: { value: number, setValueAtTime: ReturnType<typeof vi.fn>, cancelScheduledValues: ReturnType<typeof vi.fn>, linearRampToValueAtTime: ReturnType<typeof vi.fn>, setValueCurveAtTime: ReturnType<typeof vi.fn> }, connect: ReturnType<typeof vi.fn>, disconnect: ReturnType<typeof vi.fn> }> = []
+    const context = {
+      currentTime: 0,
+      createMediaElementSource: vi.fn(() => ({ connect: vi.fn(), disconnect: vi.fn() })),
+      createGain: vi.fn(() => {
+        const gainIndex = gains.length
+        const param = {
+          value: 0,
+          setValueAtTime: vi.fn((v: number) => { param.value = v }),
+          cancelScheduledValues: vi.fn(),
+          linearRampToValueAtTime: vi.fn(),
+          setValueCurveAtTime: vi.fn((curve: Float32Array, startTime: number, duration: number) => {
+            curves.push({ index: gainIndex, curve, startTime, duration })
+            param.value = curve[curve.length - 1] ?? param.value
+          }),
+        }
+        const gain = { gain: param, connect: vi.fn(), disconnect: vi.fn() }
+        gains.push(gain)
+        return gain
+      }),
+    } as unknown as AudioContext
+
+    const player = new RecordedMusicPlayer({
+      createMedia: () => {
+        const element = new FakeMedia()
+        media.push(element)
+        return element as unknown as HTMLAudioElement
+      },
+    })
+    const destination = {} as AudioNode
+    player.start(context, destination, 'home')
+    media[0]?.attempts[0]?.resolve()
+    await flushPlayback()
+
+    const targetGain = MUSIC_RECORDINGS.home!.gain
+    const fadeInCurve = curves.find(c => c.index === 0)
+    expect(fadeInCurve).toBeDefined()
+    expect(fadeInCurve!.curve[0]).toBeCloseTo(0, 4)
+    expect(fadeInCurve!.curve[fadeInCurve!.curve.length - 1]).toBeCloseTo(targetGain, 4)
+
+    curves.length = 0
+    player.start(context, destination, 'story')
+    media[1]?.attempts[0]?.resolve()
+    await flushPlayback()
+
+    const outCurve = curves.find(c => c.index === 0)?.curve
+    const inCurve = curves.find(c => c.index === 1)?.curve
+    expect(outCurve).toBeDefined()
+    expect(inCurve).toBeDefined()
+    const midOut = outCurve![Math.floor(outCurve!.length / 2)]!
+    const midIn = inCurve![Math.floor(inCurve!.length / 2)]!
+    // Equal-power property: out^2 + in^2 ~= target^2 (no -3 dB dip at midpoint)
+    const powerRatio = (midOut * midOut + midIn * midIn) / (targetGain * targetGain)
+    expect(powerRatio).toBeGreaterThan(0.95)
+    expect(powerRatio).toBeLessThan(1.05)
+
+    // Fallback to linearRampToValueAtTime when setValueCurveAtTime throws
+    gains[1]!.gain.setValueCurveAtTime.mockImplementationOnce(() => { throw new Error('NotSupportedError') })
+    player.start(context, destination, 'quiet')
+    expect(gains[1]!.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0, expect.any(Number))
   })
 })

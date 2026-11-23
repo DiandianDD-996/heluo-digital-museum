@@ -423,7 +423,45 @@
     min-height: 40px;
     height: 40px;
     padding: 0 0.75rem;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background-color: var(--surface-canvas);
+    color: var(--ink-primary);
     font-size: var(--text-xs);
+  }
+
+  .admin-filter-field select {
+    padding-right: 1.75rem;
+    cursor: pointer;
+  }
+
+  .admin-form-fold {
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-sm);
+    background: var(--surface-subtle);
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .admin-form-fold > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--ink-secondary);
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .admin-form-fold[open] > summary {
+    margin-bottom: var(--space-3);
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--border-hairline);
+  }
+
+  .admin-form-fold__body {
+    display: grid;
+    gap: var(--space-3);
   }
 
   .admin-filter-field--search input {
@@ -863,8 +901,9 @@
 
   .admin-insight__signal i {
     display: block;
-    width: 48%;
+    width: 0%;
     height: 100%;
+    transition: width var(--duration-ui) var(--ease-curatorial);
   }
 
   .admin-insight__signal--warning i { background: var(--status-warning); }
