@@ -5,7 +5,7 @@
 <p>
   <a href="https://heluo.pocketbay.app/"><strong>访问线上展厅 →</strong></a>
   ·
-  <a href="https://github.com/diandian-dev-arch/heluo-digital-museum">查看 GitHub 仓库</a>
+  <a href="#展馆声景">本期曲目与试听 ↓</a>
 </p>
 
 河洛数字博物馆是一个面向年轻文化探索者的双语数字博物馆：从馆藏检索、策展式阅读，到可交互的 3D 展厅与线下预约，用户可以先在线建立兴趣，再决定下一次真实到访。
@@ -17,9 +17,25 @@
   <img src="https://img.shields.io/badge/search-Chinese%20%2B%20English-b88a44?style=flat-square" alt="双语搜索" />
 </p>
 
+## 展馆声景
+
+**本期更新：背景配乐与交互音效。** 走进展厅、低头读一段展签、绕着青铜鼎端详，是三种不同的观看节奏。这一版为它们分别配了乐。首页新增中英双语曲目单，点曲名可前往对应场景；不打开声音，也能完整参观。
+
+![深色首页的展馆曲目单，三行分别通往馆藏、水鸟铜器与青铜鼎](docs/showcase/gallery-score-r3.png)
+
+| 曲目 | 参观场景 | 时长 | 录音 |
+| --- | --- | ---: | --- |
+| 01 · 入馆·河洛晨光 | 首页与馆藏漫游 | 1:38 | [试听 MP3](https://raw.githubusercontent.com/DiandianDD-996/heluo-digital-museum/main/frontend/public/media/audio/music-r3/home-r3.mp3) |
+| 02 · 水岸·静读 | 水鸟铜器展签与文物故事 | 1:42 | [试听 MP3](https://raw.githubusercontent.com/DiandianDD-996/heluo-digital-museum/main/frontend/public/media/audio/music-r3/reading-r3.mp3) |
+| 03 · 观器·温金 | 青铜鼎 3D 近观 | 1:48 | [试听 MP3](https://raw.githubusercontent.com/DiandianDD-996/heluo-digital-museum/main/frontend/public/media/audio/music-r3/bronze-r3.mp3) |
+
+首次进入默认静音。打开页首声音面板后，可以只留配乐、只留交互音效，或调整音量。沿用同一曲目的页面不会从头播放；换曲时声音渐变。按钮按下、页面切换和操作结果各有轻量反馈。
+
+曲目使用竖琴、弦乐、长笛与钢琴等采样编排，并非古代礼乐复原。[录音来源、署名与许可](frontend/public/media/audio/music-r3/CREDITS.md)。
+
 ## 线上体验
 
-线上版本：**[https://heluo.pocketbay.app/](https://heluo.pocketbay.app/)**
+独立部署的[演示站](https://heluo.pocketbay.app/)不一定与仓库同步。试听本期录音可直接使用上表；体验本期完整交互请按下文在本地启动。
 
 建议从以下路径开始：
 
