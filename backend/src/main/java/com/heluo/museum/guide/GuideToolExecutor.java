@@ -421,7 +421,7 @@ public class GuideToolExecutor {
             allowedCitations.putIfAbsent(id, new CitationMeta(
                     id,
                     item.title(),
-                    item.title(),
+                    item.titleEn().isBlank() ? item.title() : item.titleEn(),
                     "live",
                     "/exhibits/" + item.slug(),
                     url,
@@ -433,7 +433,7 @@ public class GuideToolExecutor {
             allowedCitations.putIfAbsent(id, new CitationMeta(
                     id,
                     item.name(),
-                    item.name(),
+                    item.nameEn().isBlank() ? item.name() : item.nameEn(),
                     "live",
                     "/shop",
                     null,

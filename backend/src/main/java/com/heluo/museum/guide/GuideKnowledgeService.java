@@ -30,6 +30,7 @@ public class GuideKnowledgeService {
     private final Clock clock;
     private final GuideEvidenceVisibility visibility;
     private final GuideEvidenceReader evidenceReader;
+    private final GuideEvidenceReader englishEvidenceReader;
 
     private volatile CachedCatalog cachedCatalog;
 
@@ -39,14 +40,16 @@ public class GuideKnowledgeService {
         this.clock = clock;
         this.visibility = new GuideEvidenceVisibility(jdbc, clock);
         if (properties.hasEvidencePackConfig()) {
+            Path packPath = Path.of(properties.getPackPath());
+            Path minVerPath = Path.of(properties.getMinimumVersionPath());
+            Path digestPath = Path.of(properties.getApprovedDigestPath());
             this.evidenceReader = new GuideEvidenceReader(
-                    new GuideEvidenceFileSource(
-                            Path.of(properties.getPackPath()),
-                            Path.of(properties.getMinimumVersionPath()),
-                            Path.of(properties.getApprovedDigestPath())),
+                    new GuideEvidenceFileSource(packPath, minVerPath, digestPath),
                     visibility);
+            this.englishEvidenceReader = resolveCompanionEnglishReader(packPath, minVerPath, digestPath, visibility);
         } else {
             this.evidenceReader = null;
+            this.englishEvidenceReader = null;
         }
     }
 
@@ -56,6 +59,22 @@ public class GuideKnowledgeService {
         this.clock = clock;
         this.visibility = new GuideEvidenceVisibility(jdbc, clock);
         this.evidenceReader = evidenceReader;
+        this.englishEvidenceReader = null;
+    }
+
+    private static GuideEvidenceReader resolveCompanionEnglishReader(
+            Path zhPackPath, Path minVerPath, Path zhDigestPath, GuideEvidenceVisibility visibility) {
+        String packFileName = zhPackPath.getFileName() == null ? "" : zhPackPath.getFileName().toString();
+        String digestFileName = zhDigestPath.getFileName() == null ? "" : zhDigestPath.getFileName().toString();
+        if (!packFileName.endsWith(".zh-CN.json") || !digestFileName.endsWith(".zh-CN.sha256")) {
+            return null;
+        }
+        Path enPack = zhPackPath.resolveSibling(packFileName.replace(".zh-CN.json", ".en-US.json"));
+        Path enDigest = zhDigestPath.resolveSibling(digestFileName.replace(".zh-CN.sha256", ".en-US.sha256"));
+        if (!java.nio.file.Files.isRegularFile(enPack) || !java.nio.file.Files.isRegularFile(enDigest)) {
+            return null;
+        }
+        return new GuideEvidenceReader(new GuideEvidenceFileSource(enPack, minVerPath, enDigest), visibility);
     }
 
     public CatalogSnapshot catalog() {
@@ -111,14 +130,36 @@ public class GuideKnowledgeService {
      * release version anti-rollback, withdrawal, and ADR-006 conflict checks take immediate effect.
      */
     public List<GuideEvidenceReader.Evidence> evidenceCards(String exhibitSlug) {
-        if (evidenceReader == null || exhibitSlug == null || exhibitSlug.isBlank()) {
+        return evidenceCards(exhibitSlug, "zh-CN");
+    }
+
+    public List<GuideEvidenceReader.Evidence> evidenceCards(String exhibitSlug, String locale) {
+        if (exhibitSlug == null || exhibitSlug.isBlank()) {
+            return List.of();
+        }
+        boolean english = locale != null && locale.toLowerCase(Locale.ROOT).startsWith("en");
+        if (english && englishEvidenceReader != null) {
+            return englishEvidenceReader.listPublished(exhibitSlug.trim(), "en-US");
+        }
+        if (evidenceReader == null) {
             return List.of();
         }
         return evidenceReader.listPublished(exhibitSlug.trim(), "zh-CN");
     }
 
     public GuideEvidenceReader.SearchResult searchEvidence(String exhibitSlug, String query) {
-        if (evidenceReader == null || exhibitSlug == null || exhibitSlug.isBlank() || query == null || query.isBlank()) {
+        return searchEvidence(exhibitSlug, "zh-CN", query);
+    }
+
+    public GuideEvidenceReader.SearchResult searchEvidence(String exhibitSlug, String locale, String query) {
+        if (exhibitSlug == null || exhibitSlug.isBlank() || query == null || query.isBlank()) {
+            return new GuideEvidenceReader.SearchResult(List.of(), false);
+        }
+        boolean english = locale != null && locale.toLowerCase(Locale.ROOT).startsWith("en");
+        if (english && englishEvidenceReader != null) {
+            return englishEvidenceReader.searchCandidates(exhibitSlug.trim(), "en-US", query);
+        }
+        if (evidenceReader == null) {
             return new GuideEvidenceReader.SearchResult(List.of(), false);
         }
         return evidenceReader.searchCandidates(exhibitSlug.trim(), "zh-CN", query);
@@ -150,18 +191,18 @@ public class GuideKnowledgeService {
             }
         }
         for (ExhibitItem e : snap.exhibits()) {
-            int score = matchScore(query, tokens, e.title(), "", e.summary(), "", e.description(),
+            int score = matchScore(query, tokens, e.title(), e.titleEn(), e.summary(), e.summaryEn(), e.description(),
                     e.artifactTitle(), e.displayNo());
             if (score > 0) {
-                hits.add(new ScoredHit(new SearchHit("exhibit", e.slug(), e.title(), "",
-                        e.summary(), "", "/exhibits/" + e.slug(), e.slug()), score));
+                hits.add(new ScoredHit(new SearchHit("exhibit", e.slug(), e.title(), e.titleEn(),
+                        e.summary(), e.summaryEn(), "/exhibits/" + e.slug(), e.slug()), score));
             }
         }
         for (ProductItem p : snap.products()) {
-            int score = matchScore(query, tokens, p.name(), "", p.summary(), "", p.description(), p.sku());
+            int score = matchScore(query, tokens, p.name(), p.nameEn(), p.summary(), p.summaryEn(), p.description(), p.sku());
             if (score > 0) {
-                hits.add(new ScoredHit(new SearchHit("product", p.slug(), p.name(), "",
-                        p.summary(), "", "/shop", null), score));
+                hits.add(new ScoredHit(new SearchHit("product", p.slug(), p.name(), p.nameEn(),
+                        p.summary(), p.summaryEn(), "/shop", null), score));
             }
         }
         return hits.stream()
@@ -174,7 +215,7 @@ public class GuideKnowledgeService {
 
     private CatalogSnapshot loadFromDatabase() {
         List<ExhibitItem> exhibits = jdbc.query("""
-                select e.slug, e.title, e.summary, e.description, e.display_no,
+                select e.slug, e.title, e.title_en, e.summary, e.summary_en, e.description, e.display_no,
                        e.source_credit, e.source_url, e.license_label, e.collection_location,
                        a.slug as artifact_slug, a.title as artifact_title
                 from exhibits_3d e
@@ -187,7 +228,9 @@ public class GuideKnowledgeService {
                 """, (rs, rowNum) -> new ExhibitItem(
                 rs.getString("slug"),
                 rs.getString("title"),
+                empty(rs.getString("title_en")),
                 empty(rs.getString("summary")),
+                empty(rs.getString("summary_en")),
                 empty(rs.getString("description")),
                 empty(rs.getString("display_no")),
                 empty(rs.getString("source_credit")),
@@ -247,7 +290,7 @@ public class GuideKnowledgeService {
                 empty(rs.getString("author_display"))));
 
         List<ProductItem> products = jdbc.query("""
-                select sku, slug, name, summary, description, price, stock_quantity, locked_stock
+                select sku, slug, name, name_en, summary, summary_en, description, price, stock_quantity, locked_stock
                 from products
                 where status = 'PUBLISHED' and deleted_at is null
                 order by published_at desc, id desc
@@ -255,7 +298,9 @@ public class GuideKnowledgeService {
                 rs.getString("sku"),
                 rs.getString("slug"),
                 rs.getString("name"),
+                empty(rs.getString("name_en")),
                 empty(rs.getString("summary")),
+                empty(rs.getString("summary_en")),
                 empty(rs.getString("description")),
                 rs.getBigDecimal("price").toPlainString(),
                 Math.max(0, rs.getInt("stock_quantity") - rs.getInt("locked_stock"))));
@@ -264,10 +309,18 @@ public class GuideKnowledgeService {
     }
 
     private static List<String> splitTokens(String query) {
-        String[] raw = query.split("[\\s,，、；;]+");
+        String[] raw = query.split("[\\s,，、；;？?！!。]+");
         List<String> tokens = new ArrayList<>();
         for (String t : raw) {
             if (!t.isBlank()) tokens.add(t);
+        }
+        if (tokens.size() == 1 && tokens.get(0).length() >= 4) {
+            String[] clauses = tokens.get(0).split("[的了吗呢和与及跟或有在里中看查找帮我请一下什么哪些有关关于]+");
+            for (String c : clauses) {
+                if (c.length() >= 2 && !tokens.contains(c)) {
+                    tokens.add(c);
+                }
+            }
         }
         return tokens;
     }
@@ -355,13 +408,13 @@ public class GuideKnowledgeService {
             String summary, String summaryEn, String content, String authorDisplay) {}
 
     public record ExhibitItem(
-            String slug, String title, String summary, String description, String displayNo,
-            String sourceCredit, String sourceUrl, String licenseLabel, String collectionLocation,
-            String artifactSlug, String artifactTitle) {}
+            String slug, String title, String titleEn, String summary, String summaryEn,
+            String description, String displayNo, String sourceCredit, String sourceUrl,
+            String licenseLabel, String collectionLocation, String artifactSlug, String artifactTitle) {}
 
     public record ProductItem(
-            String sku, String slug, String name, String summary, String description,
-            String price, int availableStock) {}
+            String sku, String slug, String name, String nameEn, String summary, String summaryEn,
+            String description, String price, int availableStock) {}
 
     public record SearchHit(
             String type, String slug, String title, String titleEn, String summary, String summaryEn,

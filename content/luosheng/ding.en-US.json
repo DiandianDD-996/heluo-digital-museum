@@ -1,0 +1,312 @@
+{
+  "formatVersion": 2,
+  "releaseVersion": 6,
+  "cards": [
+    {
+      "id": "LS-DING-SOURCE",
+      "revision": 4,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "en-US",
+      "status": "PUBLISHED",
+      "stop": null,
+      "claim": {
+        "key": "reference_object",
+        "value": "cma-1962.281-tripod-cc0"
+      },
+      "spoken": [
+        "This digital ding references Cleveland Museum of Art accession 1962.281, a bronze Tripod (Ding).",
+        "Both the interactive 3D showcase model and the static reference plates are digital reconstructions rendered by the project so you can inspect the silhouette from multiple angles."
+      ],
+      "boundary": [
+        "The public museum record leaves the excavation site blank, so existing sources can neither confirm nor exclude Luoyang provenance.",
+        "The 3D model and rendered plates are not photographs of the physical vessel and do not represent its true color or current condition; nor do they claim ownership, raw institutional scan data, or an official restoration."
+      ],
+      "systemConstraints": [],
+      "text": "This digital ding references Cleveland Museum of Art accession 1962.281, a bronze Tripod (Ding). Both the interactive 3D showcase model and the static reference plates are digital reconstructions rendered by the project so you can inspect the silhouette from multiple angles. The public museum record leaves the excavation site blank, so existing sources can neither confirm nor exclude Luoyang provenance. The 3D model and rendered plates are not photographs of the physical vessel and do not represent its true color or current condition; nor do they claim ownership, raw institutional scan data, or an official restoration.",
+      "aliases": [
+        "source",
+        "provenance",
+        "cleveland",
+        "museum",
+        "photo",
+        "photograph",
+        "color",
+        "authentic",
+        "replica",
+        "reconstruction",
+        "3d model",
+        "出处",
+        "来源",
+        "克利夫兰"
+      ],
+      "publicSource": "https://www.clevelandart.org/art/1962.281",
+      "publishedAt": "2026-11-23T00:00:00Z"
+    },
+    {
+      "id": "LS-DING-EARS",
+      "revision": 3,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "en-US",
+      "status": "PUBLISHED",
+      "stop": "ear",
+      "spoken": [
+        "Viewed from above, two upright handle-like loops rise on opposite sides of the rim; the gallery label calls them ding ears.",
+        "Switch to the top view to compare their symmetrical outline and how they join the rim."
+      ],
+      "boundary": [
+        "Although they resemble handles, external digital form alone cannot prove how the original vessel was lifted, carried, or loaded."
+      ],
+      "systemConstraints": [
+        "cannot-infer-visitor-side"
+      ],
+      "text": "Viewed from above, two upright handle-like loops rise on opposite sides of the rim; the gallery label calls them ding ears. Switch to the top view to compare their symmetrical outline and how they join the rim. Although they resemble handles, external digital form alone cannot prove how the original vessel was lifted, carried, or loaded.",
+      "aliases": [
+        "ear",
+        "ears",
+        "handle",
+        "handles",
+        "lift",
+        "lifting",
+        "top view",
+        "rim",
+        "鼎耳",
+        "把手"
+      ],
+      "publishedAt": "2026-11-23T00:00:00Z"
+    },
+    {
+      "id": "LS-DING-FEET",
+      "revision": 3,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "en-US",
+      "status": "PUBLISHED",
+      "stop": "feet",
+      "spoken": [
+        "Only two legs appear from a side angle because the third leg is directly hidden behind the vessel body.",
+        "Rotate to the back view and all three tripod legs—the center leg and the two outer legs—become clearly visible."
+      ],
+      "boundary": [
+        "The difference between side and back views is purely perspective occlusion and cannot be used to infer damage, breakage, or repair on the original object."
+      ],
+      "systemConstraints": [
+        "camera-is-not-gaze"
+      ],
+      "text": "Only two legs appear from a side angle because the third leg is directly hidden behind the vessel body. Rotate to the back view and all three tripod legs—the center leg and the two outer legs—become clearly visible. The difference between side and back views is purely perspective occlusion and cannot be used to infer damage, breakage, or repair on the original object.",
+      "aliases": [
+        "feet",
+        "foot",
+        "leg",
+        "legs",
+        "two legs",
+        "three legs",
+        "tripod",
+        "missing leg",
+        "back view",
+        "side view",
+        "三足",
+        "两条腿"
+      ],
+      "publishedAt": "2026-11-23T00:00:00Z"
+    },
+    {
+      "id": "LS-DING-MOTIF",
+      "revision": 4,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "en-US",
+      "status": "PUBLISHED",
+      "stop": "motif",
+      "spoken": [
+        "In the front close-up, a raised band of broad lines encircles the upper belly just below the rim, guiding your eye along the inward curve of the vessel."
+      ],
+      "boundary": [
+        "The digital model and close-up plate only support reading surface silhouette—not symbolic meaning, exact casting craft, precise dating, or original color. Do not treat rendered shading or patina highlights as authentic oxidation or wear."
+      ],
+      "systemConstraints": [],
+      "text": "In the front close-up, a raised band of broad lines encircles the upper belly just below the rim, guiding your eye along the inward curve of the vessel. The digital model and close-up plate only support reading surface silhouette—not symbolic meaning, exact casting craft, precise dating, or original color. Do not treat rendered shading or patina highlights as authentic oxidation or wear.",
+      "aliases": [
+        "motif",
+        "pattern",
+        "relief",
+        "belly",
+        "band",
+        "patina",
+        "oxidation",
+        "wear",
+        "shading",
+        "meaning",
+        "纹样",
+        "花纹"
+      ],
+      "publishedAt": "2026-11-23T00:00:00Z"
+    },
+    {
+      "id": "LS-DING-POINTCLOUD",
+      "revision": 1,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "en-US",
+      "status": "PUBLISHED",
+      "stop": null,
+      "spoken": [
+        "Point cloud mode breaks the vessel surface into fine sampled points so you can set aside surface reflections and read the belly curvature, raised rim band, and tripod stance directly.",
+        "Try noting a contour in solid mode first, then switch to point cloud mode to compare."
+      ],
+      "boundary": [
+        "These points are sampled from the project digital mesh—not raw archaeological laser-scan data—and do not show wall thickness, interior structure, or original material condition."
+      ],
+      "systemConstraints": [
+        "camera-is-not-gaze"
+      ],
+      "text": "Point cloud mode breaks the vessel surface into fine sampled points so you can set aside surface reflections and read the belly curvature, raised rim band, and tripod stance directly. Try noting a contour in solid mode first, then switch to point cloud mode to compare. These points are sampled from the project digital mesh—not raw archaeological laser-scan data—and do not show wall thickness, interior structure, or original material condition.",
+      "aliases": [
+        "point cloud",
+        "points",
+        "solid mode",
+        "point mode",
+        "dots",
+        "点云",
+        "点云模式"
+      ],
+      "publishedAt": "2026-11-23T00:00:00Z"
+    },
+    {
+      "id": "LS-DING-RECORD-02",
+      "revision": 3,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "en-US",
+      "status": "PUBLISHED",
+      "stop": null,
+      "claim": {
+        "key": "excavation_site",
+        "value": "unrecorded-in-cma-public-record"
+      },
+      "spoken": [
+        "In the public record for Cleveland Museum of Art 1962.281, both the findspot (excavation site) and provenance history are left blank."
+      ],
+      "boundary": [
+        "Blank fields only mean this public entry does not record them; they neither rule out other archaeological clues nor confirm excavation in Luoyang, Erlitou, or Yinxu."
+      ],
+      "systemConstraints": [],
+      "text": "In the public record for Cleveland Museum of Art 1962.281, both the findspot (excavation site) and provenance history are left blank. Blank fields only mean this public entry does not record them; they neither rule out other archaeological clues nor confirm excavation in Luoyang, Erlitou, or Yinxu.",
+      "aliases": [
+        "excavation",
+        "excavated",
+        "findspot",
+        "where",
+        "luoyang",
+        "erlitou",
+        "yinxu",
+        "provenance",
+        "出土地",
+        "洛阳"
+      ],
+      "publicSource": "https://openaccess-api.clevelandart.org/api/artworks/138016",
+      "publishedAt": "2026-11-23T00:00:00Z"
+    },
+    {
+      "id": "LS-DING-MODEL-02",
+      "revision": 3,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "en-US",
+      "status": "PUBLISHED",
+      "stop": null,
+      "spoken": [
+        "The 3D digital model and static rendered plates are designed to help you observe the vessel's exterior form and proportions."
+      ],
+      "boundary": [
+        "The original object's weight, interior walls, inscriptions, and true color are not captured in the digital model or plates and cannot be determined from them."
+      ],
+      "systemConstraints": [],
+      "text": "The 3D digital model and static rendered plates are designed to help you observe the vessel's exterior form and proportions. The original object's weight, interior walls, inscriptions, and true color are not captured in the digital model or plates and cannot be determined from them.",
+      "aliases": [
+        "weight",
+        "heavy",
+        "inscription",
+        "inscriptions",
+        "interior",
+        "inside",
+        "what can i see",
+        "重量",
+        "铭文",
+        "内壁"
+      ],
+      "publicSource": null,
+      "publishedAt": "2026-11-23T00:00:00Z"
+    },
+    {
+      "id": "LS-DING-PERIOD",
+      "revision": 3,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "en-US",
+      "status": "PUBLISHED",
+      "stop": null,
+      "claim": {
+        "key": "period",
+        "value": "shang-anyang-c-1250-1046-bce"
+      },
+      "spoken": [
+        "What you see here is a digital reconstruction. The Cleveland Museum of Art dates the reference object to the Shang dynasty, Anyang period (c. 1250–1046 BCE)."
+      ],
+      "boundary": [
+        "\"Anyang period\" is a cultural periodization used by the museum rather than a confirmed findspot, and available records do not support a narrower date or royal reign such as King Wu Ding."
+      ],
+      "systemConstraints": [],
+      "text": "What you see here is a digital reconstruction. The Cleveland Museum of Art dates the reference object to the Shang dynasty, Anyang period (c. 1250–1046 BCE). \"Anyang period\" is a cultural periodization used by the museum rather than a confirmed findspot, and available records do not support a narrower date or royal reign such as King Wu Ding.",
+      "aliases": [
+        "period",
+        "dynasty",
+        "date",
+        "how old",
+        "shang",
+        "anyang",
+        "wu ding",
+        "cast",
+        "年代",
+        "朝代"
+      ],
+      "publicSource": "https://www.clevelandart.org/art/1962.281",
+      "publishedAt": "2026-11-23T00:00:00Z"
+    },
+    {
+      "id": "LS-DING-SIZE",
+      "revision": 3,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "en-US",
+      "status": "PUBLISHED",
+      "stop": null,
+      "claim": {
+        "key": "overall_dimensions",
+        "value": "24.5x20cm"
+      },
+      "spoken": [
+        "According to the Cleveland Museum of Art public record, the reference object's overall dimensions are 24.5 × 20 cm."
+      ],
+      "boundary": [
+        "The record provides only these two overall figures; the digital model and local part dimensions such as ears or legs would require separate measurement."
+      ],
+      "systemConstraints": [],
+      "text": "According to the Cleveland Museum of Art public record, the reference object's overall dimensions are 24.5 × 20 cm. The record provides only these two overall figures; the digital model and local part dimensions such as ears or legs would require separate measurement.",
+      "aliases": [
+        "size",
+        "dimensions",
+        "how big",
+        "height",
+        "width",
+        "cm",
+        "scale",
+        "尺寸",
+        "多大"
+      ],
+      "publicSource": "https://www.clevelandart.org/art/1962.281",
+      "publishedAt": "2026-11-23T00:00:00Z"
+    }
+  ]
+}

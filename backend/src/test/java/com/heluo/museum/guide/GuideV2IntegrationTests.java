@@ -357,12 +357,19 @@ class GuideV2IntegrationTests {
                 .andExpect(jsonPath("$.data.requestId").value(fixedReqId));
         assertThat(llmCalls.get()).isEqualTo(1);
 
-        // Read-only exhibit preset endpoint serves verified Tier-1 cards
+        // Read-only exhibit preset endpoint serves verified Tier-1 cards in both zh-CN and en-US
         mvc.perform(get("/api/v1/guide/exhibits/heluo-bronze-ding-3d"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.data.available").value(true))
-                .andExpect(jsonPath("$.data.entries.length()").value(8));
+                .andExpect(jsonPath("$.data.entries.length()").value(9));
+
+        mvc.perform(get("/api/v1/guide/exhibits/heluo-bronze-ding-3d").param("locale", "en-US"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.data.available").value(true))
+                .andExpect(jsonPath("$.data.entries.length()").value(9))
+                .andExpect(jsonPath("$.data.entries[0].text").value(org.hamcrest.Matchers.containsString("rim")));
     }
 
     private void sendSseChunks(HttpExchange exchange, List<String> chunks) throws IOException {

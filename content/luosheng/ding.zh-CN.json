@@ -1,25 +1,29 @@
 {
   "formatVersion": 2,
-  "releaseVersion": 5,
+  "releaseVersion": 6,
   "cards": [
     {
       "id": "LS-DING-SOURCE",
-      "revision": 3,
+      "revision": 4,
       "exhibitSlug": "heluo-bronze-ding-3d",
       "artifactSlug": "heluo-bronze-ding",
       "locale": "zh-CN",
       "status": "PUBLISHED",
       "stop": null,
+      "claim": {
+        "key": "reference_object",
+        "value": "cma-1962.281-tripod-cc0"
+      },
       "spoken": [
         "这件数字鼎参考的是克利夫兰艺术博物馆馆藏编号 1962.281 的青铜鼎（Tripod）。",
-        "页面里的图版由项目数字模型渲染而成，方便你换角度观察外轮廓。"
+        "3D 展柜中的模型与静态对照图版均由项目数字重制并渲染而成，方便你换角度观察外轮廓。"
       ],
       "boundary": [
         "馆方公开记录未填写出土地，现有资料不能确认或排除洛阳出土。",
-        "这些图版不是原器照片，不能代表原器真实颜色；该条目也不说明原物归本馆所有、模型是原始扫描或参考馆官方复原。"
+        "数字模型与渲染图版均非原器照片，不能代表原器真实颜色或保存现状；该条目也不说明原物归本馆所有、模型是原始扫描或参考馆官方复原。"
       ],
       "systemConstraints": [],
-      "text": "这件数字鼎参考的是克利夫兰艺术博物馆馆藏编号 1962.281 的青铜鼎（Tripod）。页面里的图版由项目数字模型渲染而成，方便你换角度观察外轮廓。馆方公开记录未填写出土地，现有资料不能确认或排除洛阳出土。这些图版不是原器照片，不能代表原器真实颜色；该条目也不说明原物归本馆所有、模型是原始扫描或参考馆官方复原。",
+      "text": "这件数字鼎参考的是克利夫兰艺术博物馆馆藏编号 1962.281 的青铜鼎（Tripod）。3D 展柜中的模型与静态对照图版均由项目数字重制并渲染而成，方便你换角度观察外轮廓。馆方公开记录未填写出土地，现有资料不能确认或排除洛阳出土。数字模型与渲染图版均非原器照片，不能代表原器真实颜色或保存现状；该条目也不说明原物归本馆所有、模型是原始扫描或参考馆官方复原。",
       "aliases": [
         "出处",
         "来源",
@@ -28,14 +32,25 @@
         "原器颜色",
         "数字重制",
         "克利夫兰",
-        "哪家博物馆"
+        "哪家博物馆",
+        "真假",
+        "原件",
+        "扫描",
+        "复原",
+        "复制品",
+        "仿品",
+        "3D模型",
+        "cleveland",
+        "source",
+        "provenance",
+        "authentic"
       ],
       "publicSource": "https://www.clevelandart.org/art/1962.281",
-      "publishedAt": "2026-11-22T00:00:00Z"
+      "publishedAt": "2026-11-23T00:00:00Z"
     },
     {
       "id": "LS-DING-EARS",
-      "revision": 2,
+      "revision": 3,
       "exhibitSlug": "heluo-bronze-ding-3d",
       "artifactSlug": "heluo-bronze-ding",
       "locale": "zh-CN",
@@ -43,72 +58,85 @@
       "stop": "ear",
       "spoken": [
         "从上往下看，鼎口两边各立起一只像把手的结构，展签里称它为鼎耳。",
-        "你可以切到俯视图，对比口沿两侧这对立耳的轮廓。"
+        "你可以切到俯视视角，对比口沿两侧这对立耳的对称轮廓与衔接方式。"
       ],
       "boundary": [
-        "虽然它长得像把手，但光凭外形还不能判断原物当年的用途、搬运方式或受力能力。"
+        "虽然它长得像把手，但光凭数字外形还不能判断原物当年的用途、搬运方式或受力能力。"
       ],
       "systemConstraints": [
         "cannot-infer-visitor-side"
       ],
-      "text": "从上往下看，鼎口两边各立起一只像把手的结构，展签里称它为鼎耳。你可以切到俯视图，对比口沿两侧这对立耳的轮廓。虽然它长得像把手，但光凭外形还不能判断原物当年的用途、搬运方式或受力能力。",
+      "text": "从上往下看，鼎口两边各立起一只像把手的结构，展签里称它为鼎耳。你可以切到俯视视角，对比口沿两侧这对立耳的对称轮廓与衔接方式。虽然它长得像把手，但光凭数字外形还不能判断原物当年的用途、搬运方式或受力能力。",
       "aliases": [
         "鼎耳",
         "耳朵",
         "把手",
         "双耳",
         "俯视",
-        "立起"
+        "立起",
+        "提手",
+        "能提吗",
+        "ear",
+        "ears",
+        "handle",
+        "handles",
+        "lift"
       ],
-      "publishedAt": "2026-11-22T00:00:00Z"
+      "publishedAt": "2026-11-23T00:00:00Z"
     },
     {
       "id": "LS-DING-FEET",
-      "revision": 2,
+      "revision": 3,
       "exhibitSlug": "heluo-bronze-ding-3d",
       "artifactSlug": "heluo-bronze-ding",
       "locale": "zh-CN",
       "status": "PUBLISHED",
       "stop": "feet",
       "spoken": [
-        "侧面看只有两条腿，是因为第三只足正好被鼎身挡住了。",
-        "换到背面，中间和两边一共三只足都能清楚看见。"
+        "从侧面看只有两条腿，是因为第三只足正好被鼎身挡住了。",
+        "转到背面视角，中间和两边一共三只足都能清楚看见，也能直观比较三足间距。"
       ],
       "boundary": [
-        "两张图的差别只是固定视角下的遮挡，不能据此判断原器缺损、断裂或修补过。"
+        "侧视与背视的差别只是固定视角下的遮挡关系，不能据此判断原器缺损、断裂或修补过。"
       ],
       "systemConstraints": [
         "camera-is-not-gaze"
       ],
-      "text": "侧面看只有两条腿，是因为第三只足正好被鼎身挡住了。换到背面，中间和两边一共三只足都能清楚看见。两张图的差别只是固定视角下的遮挡，不能据此判断原器缺损、断裂或修补过。",
+      "text": "从侧面看只有两条腿，是因为第三只足正好被鼎身挡住了。转到背面视角，中间和两边一共三只足都能清楚看见，也能直观比较三足间距。侧视与背视的差别只是固定视角下的遮挡关系，不能据此判断原器缺损、断裂或修补过。",
       "aliases": [
         "鼎足",
         "三足",
         "两足",
         "两条腿",
+        "断了一条",
         "腿",
         "脚",
         "背视",
-        "侧视"
+        "侧视",
+        "feet",
+        "foot",
+        "leg",
+        "legs",
+        "tripod"
       ],
-      "publishedAt": "2026-11-22T00:00:00Z"
+      "publishedAt": "2026-11-23T00:00:00Z"
     },
     {
       "id": "LS-DING-MOTIF",
-      "revision": 3,
+      "revision": 4,
       "exhibitSlug": "heluo-bronze-ding-3d",
       "artifactSlug": "heluo-bronze-ding",
       "locale": "zh-CN",
       "status": "PUBLISHED",
       "stop": "motif",
       "spoken": [
-        "看正面局部图，鼎口下方器腹一圈有凸出的宽线，可以顺着它看清向内转折的轮廓。"
+        "看正面近景，鼎口下方器腹一圈有凸出的宽线，可以顺着它看清器身向内转折的轮廓。"
       ],
       "boundary": [
-        "这张局部图只能用来看轮廓，不能据此判断纹样寓意、具体工艺、确切年代或原器颜色，也不要把渲染光影当成氧化或磨损痕迹。"
+        "数字模型与局部图版仅用于观察外表面轮廓，不能据此判断纹样寓意、具体工艺、确切年代或原器真实颜色，也不要把渲染光影和铜绿质感当成原器氧化或磨损痕迹。"
       ],
       "systemConstraints": [],
-      "text": "看正面局部图，鼎口下方器腹一圈有凸出的宽线，可以顺着它看清向内转折的轮廓。这张局部图只能用来看轮廓，不能据此判断纹样寓意、具体工艺、确切年代或原器颜色，也不要把渲染光影当成氧化或磨损痕迹。",
+      "text": "看正面近景，鼎口下方器腹一圈有凸出的宽线，可以顺着它看清器身向内转折的轮廓。数字模型与局部图版仅用于观察外表面轮廓，不能据此判断纹样寓意、具体工艺、确切年代或原器真实颜色，也不要把渲染光影和铜绿质感当成原器氧化或磨损痕迹。",
       "aliases": [
         "纹样",
         "花纹",
@@ -117,101 +145,176 @@
         "肚子",
         "宽线",
         "线条",
+        "浮雕",
         "寓意",
         "氧化",
-        "磨损"
+        "铜绿",
+        "生锈",
+        "光泽",
+        "阴影",
+        "磨损",
+        "motif",
+        "pattern",
+        "relief",
+        "patina",
+        "belly"
       ],
-      "publishedAt": "2026-11-22T00:00:00Z"
+      "publishedAt": "2026-11-23T00:00:00Z"
     },
     {
-      "id": "LS-DING-RECORD-02",
-      "revision": 2,
+      "id": "LS-DING-POINTCLOUD",
+      "revision": 1,
       "exhibitSlug": "heluo-bronze-ding-3d",
       "artifactSlug": "heluo-bronze-ding",
       "locale": "zh-CN",
       "status": "PUBLISHED",
       "stop": null,
+      "spoken": [
+        "点云模式会把器物表面拆成一层层细密散点，帮助你抛开材质反光，更直接地看清器腹曲面起伏、口沿宽线带与三足重心分布。",
+        "可以先在实体模式记住一处轮廓，再切到点云模式对照验证。"
+      ],
+      "boundary": [
+        "点云散点来自数字模型的外表面采样，不是考古激光扫描原始点云，也不能反映器壁厚度、内部结构或原器材质状况。"
+      ],
+      "systemConstraints": [
+        "camera-is-not-gaze"
+      ],
+      "text": "点云模式会把器物表面拆成一层层细密散点，帮助你抛开材质反光，更直接地看清器腹曲面起伏、口沿宽线带与三足重心分布。可以先在实体模式记住一处轮廓，再切到点云模式对照验证。点云散点来自数字模型的外表面采样，不是考古激光扫描原始点云，也不能反映器壁厚度、内部结构或原器材质状况。",
+      "aliases": [
+        "点云",
+        "点云模式",
+        "散点",
+        "实体模式",
+        "模式切换",
+        "point cloud",
+        "points",
+        "solid mode"
+      ],
+      "publishedAt": "2026-11-23T00:00:00Z"
+    },
+    {
+      "id": "LS-DING-RECORD-02",
+      "revision": 3,
+      "exhibitSlug": "heluo-bronze-ding-3d",
+      "artifactSlug": "heluo-bronze-ding",
+      "locale": "zh-CN",
+      "status": "PUBLISHED",
+      "stop": null,
+      "claim": {
+        "key": "excavation_site",
+        "value": "unrecorded-in-cma-public-record"
+      },
       "spoken": [
         "克利夫兰艺术博物馆编号 1962.281 的公开记录里，出土地一栏是空的，流传记录也没有填写。"
       ],
       "boundary": [
-        "记录为空只代表这条公开档案没有填写，不能据此断定实物没有其他考古线索，也不能确认它是洛阳出土。"
+        "记录为空只代表这条公开档案没有填写，不能据此断定实物没有其他考古线索，也不能确认或排除它是洛阳、二里头或殷墟出土。"
       ],
       "systemConstraints": [],
-      "text": "克利夫兰艺术博物馆编号 1962.281 的公开记录里，出土地一栏是空的，流传记录也没有填写。记录为空只代表这条公开档案没有填写，不能据此断定实物没有其他考古线索，也不能确认它是洛阳出土。",
+      "text": "克利夫兰艺术博物馆编号 1962.281 的公开记录里，出土地一栏是空的，流传记录也没有填写。记录为空只代表这条公开档案没有填写，不能据此断定实物没有其他考古线索，也不能确认或排除它是洛阳、二里头或殷墟出土。",
       "aliases": [
         "出土地",
         "哪里出土",
         "洛阳出土",
+        "二里头",
+        "殷墟",
         "流传",
-        "发掘"
+        "发掘",
+        "excavated",
+        "excavation",
+        "luoyang",
+        "erlitou",
+        "yinxu"
       ],
       "publicSource": "https://openaccess-api.clevelandart.org/api/artworks/138016",
-      "publishedAt": "2026-11-22T00:00:00Z"
+      "publishedAt": "2026-11-23T00:00:00Z"
     },
     {
       "id": "LS-DING-MODEL-02",
-      "revision": 2,
+      "revision": 3,
       "exhibitSlug": "heluo-bronze-ding-3d",
       "artifactSlug": "heluo-bronze-ding",
       "locale": "zh-CN",
       "status": "PUBLISHED",
       "stop": null,
       "spoken": [
-        "这里的数字模型和渲染图主要帮你看清器物的外表面形状。"
+        "这里的 3D 数字模型和静态渲染图版主要帮你看清器物的外表面形状与比例关系。"
       ],
       "boundary": [
-        "原器的重量、内壁、铭文和真实颜色都不在图版信息里，不能从这几张图判断。"
+        "原器的重量、内壁、铭文和真实颜色都不在数字模型与图版信息里，不能据此判断。"
       ],
       "systemConstraints": [],
-      "text": "这里的数字模型和渲染图主要帮你看清器物的外表面形状。原器的重量、内壁、铭文和真实颜色都不在图版信息里，不能从这几张图判断。",
+      "text": "这里的 3D 数字模型和静态渲染图版主要帮你看清器物的外表面形状与比例关系。原器的重量、内壁、铭文和真实颜色都不在数字模型与图版信息里，不能据此判断。",
       "aliases": [
         "能看到什么",
         "模型能看什么",
         "内壁",
         "铭文",
         "重量",
-        "多重"
+        "多重",
+        "几斤",
+        "weight",
+        "inscription",
+        "inscriptions",
+        "interior"
       ],
       "publicSource": null,
-      "publishedAt": "2026-11-22T00:00:00Z"
+      "publishedAt": "2026-11-23T00:00:00Z"
     },
     {
       "id": "LS-DING-PERIOD",
-      "revision": 2,
+      "revision": 3,
       "exhibitSlug": "heluo-bronze-ding-3d",
       "artifactSlug": "heluo-bronze-ding",
       "locale": "zh-CN",
       "status": "PUBLISHED",
       "stop": null,
+      "claim": {
+        "key": "period",
+        "value": "shang-anyang-c-1250-1046-bce"
+      },
       "spoken": [
-        "你眼前的是数字模型。克利夫兰艺术博物馆把参考实物定在商代安阳时期，约公元前 1250 至前 1046 年。"
+        "你眼前的是数字重制模型。克利夫兰艺术博物馆把参考实物定在商代安阳时期，约公元前 1250 至前 1046 年。"
       ],
       "boundary": [
-        "“安阳时期”是馆方使用的文化分期，出土地仍需另行查证，现有资料不支持更细的年份或王世断代。"
+        "“安阳时期”是馆方使用的文化分期，出土地仍需另行查证，现有资料不支持更细的年份或具体王世（如武丁时期）断代。"
       ],
       "systemConstraints": [],
-      "text": "你眼前的是数字模型。克利夫兰艺术博物馆把参考实物定在商代安阳时期，约公元前 1250 至前 1046 年。“安阳时期”是馆方使用的文化分期，出土地仍需另行查证，现有资料不支持更细的年份或王世断代。",
+      "text": "你眼前的是数字重制模型。克利夫兰艺术博物馆把参考实物定在商代安阳时期，约公元前 1250 至前 1046 年。“安阳时期”是馆方使用的文化分期，出土地仍需另行查证，现有资料不支持更细的年份或具体王世（如武丁时期）断代。",
       "aliases": [
         "什么年代",
         "哪个朝代",
+        "商朝",
+        "商代",
+        "武丁",
+        "安阳时期",
         "何时铸造",
         "什么时候做",
         "多少年历史",
+        "距今",
         "断代",
-        "年代"
+        "年代",
+        "period",
+        "dynasty",
+        "date",
+        "shang",
+        "anyang"
       ],
       "publicSource": "https://www.clevelandart.org/art/1962.281",
-      "publishedAt": "2026-11-22T00:00:00Z"
+      "publishedAt": "2026-11-23T00:00:00Z"
     },
     {
       "id": "LS-DING-SIZE",
-      "revision": 2,
+      "revision": 3,
       "exhibitSlug": "heluo-bronze-ding-3d",
       "artifactSlug": "heluo-bronze-ding",
       "locale": "zh-CN",
       "status": "PUBLISHED",
       "stop": null,
+      "claim": {
+        "key": "overall_dimensions",
+        "value": "24.5x20cm"
+      },
       "spoken": [
         "克利夫兰艺术博物馆的公开记录显示，参考实物的整体尺寸是 24.5 × 20 厘米。"
       ],
@@ -224,12 +327,21 @@
         "整体尺寸",
         "它多大",
         "尺寸多少",
+        "多高",
+        "多宽",
+        "厘米",
+        "cm",
         "多大",
         "尺寸",
-        "高度"
+        "高度",
+        "比例",
+        "size",
+        "dimensions",
+        "how big",
+        "height"
       ],
       "publicSource": "https://www.clevelandart.org/art/1962.281",
-      "publishedAt": "2026-11-22T00:00:00Z"
+      "publishedAt": "2026-11-23T00:00:00Z"
     }
   ]
 }

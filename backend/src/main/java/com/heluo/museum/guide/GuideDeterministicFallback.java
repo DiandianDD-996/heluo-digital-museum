@@ -31,7 +31,7 @@ public class GuideDeterministicFallback {
             "预约|时段|名额|明天|后天|哪天|几个人|开放时间|入馆|book|slot|appointment|visit|ticket|available",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern SHOP_HINT = Pattern.compile(
-            "文创|商品|周边|书签|丝巾|茶杯|笔记本|商城|买|购买|库存|shop|merch|souvenir|product|store",
+            "文创|商品|周边|丝巾|茶杯|笔记本|商城|买|购买|库存|shop|merch|souvenir|product|store",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern PEOPLE_NUM = Pattern.compile("(\\d{1,3})\\s*(?:个人|位|人|visitors?|people)");
     private static final Pattern ISO_DATE = Pattern.compile("\\b(20\\d{2}-\\d{2}-\\d{2})\\b");
@@ -190,10 +190,12 @@ public class GuideDeterministicFallback {
             sb.append(english ? "Published items currently in the Heluo Museum Shop:\n"
                     : "河洛文创商城当前在售商品如下：\n");
             for (ProductItem p : products) {
-                sb.append("• ").append(p.name()).append("（¥").append(p.price())
+                String name = english && !p.nameEn().isBlank() ? p.nameEn() : p.name();
+                String summary = english && !p.summaryEn().isBlank() ? p.summaryEn() : p.summary();
+                sb.append("• ").append(name).append("（¥").append(p.price())
                         .append(english ? ", stock " : "，可售库存 ").append(p.availableStock()).append("）：")
-                        .append(p.summary()).append('\n');
-                citations.add(new Citation("PRODUCT:" + p.slug(), p.name(), "live", "/shop", null, ""));
+                        .append(summary).append('\n');
+                citations.add(new Citation("PRODUCT:" + p.slug(), name, "live", "/shop", null, ""));
             }
         }
         return new ChatResponse(requestId, sb.toString().strip(), citations,
@@ -206,7 +208,8 @@ public class GuideDeterministicFallback {
 
     private ChatResponse buildDingFallback(String requestId, String msg, boolean english, boolean degraded) {
         String exhibitSlug = GuideKnowledgeService.DING_EXHIBIT_SLUG;
-        GuideEvidenceReader.SearchResult search = knowledge.searchEvidence(exhibitSlug, msg);
+        String targetLocale = english ? "en-US" : "zh-CN";
+        GuideEvidenceReader.SearchResult search = knowledge.searchEvidence(exhibitSlug, targetLocale, msg);
         List<GuideEvidenceReader.Evidence> cards = search.evidence();
         if (search.disputed()) {
             String text = english
@@ -216,9 +219,10 @@ public class GuideDeterministicFallback {
                     "ADR-006 conflict guard.", "deterministic", degraded);
         }
         if (cards.isEmpty()) {
-            List<GuideEvidenceReader.Evidence> all = knowledge.evidenceCards(exhibitSlug);
+            List<GuideEvidenceReader.Evidence> all = knowledge.evidenceCards(exhibitSlug, targetLocale);
             String lowerMsg = msg.toLowerCase(Locale.ROOT);
-            if (lowerMsg.contains("武丁") || lowerMsg.contains("时期") || lowerMsg.contains("朝代") || lowerMsg.contains("年代") || lowerMsg.contains("铸造")) {
+            if (lowerMsg.contains("武丁") || lowerMsg.contains("时期") || lowerMsg.contains("朝代") || lowerMsg.contains("年代") || lowerMsg.contains("铸造")
+                    || lowerMsg.contains("dynasty") || lowerMsg.contains("period") || lowerMsg.contains("wu ding")) {
                 cards = all.stream().filter(c -> "LS-DING-PERIOD".equals(c.card().id()) || "LS-DING-SOURCE".equals(c.card().id())).toList();
             }
             if (cards.isEmpty()) {
@@ -286,10 +290,11 @@ public class GuideDeterministicFallback {
     private ChatResponse buildArtifactFallback(String requestId, ArtifactItem a, boolean english, boolean degraded) {
         String title = english && !a.titleEn().isBlank() ? a.titleEn() : a.title();
         String summary = english && !a.summaryEn().isBlank() ? a.summaryEn() : a.summary();
+        String categoryLabel = english ? englishCategory(a.categoryCode(), a.categoryName()) : a.categoryName();
         String excerpt = a.content().length() > 260 ? a.content().substring(0, 260) + "…" : a.content();
         String text = english
-                ? title + " (" + a.categoryName() + "): " + summary
-                : title + "（" + a.categoryName() + "）：" + summary + "\n\n" + excerpt;
+                ? title + " (" + categoryLabel + "): " + summary
+                : title + "（" + categoryLabel + "）：" + summary + "\n\n" + excerpt;
         List<Citation> citations = List.of(new Citation("ARTIFACT:" + a.slug(), title, "live", "/artifacts/" + a.slug(), null, ""));
         List<Action> actions = new ArrayList<>();
         if (a.exhibitSlug() != null) {
@@ -362,10 +367,20 @@ public class GuideDeterministicFallback {
                 || lower.contains("两条腿") || lower.contains("bronze ding") || lower.contains("tripod");
     }
 
+    private static String englishCategory(String code, String fallback) {
+        if (code == null) return fallback;
+        return switch (code.toUpperCase(Locale.ROOT)) {
+            case "BRONZE" -> "Bronze Ritual Vessels";
+            case "JADE" -> "Jade Imagery";
+            case "RIVER" -> "Heluo Stories";
+            default -> fallback;
+        };
+    }
+
     private static String extractKeyword(String msg) {
         String cleaned = msg.replaceAll("[？?！!。，,、\\s]+", " ").trim();
-        for (String term : List.of("玉璧", "青铜爵", "彩陶", "水纹", "石板", "水鸟", "青铜鼎", "书签", "河图",
-                "jade", "jue", "pottery", "stone", "bird", "ding")) {
+        for (String term : List.of("玉璧", "青铜爵", "彩陶", "水纹", "石板", "水鸟", "青铜鼎", "河图", "丝巾", "茶杯", "笔记本", "导览",
+                "jade", "jue", "pottery", "stone", "bird", "ding", "scarf", "teacup", "notebook")) {
             if (cleaned.toLowerCase(Locale.ROOT).contains(term)) {
                 return term;
             }
