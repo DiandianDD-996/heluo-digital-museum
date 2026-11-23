@@ -1,16 +1,29 @@
 # README 截图来源
 
-采集日期：2026-09-27（北京时间，首页首批于 20:02 采集，登录页与后台随后补拍）。来源：[河洛数字博物馆线上站点](https://heluo.pocketbay.app/)。图片仅作为项目展示素材，不代表完整业务验收。
+最近更新日期：2026-11-24（基于本地最新 `Heluo Editorial 2.0` Docker Compose 构建 `http://127.0.0.1:8088` 通过 Playwright Edge 无头模式整页采集）。图片仅作为项目展示素材，不代表完整业务验收。
 
 | 文件 | 页面与模式 | 原始尺寸 |
 | --- | --- | --- |
 | home-dark-en.png | 首页 · 英文深色 | 1440 × 2312 |
 | home-dark-zh.png | 首页 · 中文深色 | 1440 × 2312 |
 | home-light-zh.png | 首页 · 中文浅色 | 1440 × 2312 |
-| explore-dark-en.png | Explore · 英文深色 | 1440 × 2503 |
-| shop-dark-en.png | 商城 · 英文深色、已登录 | 1680 × 1067 |
-| gallery-dark-en.png | 展厅入口 · 英文深色 | 1680 × 1183 |
-| digital-exhibit-dark-en.png | 3D 实体模型 · 英文深色 | 1680 × 1340 |
+| hero-light-preview.png | 首页首屏 · 英文浅色（16:10 预览） | 1440 × 900 |
+| explore-light-preview.png | Explore 首屏 · 英文浅色（16:10 预览） | 1440 × 900 |
+| gallery-light-preview.png | 展厅入口 · 英文浅色（16:10 预览） | 1440 × 900 |
+| booking-light-preview.png | 预约首屏 · 英文浅色（16:10 预览） | 1440 × 900 |
+| booking-light-en.png | 预约完整页 · 英文浅色、已登录 | 1440 × full |
+| shop-light-preview.png | 商城首屏 · 英文浅色（16:10 预览） | 1440 × 900 |
+| artifact-detail-light-preview.png | 器物档案首屏 · 英文浅色（16:10 预览） | 1440 × 900 |
+| artifact-detail-light-en.png | 器物档案完整页 · 英文浅色 | 1440 × full |
+| explore-dark-en.png | Explore · 英文深色 | 1440 × 3487 |
+| explore-light-en.png | Explore · 英文浅色 | 1440 × 3487 |
+| home-light-en.png | 首页 · 英文浅色 | 1440 × 3157 |
+| shop-dark-en.png | 商城 · 英文深色、已登录 | 1680 × 1443 |
+| shop-light-en.png | 商城 · 英文浅色、已登录 | 1680 × 1443 |
+| gallery-dark-en.png | 展厅入口 · 英文深色 | 1680 × 1376 |
+| digital-exhibit-dark-en.png | 3D 实体模型 · 英文深色 | 1680 × 1100 |
+| digital-exhibit-light-en.png | 3D 实体模型 · 英文浅色 | 1680 × 1100 |
+| digital-exhibit-pointcloud.png | 3D 点云重构模式 · 英文 | 1680 × 1100 |
 | booking-dark-en.png | 预约 · 英文深色、已登录 | 1680 × 1494 |
 | admin-content-dark-zh.png | 内容管理 · 中文深色 | 1680 × 1725 |
 | admin-content-light-zh.png | 内容管理 · 中文浅色 | 1680 × 1728 |

@@ -36,11 +36,11 @@
 > 独立部署的[线上演示站](https://heluo.pocketbay.app/)不一定与仓库最新提交同步；体验最新 **Heluo Editorial 2.0** 视觉系统、**R4 四乐章声景**与**洛笙 AI 向导 v2**，建议按[本地启动](#本地启动)章节运行。
 
 <div align="center">
-  <a href="docs/showcase/home-dark-en.png">
-    <img src="docs/showcase/home-dark-en.png" alt="河洛数字博物馆英文深色首页：青铜鼎展廊、器物故事与策展入口" width="100%" />
+  <a href="docs/showcase/home-light-en.png">
+    <img src="docs/showcase/hero-light-preview.png" alt="河洛数字博物馆英文浅色首页：缃色暖黄古宣展厅、青铜鼎展廊与十二律吕声景控件" width="100%" />
   </a>
   <br />
-  <sub>河洛数字博物馆 · 英文深色展厅首页（采集自线上演示站）</sub>
+  <sub>河洛数字博物馆 · 浅色「缃色暖黄古宣」展厅首屏（点击查看完整长图）</sub>
 </div>
 
 ---
@@ -111,7 +111,7 @@
 
 ## 页面掠影
 
-以下页面截图于 `2026-09-27` 采集自线上演示站（`1440px` / `1680px` 桌面视口，完整采集规范与校验和见 [截图来源说明](docs/showcase/SOURCES.md)）。点击任意图片可查看原尺寸。
+以下页面截图于 `2026-11-24` 采集自本地最新 `Heluo Editorial 2.0` Docker Compose 构建（`1440px` / `1680px` 桌面视口，采集说明见 [截图来源说明](docs/showcase/SOURCES.md)）。点击任意图片可查看原尺寸。
 
 ### 同一座展馆，两种光线
 
@@ -126,23 +126,54 @@
   </tr>
 </table>
 
-### 探索馆藏、3D 展厅与文创商城
+### 全链路文化体验（浅色主视觉 · 2×2 矩阵）
+
+从馆藏检索、数字展厅入口，到未来 14 天线下预约与文创商城，所有页面均采用 `16:10` 对齐预览（点击任意图片可查看完整长图）。
 
 <table>
   <tr>
-    <td width="33.3%" align="center"><strong>Explore · 探索馆藏</strong></td>
-    <td width="33.3%" align="center"><strong>3D Gallery · 青铜鼎展厅</strong></td>
-    <td width="33.3%" align="center"><strong>Museum Store · 文创商城</strong></td>
+    <td width="50%" align="center"><strong>Explore · 探索馆藏与双语检索</strong></td>
+    <td width="50%" align="center"><strong>3D Gallery · 数字展厅入口</strong></td>
   </tr>
   <tr>
-    <td><a href="docs/showcase/explore-dark-en.png"><img src="docs/showcase/explore-dark-en.png" alt="英文深色 Explore 完整页面：馆藏、主题与延伸阅读" /></a></td>
+    <td><a href="docs/showcase/explore-light-en.png"><img src="docs/showcase/explore-light-preview.png" alt="英文浅色 Explore 页面预览：馆藏检索与双栏画册" /></a></td>
+    <td><a href="docs/showcase/gallery-light-preview.png"><img src="docs/showcase/gallery-light-preview.png" alt="英文浅色 3D 数字展厅入口" /></a></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><strong>Visit Booking · 未来 14 天线上预约</strong></td>
+    <td width="50%" align="center"><strong>Museum Store · 河洛文创商城（模拟结算）</strong></td>
+  </tr>
+  <tr>
+    <td><a href="docs/showcase/booking-light-en.png"><img src="docs/showcase/booking-light-preview.png" alt="英文浅色线上预约参观页面：14 天时段与电子入馆凭证" /></a></td>
+    <td><a href="docs/showcase/shop-light-en.png"><img src="docs/showcase/shop-light-preview.png" alt="英文浅色文创商城页面预览：商品展示与购物袋" /></a></td>
+  </tr>
+</table>
+
+### 亮点特写 · 3D 展厅多模态观察与器物档案
+
+支持 **实体 PBR 渲染** 与 **鎏金粒子点云重构** 一键切换（同步触发暗房低频声景滤波与底部「十二律吕」游标刻度），并与器物档案详情页无缝联动。
+
+<table>
+  <tr>
+    <td width="50%" align="center"><strong>3D 实体渲染（浅色展柜）</strong></td>
+    <td width="50%" align="center"><strong>3D 鎏金点云重构（暗房声景联动）</strong></td>
+  </tr>
+  <tr>
+    <td><a href="docs/showcase/digital-exhibit-light-en.png"><img src="docs/showcase/digital-exhibit-light-en.png" alt="英文浅色 3D 展厅：已加载实体模型与控制面板" /></a></td>
+    <td><a href="docs/showcase/digital-exhibit-pointcloud.png"><img src="docs/showcase/digital-exhibit-pointcloud.png" alt="3D 青铜鼎展厅点云模式：鎏金粒子点阵与底部十二律吕声景控制栏" /></a></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><strong>器物档案与策展详情（点击看长卷）</strong></td>
+    <td width="50%" align="center"><strong>3D 实体渲染（深色暗房展柜）</strong></td>
+  </tr>
+  <tr>
+    <td><a href="docs/showcase/artifact-detail-light-en.png"><img src="docs/showcase/artifact-detail-light-preview.png" alt="英文浅色器物档案详情页：馆藏元数据与 3D 直达入口" /></a></td>
     <td><a href="docs/showcase/digital-exhibit-dark-en.png"><img src="docs/showcase/digital-exhibit-dark-en.png" alt="英文深色 3D 展厅：已加载实体模型与控制面板" /></a></td>
-    <td><a href="docs/showcase/shop-dark-en.png"><img src="docs/showcase/shop-dark-en.png" alt="英文深色文创商城完整页面：商品、购物袋与模拟结算" /></a></td>
   </tr>
 </table>
 
 <details>
-<summary>展开查看：展厅入口、参观预约与后台管理工作台截图</summary>
+<summary>展开查看：后台管理工作台与深色预约/展厅截图</summary>
 
 <br />
 
