@@ -23,7 +23,7 @@
 | **通信协议（D2）** | `POST /api/v1/guide/chat/stream`（SSE 真流式，`status`/`delta`/`replace`/`done`）+ `POST /api/v1/guide/chat`（JSON 自动兜底与评测入口） |
 | **静态图版（D3）** | `LuoshengPreset.vue` 精简为青铜鼎只读 3 看点静态图版卡 +「向洛笙追问」+「3D 定位」（兼作无 WebGL 降级） |
 | **模型与额度（D4）** | DeepSeek（`deepseek-chat`，OpenAI Chat Completions 兼容协议）；日上限 `200` 次/天、最大并发 `4` |
-| **只读工具（3 个）** | `get_museum_item_detail`、`search_museum_catalog`、`query_appointment_slots`（单轮最多 2 次往返，绝不写库） |
+| **只读工具（3 个）** | `get_museum_item_detail`（支持 `artifact`/`article`/`exhibit`/`product`）、`search_museum_catalog`、`query_appointment_slots`（默认 7 天并自动附带 `nextAvailableSlots`；单轮最多 4 次工具往返，绝不写库） |
 
 ## 3. 系统架构与核心文件
 

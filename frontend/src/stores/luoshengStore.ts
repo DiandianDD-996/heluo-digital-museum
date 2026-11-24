@@ -152,10 +152,10 @@ export const useLuoshengStore = defineStore('luosheng-v2', {
       return this.messages
         .filter((m): m is GuideMessage & { role: 'user' | 'assistant' } =>
           (m.role === 'user' || m.role === 'assistant') && !m.streaming && Boolean(m.text.trim()))
-        .slice(-10)
+        .slice(-14)
         .map(m => ({
           role: m.role,
-          content: m.text.trim().slice(0, 400),
+          content: m.text.trim().slice(0, 1200),
         }))
     },
     queueViewerAction(action: Omit<PendingViewerAction, 'id'>) {

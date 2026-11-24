@@ -284,6 +284,10 @@ async function load() {
     if (!formLocked.value && !form.slotId && isPublicSlotDate(requestedDate)) {
       selectedDate.value = requestedDate
     }
+    const requestedPeople = typeof route.query.people === 'string' ? Number(route.query.people) : NaN
+    if (!formLocked.value && Number.isInteger(requestedPeople) && requestedPeople >= 1 && requestedPeople <= 30) {
+      form.visitorCount = requestedPeople
+    }
   } catch (reason) {
     if (!controller.signal.aborted) loadError.value = bookingError(reason, 'load')
   } finally {

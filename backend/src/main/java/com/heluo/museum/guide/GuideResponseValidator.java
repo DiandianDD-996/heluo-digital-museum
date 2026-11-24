@@ -258,6 +258,7 @@ public class GuideResponseValidator {
             Action validated = switch (type) {
                 case "viewer_focus" -> validateViewerFocus(node, label, catalog);
                 case "viewer_mode" -> validateViewerMode(node, label, catalog);
+                case "viewer_tour" -> validateViewerTour(node, label, catalog);
                 case "navigate" -> validateNavigate(node, label, catalog);
                 case "open_plate" -> validateOpenPlate(node, label, context);
                 case "open_source" -> validateOpenSource(node, label, audit);
@@ -301,6 +302,14 @@ public class GuideResponseValidator {
         return Action.viewerMode(exhibitSlug, mode, label);
     }
 
+    private Action validateViewerTour(JsonNode node, String label, CatalogSnapshot catalog) {
+        String exhibitSlug = text(node, "exhibitSlug");
+        if (exhibitSlug.isBlank() || !catalog.exhibitsBySlug().containsKey(exhibitSlug)) {
+            return null;
+        }
+        return Action.viewerTour(exhibitSlug, label);
+    }
+
     private Action validateNavigate(JsonNode node, String label, CatalogSnapshot catalog) {
         String path = text(node, "path");
         if (path.isBlank() || !isAllowedPath(path, catalog)) {
@@ -314,13 +323,33 @@ public class GuideResponseValidator {
                 String d = qNode.get("date").asText("").trim();
                 if (ISO_DATE.matcher(d).matches()) q.put("date", d);
             }
+            if (qNode.has("people")) {
+                int p = qNode.get("people").canConvertToInt()
+                        ? qNode.get("people").asInt()
+                        : parseSafeInt(qNode.get("people").asText(""));
+                if (p >= GuideToolExecutor.MIN_PEOPLE && p <= GuideToolExecutor.MAX_PEOPLE) {
+                    q.put("people", String.valueOf(p));
+                }
+            }
             if (qNode.has("q") && qNode.get("q").isTextual()) {
                 String kw = qNode.get("q").asText("").trim();
                 if (!kw.isBlank() && kw.length() <= 60) q.put("q", kw);
             }
+            if (qNode.has("category") && qNode.get("category").isTextual()) {
+                String cat = qNode.get("category").asText("").trim();
+                if (!cat.isBlank() && cat.length() <= 40) q.put("category", cat);
+            }
             if (!q.isEmpty()) cleanQuery = q;
         }
         return Action.navigate(path, cleanQuery, label);
+    }
+
+    private static int parseSafeInt(String text) {
+        try {
+            return Integer.parseInt(text.trim());
+        } catch (NumberFormatException ex) {
+            return -1;
+        }
     }
 
     private Action validateOpenPlate(JsonNode node, String label, PageContext context) {

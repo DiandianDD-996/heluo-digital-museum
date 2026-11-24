@@ -272,6 +272,22 @@ async function handleAction(action: GuideAction) {
     return
   }
 
+  if (action.type === 'viewer_tour' && action.exhibitSlug) {
+    store.queueViewerAction({
+      exhibitSlug: action.exhibitSlug,
+      tour: true,
+      label: action.label,
+    })
+    if (isMobile) store.closeGuide()
+    const targetPath = `/exhibits/${action.exhibitSlug}`
+    if (route.path !== targetPath) {
+      await router.push(targetPath)
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    return
+  }
+
   if (action.type === 'navigate' && action.path) {
     if (isMobile) store.closeGuide()
     await router.push({ path: action.path, query: action.query ?? undefined })
@@ -291,8 +307,55 @@ async function handleAction(action: GuideAction) {
   }
 }
 
-function paragraphsOf(text: string): string[] {
-  return text.split(/\n+/).map(line => line.trim()).filter(Boolean)
+interface InlineSpan {
+  text: string
+  bold: boolean
+}
+
+interface MessageBlock {
+  kind: 'p' | 'ul' | 'ol'
+  items: InlineSpan[][]
+}
+
+function parseInlineSpans(line: string): InlineSpan[] {
+  const spans: InlineSpan[] = []
+  const pattern = /\*\*([^*]+)\*\*/g
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+  while ((match = pattern.exec(line)) !== null) {
+    if (match.index > lastIndex) {
+      spans.push({ text: line.slice(lastIndex, match.index), bold: false })
+    }
+    spans.push({ text: match[1] ?? '', bold: true })
+    lastIndex = match.index + match[0].length
+  }
+  if (lastIndex < line.length) {
+    spans.push({ text: line.slice(lastIndex), bold: false })
+  }
+  return spans.length > 0 ? spans : [{ text: line, bold: false }]
+}
+
+function parseMessageBlocks(text: string): MessageBlock[] {
+  const lines = text.split(/\n+/).map(l => l.trim()).filter(Boolean)
+  const blocks: MessageBlock[] = []
+  for (const line of lines) {
+    const bulletMatch = line.match(/^[-*•]\s+(.+)$/)
+    const orderedMatch = line.match(/^\d+[.)]\s+(.+)$/)
+    if (bulletMatch?.[1]) {
+      const last = blocks.at(-1)
+      const spans = parseInlineSpans(bulletMatch[1])
+      if (last?.kind === 'ul') last.items.push(spans)
+      else blocks.push({ kind: 'ul', items: [spans] })
+    } else if (orderedMatch?.[1]) {
+      const last = blocks.at(-1)
+      const spans = parseInlineSpans(orderedMatch[1])
+      if (last?.kind === 'ol') last.items.push(spans)
+      else blocks.push({ kind: 'ol', items: [spans] })
+    } else {
+      blocks.push({ kind: 'p', items: [parseInlineSpans(line)] })
+    }
+  }
+  return blocks
 }
 
 watch(
@@ -430,9 +493,45 @@ onBeforeUnmount(() => {
 
               <div class="luosheng-bubble">
                 <template v-if="msg.text">
-                  <p v-for="(para, idx) in paragraphsOf(msg.text)" :key="idx">
-                    {{ para }}<span v-if="msg.streaming && idx === paragraphsOf(msg.text).length - 1" class="luosheng-cursor" aria-hidden="true"></span>
-                  </p>
+                  <template v-for="(block, bIdx) in parseMessageBlocks(msg.text)" :key="bIdx">
+                    <p v-if="block.kind === 'p'">
+                      <template v-for="(span, sIdx) in block.items[0]" :key="sIdx">
+                        <strong v-if="span.bold">{{ span.text }}</strong>
+                        <template v-else>{{ span.text }}</template>
+                      </template>
+                      <span
+                        v-if="msg.streaming && bIdx === parseMessageBlocks(msg.text).length - 1"
+                        class="luosheng-cursor"
+                        aria-hidden="true"
+                      ></span>
+                    </p>
+                    <ul v-else-if="block.kind === 'ul'" class="luosheng-list">
+                      <li v-for="(item, iIdx) in block.items" :key="iIdx">
+                        <template v-for="(span, sIdx) in item" :key="sIdx">
+                          <strong v-if="span.bold">{{ span.text }}</strong>
+                          <template v-else>{{ span.text }}</template>
+                        </template>
+                        <span
+                          v-if="msg.streaming && bIdx === parseMessageBlocks(msg.text).length - 1 && iIdx === block.items.length - 1"
+                          class="luosheng-cursor"
+                          aria-hidden="true"
+                        ></span>
+                      </li>
+                    </ul>
+                    <ol v-else class="luosheng-list luosheng-list--ordered">
+                      <li v-for="(item, iIdx) in block.items" :key="iIdx">
+                        <template v-for="(span, sIdx) in item" :key="sIdx">
+                          <strong v-if="span.bold">{{ span.text }}</strong>
+                          <template v-else>{{ span.text }}</template>
+                        </template>
+                        <span
+                          v-if="msg.streaming && bIdx === parseMessageBlocks(msg.text).length - 1 && iIdx === block.items.length - 1"
+                          class="luosheng-cursor"
+                          aria-hidden="true"
+                        ></span>
+                      </li>
+                    </ol>
+                  </template>
                 </template>
                 <span v-else-if="msg.streaming" class="luosheng-cursor" aria-hidden="true"></span>
               </div>
@@ -453,7 +552,7 @@ onBeforeUnmount(() => {
                     v-else
                     type="button"
                     class="luosheng-action-btn"
-                    :class="{ 'luosheng-action-btn--3d': action.type === 'viewer_focus' || action.type === 'viewer_mode' }"
+                    :class="{ 'luosheng-action-btn--3d': action.type === 'viewer_focus' || action.type === 'viewer_mode' || action.type === 'viewer_tour' }"
                     :data-action-type="action.type"
                     @click="handleAction(action)"
                   >
@@ -853,8 +952,23 @@ onBeforeUnmount(() => {
   margin: 0;
 }
 
-.luosheng-bubble p + p {
+.luosheng-bubble p + p,
+.luosheng-bubble p + .luosheng-list,
+.luosheng-bubble .luosheng-list + p,
+.luosheng-bubble .luosheng-list + .luosheng-list {
   margin-top: 0.5rem;
+}
+
+.luosheng-list {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.luosheng-bubble strong {
+  font-weight: 600;
+  color: inherit;
 }
 
 .luosheng-msg--user .luosheng-bubble {

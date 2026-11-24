@@ -38,7 +38,7 @@ export interface GuideCitation {
 }
 
 export interface GuideAction {
-  type: 'viewer_focus' | 'viewer_mode' | 'navigate' | 'open_plate' | 'open_source'
+  type: 'viewer_focus' | 'viewer_mode' | 'viewer_tour' | 'navigate' | 'open_plate' | 'open_source'
   label: string
   exhibitSlug?: string | null
   part?: GuidePartName | null
@@ -98,6 +98,7 @@ export interface PendingViewerAction {
   part?: GuidePartName | null
   view?: GuideViewName | null
   mode?: GuideDisplayMode | null
+  tour?: boolean
   label: string
 }
 

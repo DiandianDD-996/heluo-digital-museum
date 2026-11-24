@@ -427,6 +427,12 @@ watch([viewerRuntimeState, displayMode, activeView], ([state, mode, view]) => {
   })
 })
 
+let tourTimers: ReturnType<typeof setTimeout>[] = []
+function clearGuidedTour() {
+  for (const timer of tourTimers) clearTimeout(timer)
+  tourTimers = []
+}
+
 // Consume queued 3D actions from Luosheng (same-page or cross-page navigation)
 watch(
   [() => guideStore?.pendingViewerAction, viewerRuntimeState, viewer, exhibit],
@@ -455,8 +461,26 @@ watch(
     if (state === 'ready' && ctrl) {
       const consumed = guideStore.consumeViewerAction()
       if (!consumed) return
+      clearGuidedTour()
       if (consumed.mode && consumed.mode !== displayMode.value) {
         selectMode(consumed.mode)
+      }
+      if (consumed.tour) {
+        const en = locale.value === 'en-US'
+        const stops: { part: GuidePartName; delay: number; hint: string }[] = [
+          { part: 'ear', delay: 0, hint: en ? 'Step 1/3 · Upright Ears (Top)' : '导览 1/3 · 俯视双耳对称轮廓' },
+          { part: 'motif', delay: 2800, hint: en ? 'Step 2/3 · Belly Band Motif (Front)' : '导览 2/3 · 正面器腹宽线纹样' },
+          { part: 'feet', delay: 5600, hint: en ? 'Step 3/3 · Three Tripod Legs (Back)' : '导览 3/3 · 背面三足完整支撑' },
+        ]
+        for (const stop of stops) {
+          const timer = setTimeout(() => {
+            if (viewerRuntimeState.value !== 'ready' || !viewer.value) return
+            viewer.value.focusPart(stop.part, { animated: true })
+            guideStore.showToast(stop.hint, 2500)
+          }, stop.delay)
+          tourTimers.push(timer)
+        }
+        return
       }
       if (consumed.part) {
         ctrl.focusPart(consumed.part, { animated: true })
@@ -510,6 +534,7 @@ function reset() { if (!viewerInteractive.value) return; activeView.value = 'fro
 onMounted(load)
 watch(() => route.params.slug, load)
 onBeforeUnmount(() => {
+  clearGuidedTour()
   audioSystem.setSpaceAcoustic('default')
   gsapContext?.revert()
   clearModelPreload()

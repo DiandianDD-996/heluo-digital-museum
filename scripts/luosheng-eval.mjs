@@ -24,7 +24,7 @@ for (let i = 0; i < args.length; i += 1) {
 }
 baseUrl = baseUrl.replace(/\/+$/, '')
 
-const VALID_ACTION_TYPES = new Set(['viewer_focus', 'viewer_mode', 'navigate', 'open_plate', 'open_source'])
+const VALID_ACTION_TYPES = new Set(['viewer_focus', 'viewer_mode', 'viewer_tour', 'navigate', 'open_plate', 'open_source'])
 const VALID_VIEWS = new Set(['front', 'left', 'right', 'back', 'top'])
 const VALID_PARTS = new Set(['ear', 'feet', 'motif'])
 const VALID_MODES = new Set(['solid', 'points'])
@@ -42,6 +42,10 @@ function validateActions(actions) {
     } else if (a.type === 'viewer_mode') {
       if (!a.exhibitSlug || !VALID_MODES.has(a.mode)) {
         return { valid: false, reason: `invalid viewer_mode: ${JSON.stringify(a)}` }
+      }
+    } else if (a.type === 'viewer_tour') {
+      if (!a.exhibitSlug) {
+        return { valid: false, reason: `invalid viewer_tour: ${JSON.stringify(a)}` }
       }
     } else if (a.type === 'navigate') {
       if (!a.path || !a.path.startsWith('/')) {

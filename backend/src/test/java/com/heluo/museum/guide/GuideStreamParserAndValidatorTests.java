@@ -82,4 +82,38 @@ class GuideStreamParserAndValidatorTests {
         assertThat(cleaned).doesNotContain("\u0007");
         assertThat(cleaned.codePointCount(0, cleaned.length())).isLessThanOrEqualTo(400);
     }
+
+    @Test
+    void validatorAllowsViewerTourAndNavigateWithPeopleAndCategory() {
+        var knowledge = org.mockito.Mockito.mock(GuideKnowledgeService.class);
+        var exhibit = new GuideKnowledgeService.ExhibitItem(
+                "heluo-bronze-ding-3d", "河洛青铜鼎 3D", "Heluo Bronze Ding 3D",
+                "摘要", "Summary", "说明", "01", "CMA", "https://www.clevelandart.org/art/1962.281", "CC0",
+                "Digital Hall", "heluo-bronze-ding", "河洛青铜鼎");
+        var snapshot = new GuideKnowledgeService.CatalogSnapshot(
+                java.util.List.of(), java.util.List.of(), java.util.List.of(exhibit), java.util.List.of(),
+                java.util.Map.of(), java.util.Map.of(), java.util.Map.of(exhibit.slug(), exhibit), java.util.Map.of());
+        org.mockito.Mockito.when(knowledge.catalog()).thenReturn(snapshot);
+
+        var validator = new GuideResponseValidator(knowledge, new com.fasterxml.jackson.databind.ObjectMapper());
+        var req = new GuideModels.ChatRequest("c1", "r1", "带我看3D并预约", "zh-CN",
+                new GuideModels.PageContext("home", null, null, null, null), java.util.List.of());
+        String meta = """
+                {
+                  "citations": [],
+                  "actions": [
+                    {"type":"viewer_tour","exhibitSlug":"heluo-bronze-ding-3d","label":"开启 3D 三步导览"},
+                    {"type":"navigate","path":"/appointment","query":{"date":"2026-11-25","people":"4"},"label":"前往预约 4 人"},
+                    {"type":"navigate","path":"/explore","query":{"category":"bronze"},"label":"看青铜器"}
+                  ],
+                  "followUps": []
+                }
+                """;
+        var res = validator.validate(req, "为你准备好了导览与预约入口。", meta, new GuideToolExecutor.ToolAuditContext());
+        assertThat(res.accepted()).isTrue();
+        assertThat(res.actions()).hasSize(3);
+        assertThat(res.actions().get(0).type()).isEqualTo("viewer_tour");
+        assertThat(res.actions().get(1).query()).containsEntry("people", "4").containsEntry("date", "2026-11-25");
+        assertThat(res.actions().get(2).query()).containsEntry("category", "bronze");
+    }
 }

@@ -259,6 +259,20 @@ class GuideKnowledgeAndToolsTests {
         assertThat(search.get("ok").asBoolean()).isTrue();
         assertThat(search.get("count").asInt()).isEqualTo(1);
         assertThat(audit.allowedCitations()).containsKey("PRODUCT:test-ding-bookmark");
+
+        // 4. get_museum_item_detail supports product
+        JsonNode productDetail = objectMapper.readTree(
+                executor.execute("get_museum_item_detail", "{\"type\":\"product\",\"slug\":\"test-ding-bookmark\"}", audit));
+        assertThat(productDetail.get("ok").asBoolean()).isTrue();
+        assertThat(productDetail.get("sku").asText()).isEqualTo("SKU-TEST-01");
+        assertThat(productDetail.get("availableStock").asInt()).isEqualTo(17);
+
+        // 5. query_appointment_slots provides nextAvailableSlots when requested date has zero matching slots
+        JsonNode emptyDay = objectMapper.readTree(
+                executor.execute("query_appointment_slots", "{\"date\":\"2026-11-25\",\"people\":2}", audit));
+        assertThat(emptyDay.get("ok").asBoolean()).isTrue();
+        assertThat(emptyDay.get("count").asInt()).isEqualTo(0);
+        assertThat(emptyDay.get("nextAvailableSlots").size()).isGreaterThan(0);
     }
 
     @Test

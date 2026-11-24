@@ -141,4 +141,32 @@ describe('LuoshengSiteGuide v2', () => {
     wrapper.unmount()
     expect(duckSpy).toHaveBeenLastCalledWith('luosheng', false)
   })
+
+  it('renders bold and list formatting safely and queues viewer_tour action', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      makeSseResponse([
+        'event:done\ndata:{"requestId":"r3","text":"建议按这三步看：**先看双耳**\\n- 第一步：俯视口沿\\n- 第二步：看器腹宽线","citations":[],"actions":[{"type":"viewer_tour","exhibitSlug":"heluo-bronze-ding-3d","label":"开启 3D 三步导览"}],"followUps":[],"boundaryNote":"","mode":"ai","degraded":false}\n\n',
+      ]),
+    ))
+
+    const wrapper = mount(LuoshengSiteGuide, {
+      global: { plugins: [router] },
+    })
+
+    await wrapper.get('[data-testid="luosheng-fab"]').trigger('click')
+    await wrapper.get('[data-testid="luosheng-input"]').setValue('带我逛青铜鼎')
+    await wrapper.get('form.luosheng-composer').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.find('.luosheng-bubble strong').text()).toBe('先看双耳')
+    expect(wrapper.findAll('.luosheng-list li')).toHaveLength(2)
+
+    const store = useLuoshengStore()
+    await wrapper.get('[data-action-type="viewer_tour"]').trigger('click')
+    await flushPromises()
+    expect(store.pendingViewerAction?.exhibitSlug).toBe('heluo-bronze-ding-3d')
+    expect(store.pendingViewerAction?.tour).toBe(true)
+    expect(router.currentRoute.value.path).toBe('/exhibits/heluo-bronze-ding-3d')
+    wrapper.unmount()
+  })
 })

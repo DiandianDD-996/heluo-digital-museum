@@ -98,19 +98,19 @@ export function getRoutePreset(context: GuidePageContext, locale: GuideLocale): 
   if (context.route === 'exhibit-detail' && isDing) {
     return en
       ? {
-          welcome: 'You are in the 3D Bronze Ding gallery. Ask about any part you notice — I can guide you to specific 3D viewpoints or switch to point cloud mode whenever you click.',
+          welcome: 'You are in the 3D Bronze Ding gallery. Ask anything about its form, Shang ritual context, or click a button for a guided 3D tour.',
           starters: [
+            'Give me a 3-step 3D tour of this Bronze Ding',
             'Why are only two legs visible from the side?',
-            'Can the two upright handles on top be used for lifting?',
-            'What can I see in point cloud mode?',
+            'How would a Ding like this be used in Shang rituals?',
           ],
         }
       : {
-          welcome: '你正在河洛青铜鼎 3D 展柜前。看到哪处细节想弄明白，直接用大白话问我；点下我给的 3D 按钮就能平滑转到对应视角。',
+          welcome: '你正站在河洛青铜鼎 3D 展柜前。无论是它的造型门道、商代礼器背景，还是想直接开启 3D 三步导览，尽管问我。',
           starters: [
+            '带我用 3D 三步导览看一遍这件青铜鼎',
             '侧面数来数去只有两条腿，是断了一条吗？',
-            '顶上那两个像把手的东西能用来提吗？',
-            '切换点云模式能看出什么细节？',
+            '商代人一般怎么用“鼎”，它和“爵”怎么配合？',
           ],
         }
   }
@@ -239,19 +239,19 @@ export function getRoutePreset(context: GuidePageContext, locale: GuideLocale): 
   // home & explore default
   return en
     ? {
-        welcome: 'Hello, I am Luosheng, your Heluo Digital Museum guide. Ask me about any of our 6 artifacts, cultural features, the 3D Bronze Ding, museum shop, or live visit slots.',
+        welcome: 'Hello, I am Luosheng, your Heluo Digital Museum curator-companion. Ask me for a custom visit route, deep artifact comparisons, 3D tours, shop picks, or live visit slots.',
         starters: [
-          'Recommend where to start exploring the museum',
-          'Tell me about the 3D Heluo Bronze Ding',
-          'Are there open appointment slots tomorrow?',
+          'Curate a 15-minute highlight route for my first visit',
+          'Compare the 3D Bronze Ding with the concept exhibits',
+          'Which visit slots are open over the next 7 days?',
         ],
       }
     : {
-        welcome: '你好，我是河洛数字博物馆向导洛笙。馆内全部藏品、文化专题、3D 青铜鼎、河洛文创与未来 14 天预约时段，都可以直接问我。',
+        welcome: '你好，我是河洛数字博物馆首席策展向导洛笙。想定制逛展路线、深度对比展品、开启 3D 青铜鼎导览，或查文创与未来 14 天预约余量，随时问我。',
         starters: [
-          '第一次来逛，推荐从哪件展品看起？',
-          '介绍一下 3D 河洛青铜鼎',
-          '明天有哪些可以预约的时段？',
+          '帮我规划一条 15 分钟的高光逛展路线',
+          '把 3D 青铜鼎和原创概念展品放在一起对比讲讲',
+          '帮我看看未来 7 天还有哪些可预约时段？',
         ],
       }
 }
