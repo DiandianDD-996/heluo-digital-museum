@@ -273,6 +273,73 @@
     display: none;
   }
 
+  .site-header .notebook-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    min-width: var(--control-min);
+    min-height: var(--control-min);
+    height: 36px;
+    padding: 0 0.65rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: var(--ink-secondary);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color var(--duration-ui) var(--ease-curatorial),
+                color var(--duration-ui) var(--ease-curatorial);
+  }
+
+  .site-header .notebook-toggle:hover {
+    background: color-mix(in oklch, var(--ink-primary) 6%, transparent);
+    color: var(--ink-primary);
+  }
+
+  .site-header .notebook-toggle svg {
+    width: 15px;
+    height: 15px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex: 0 0 15px;
+  }
+
+  .site-header .notebook-toggle__count {
+    padding: 0.1rem 0.38rem;
+    border-radius: var(--radius-pill);
+    background: color-mix(in oklch, var(--accent-bronze) 20%, transparent);
+    color: var(--accent-bronze);
+    font-size: var(--text-xs);
+    font-weight: 600;
+  }
+
+  .site-footer__journal-btn {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .site-footer__journal-btn:hover {
+    color: var(--ink-on-dark);
+  }
+
+  @media (max-width: 900px) {
+    .site-header .notebook-toggle {
+      display: none;
+    }
+  }
+
   .site-header .login-link {
     margin-left: 0.25rem;
     padding: 0 0.85rem;

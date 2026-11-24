@@ -1,5 +1,9 @@
 package com.heluo.museum.store;
 
+import com.heluo.museum.guide.GuideKnowledgeService;
+
+import jakarta.transaction.Transactional;
+
 import com.heluo.museum.common.api.ApiResponse;
 import com.heluo.museum.common.audit.OperationLogService;
 import com.heluo.museum.common.error.ConflictException;
@@ -34,7 +38,10 @@ public class AdminStoreController {
     private final JdbcTemplate jdbc;
     private final OperationLogService audit;
 
-    public AdminStoreController(JdbcTemplate jdbc, OperationLogService audit) {
+    private final GuideKnowledgeService guideKnowledge;
+
+    public AdminStoreController(JdbcTemplate jdbc, OperationLogService audit, GuideKnowledgeService guideKnowledge) {
+        this.guideKnowledge = guideKnowledge;
         this.jdbc = jdbc;
         this.audit = audit;
     }
@@ -62,13 +69,15 @@ public class AdminStoreController {
         List<Object> args = new ArrayList<>(filters);
         args.add(size);
         args.add((page - 1) * size);
-        List<ProductAdminView> items = jdbc.query("select id,sku,name,slug,summary,description,price,stock_quantity,locked_stock,cover_image_url,status,deleted_at "
+        List<ProductAdminView> items = jdbc.query("select id,sku,name,slug,summary,description,price,stock_quantity,locked_stock,cover_image_url,status,deleted_at,"
+                        + "name_en,summary_en,description_en,category_code,inspiration_artifact_slug "
                         + "from products" + where + " order by updated_at desc,id desc limit ? offset ?",
                 (rs, n) -> view(rs), args.toArray());
         return ApiResponse.ok(ContentPage.of(items, page, size, total), "admin-products");
     }
 
     @PostMapping("/products")
+    @Transactional
     public ApiResponse<ProductAdminView> create(Authentication authentication, @Valid @RequestBody ProductInput body) {
         if (count("select count(*) from products where sku=? or slug=?", body.sku(), body.slug()) > 0) {
             throw new ConflictException("SKU 或 URL 标识已存在");
@@ -78,11 +87,14 @@ public class AdminStoreController {
                         + "values(?,?,?,?,?,?,?,?, 'DRAFT',?,?)", body.sku(), body.name(), body.slug(), blank(body.summary()),
                 blank(body.description()), body.price(), body.stockQuantity(), blank(body.coverImageUrl()), actor, actor);
         long id = jdbc.queryForObject("select id from products where sku=?", Long.class, body.sku());
+        updateProductMetadata(id, body);
         audit.record(actor, "STORE", "PRODUCT_CREATE", "PRODUCT", String.valueOf(id));
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(product(id), "admin-product-create");
     }
 
     @PatchMapping("/products/{id}")
+    @Transactional
     public ApiResponse<ProductAdminView> update(Authentication authentication, @PathVariable long id,
                                                 @Valid @RequestBody ProductInput body) {
         ProductAdminView old = product(id);
@@ -95,7 +107,9 @@ public class AdminStoreController {
                         + "where id=? and deleted_at is null and locked_stock<=?", body.sku(), body.name(), body.slug(), blank(body.summary()),
                 blank(body.description()), body.price(), body.stockQuantity(), blank(body.coverImageUrl()), actor, id, body.stockQuantity());
         if (changed == 0) throw new ConflictException("库存不能小于已锁定库存");
+        updateProductMetadata(id, body);
         audit.record(actor, "STORE", "PRODUCT_UPDATE", "PRODUCT", String.valueOf(id));
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(product(id), "admin-product-update");
     }
 
@@ -109,6 +123,7 @@ public class AdminStoreController {
                 body.stockQuantity(), actor, id, body.stockQuantity());
         if (changed == 0) throw new ConflictException("库存不能小于已锁定库存");
         audit.record(actor, "STORE", "PRODUCT_STOCK_UPDATE", "PRODUCT", String.valueOf(id));
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(product(id), "admin-product-stock-update");
     }
 
@@ -118,6 +133,7 @@ public class AdminStoreController {
         if (product.deleted()) throw new ConflictException("已删除商品不能上架");
         jdbc.update("update products set status='PUBLISHED',published_at=current_timestamp(3),updated_by=? where id=?",
                 actorId(authentication), id);
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(product(id), "admin-product-on-shelf");
     }
 
@@ -126,6 +142,7 @@ public class AdminStoreController {
         ProductAdminView product = product(id);
         if (product.deleted()) throw new ConflictException("已删除商品不能下架");
         jdbc.update("update products set status='WITHDRAWN',updated_by=? where id=?", actorId(authentication), id);
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(product(id), "admin-product-off-shelf");
     }
 
@@ -136,6 +153,7 @@ public class AdminStoreController {
         long actor = actorId(authentication);
         jdbc.update("update products set deleted_at=current_timestamp(3),deleted_by=?,updated_by=? where id=?", actor, actor, id);
         audit.record(actor, "STORE", "PRODUCT_DELETE", "PRODUCT", String.valueOf(id));
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(product(id), "admin-product-delete");
     }
 
@@ -144,6 +162,7 @@ public class AdminStoreController {
         ProductAdminView product = product(id);
         if (!product.deleted()) throw new ConflictException("商品不在回收站");
         jdbc.update("update products set deleted_at=null,deleted_by=null,status='WITHDRAWN',updated_by=? where id=?", actorId(authentication), id);
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(product(id), "admin-product-restore");
     }
 
@@ -181,7 +200,8 @@ public class AdminStoreController {
     private long count(String sql, Object... args) { return jdbc.queryForObject(sql, Long.class, args); }
 
     private ProductAdminView product(long id) {
-        List<ProductAdminView> rows = jdbc.query("select id,sku,name,slug,summary,description,price,stock_quantity,locked_stock,cover_image_url,status,deleted_at from products where id=?",
+        List<ProductAdminView> rows = jdbc.query("select id,sku,name,slug,summary,description,price,stock_quantity,locked_stock,cover_image_url,status,deleted_at,"
+                        + "name_en,summary_en,description_en,category_code,inspiration_artifact_slug from products where id=?",
                 (rs, n) -> view(rs), id);
         if (rows.isEmpty()) throw new ResourceNotFoundException("商品不存在");
         return rows.get(0);
@@ -190,7 +210,19 @@ public class AdminStoreController {
     private ProductAdminView view(java.sql.ResultSet rs) throws java.sql.SQLException {
         return new ProductAdminView(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5),
                 rs.getString(6), rs.getBigDecimal(7).toPlainString(), rs.getInt(8), rs.getInt(9), rs.getString(10),
-                rs.getString(11), rs.getTimestamp(12) != null);
+                rs.getString(11), rs.getTimestamp(12) != null, rs.getString(13), rs.getString(14), rs.getString(15),
+                rs.getString(16), rs.getString(17));
+    }
+
+    private void updateProductMetadata(long id, ProductInput body) {
+        if (body.inspirationArtifactSlug() != null && !body.inspirationArtifactSlug().isEmpty()
+                && count("select count(*) from artifacts where slug=? and deleted_at is null", body.inspirationArtifactSlug()) == 0) {
+            throw new ResourceNotFoundException("关联文物不存在");
+        }
+        jdbc.update("update products set name_en=coalesce(?,name_en),summary_en=coalesce(?,summary_en),"
+                        + "description_en=coalesce(?,description_en),category_code=coalesce(?,category_code),"
+                        + "inspiration_artifact_slug=coalesce(?,inspiration_artifact_slug) where id=?",
+                body.nameEn(), body.summaryEn(), body.descriptionEn(), body.categoryCode(), body.inspirationArtifactSlug(), id);
     }
 
     private OrderAdminView order(long id) {
@@ -214,12 +246,16 @@ public class AdminStoreController {
 
     public record ProductAdminView(long id, String sku, String name, String slug, String summary, String description,
                                    String price, int stockQuantity, int lockedStock, String coverImageUrl, String status,
-                                   boolean deleted) {}
+                                   boolean deleted, String nameEn, String summaryEn, String descriptionEn,
+                                   String categoryCode, String inspirationArtifactSlug) {}
     public record OrderAdminView(long id, String orderNo, long userId, String status, String payableAmount,
                                  String notificationEmail, String createdAt) {}
     public record ProductInput(@NotBlank @Size(max = 64) String sku, @NotBlank @Size(max = 150) String name,
                                @NotBlank @Pattern(regexp = "[a-z0-9-]{3,180}") String slug, @Size(max = 500) String summary,
                                String description, @NotNull @DecimalMin("0.01") BigDecimal price, @Min(0) int stockQuantity,
-                               @Size(max = 500) String coverImageUrl) {}
+                               @Size(max = 500) String coverImageUrl, @Size(max = 300) String nameEn,
+                               @Size(max = 1000) String summaryEn, @Size(max = 16000) String descriptionEn,
+                               @Pattern(regexp = "[A-Z0-9_]{0,40}") String categoryCode,
+                               @Pattern(regexp = "[a-z0-9-]{0,120}") String inspirationArtifactSlug) {}
     public record StockInput(@Min(0) int stockQuantity) {}
 }

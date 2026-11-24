@@ -64,6 +64,8 @@ class GuideStreamParserAndValidatorTests {
         assertThat(validator.violatesRedline("目前这件青铜鼎的市场估价约 500 万元。", dingCtx)).isTrue();
         assertThat(validator.violatesRedline("已为您完成预约，请明天上午准时入馆。", dingCtx)).isTrue();
         assertThat(validator.violatesRedline("这件玉璧是真实出土文物，极具考古价值。", conceptCtx)).isTrue();
+        assertThat(validator.violatesRedline("On display is a Bronze Jue excavated in Henan.", null)).isTrue();
+        assertThat(validator.violatesRedline("The Bronze Jue is not a genuine archaeological relic.", null)).isFalse();
     }
 
     @Test
@@ -94,6 +96,7 @@ class GuideStreamParserAndValidatorTests {
                 java.util.List.of(), java.util.List.of(), java.util.List.of(exhibit), java.util.List.of(),
                 java.util.Map.of(), java.util.Map.of(), java.util.Map.of(exhibit.slug(), exhibit), java.util.Map.of());
         org.mockito.Mockito.when(knowledge.catalog()).thenReturn(snapshot);
+        org.mockito.Mockito.when(knowledge.enabledCategories()).thenReturn(java.util.Map.of("BRONZE", "青铜礼器"));
 
         var validator = new GuideResponseValidator(knowledge, new com.fasterxml.jackson.databind.ObjectMapper());
         var req = new GuideModels.ChatRequest("c1", "r1", "带我看3D并预约", "zh-CN",
@@ -114,6 +117,6 @@ class GuideStreamParserAndValidatorTests {
         assertThat(res.actions()).hasSize(3);
         assertThat(res.actions().get(0).type()).isEqualTo("viewer_tour");
         assertThat(res.actions().get(1).query()).containsEntry("people", "4").containsEntry("date", "2026-11-25");
-        assertThat(res.actions().get(2).query()).containsEntry("category", "bronze");
+        assertThat(res.actions().get(2).query()).containsEntry("category", "BRONZE");
     }
 }

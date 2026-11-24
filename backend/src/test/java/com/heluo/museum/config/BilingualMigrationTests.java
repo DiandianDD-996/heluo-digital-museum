@@ -51,13 +51,18 @@ class BilingualMigrationTests {
         jdbc.update("update artifacts set title_en='Editor title',summary_en=' '");
         jdbc.update("update articles set summary_en='Editor summary'");
         Flyway.configure().dataSource(source).load().migrate();
-        var artifact = jdbc.queryForMap("select title,summary,content,status,title_en,summary_en from artifacts");
+        var artifact = jdbc.queryForMap("select title,summary,content,status,title_en,summary_en,content_en,period_en,material_en from artifacts");
         assertThat(artifact.get("title")).isEqualTo("旧中文标题");
         assertThat(artifact.get("summary")).isEqualTo("旧中文摘要");
         assertThat(artifact.get("content")).isEqualTo("保留正文");
         assertThat(artifact.get("status")).isEqualTo("PUBLISHED");
         assertThat(artifact.get("title_en")).isEqualTo("Editor title");
         assertThat((String) artifact.get("summary_en")).contains("bronze ding");
+        assertThat((String) artifact.get("content_en")).contains("Cleveland Museum of Art");
+        assertThat((String) artifact.get("period_en")).contains("Anyang");
+        assertThat((String) artifact.get("material_en")).contains("Bronze");
+        assertThat(jdbc.queryForObject("select content_en from articles where slug='how-to-read-bronze'", String.class))
+                .contains("source record");
         assertThat(jdbc.queryForObject("select summary_en from articles", String.class)).isEqualTo("Editor summary");
         assertThat(jdbc.queryForObject("select title_en from articles", String.class)).contains("bronze");
         // Old application projections still work; repeated startup cannot reapply seed translations.

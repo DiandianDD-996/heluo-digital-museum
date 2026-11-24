@@ -37,13 +37,15 @@ public class AdminAppointmentController {
     private final OperationLogService operationLogService;
     private final NotificationService notificationService;
     private final Clock clock;
+    private final AppointmentVerification verification;
 
     AdminAppointmentController(JdbcTemplate jdbc, OperationLogService operationLogService, NotificationService notificationService,
-                               Clock clock) {
+                               Clock clock, AppointmentVerification verification) {
         this.jdbc = jdbc;
         this.operationLogService = operationLogService;
         this.notificationService = notificationService;
         this.clock = clock;
+        this.verification = verification;
     }
 
     @GetMapping("/appointment-slots")
@@ -99,7 +101,7 @@ public class AdminAppointmentController {
         args[args.length - 2] = size;
         args[args.length - 1] = (page - 1) * size;
         List<AppointmentController.AppointmentView> items = jdbc.query(AppointmentController.selectAppointments() + where
-                + " order by s.visit_date desc,s.start_time desc,a.id desc limit ? offset ?", (rs, rowNum) -> AppointmentController.view(rs), args);
+                + " order by s.visit_date desc,s.start_time desc,a.id desc limit ? offset ?", (rs, rowNum) -> AppointmentController.view(rs, verification), args);
         return ApiResponse.ok(ContentPage.of(items, page, size, total), "admin-appointments");
     }
 
@@ -150,9 +152,30 @@ public class AdminAppointmentController {
         return ApiResponse.ok(appointmentById(id), "admin-appointment-complete");
     }
 
+    @PostMapping("/appointments/{id}/check-in")
+    @Transactional
+    public ApiResponse<AppointmentController.AppointmentView> checkIn(Authentication authentication, @PathVariable long id,
+                                                                     @Valid @RequestBody CheckIn body) {
+        var appointment = appointmentAndSlotByIdForUpdate(id);
+        var now = LocalDateTime.now(clock);
+        if (!"CONFIRMED".equals(appointment.status())) throw new ConflictException("只有已确认预约可以核销");
+        if (now.isBefore(appointment.startAt()) || !now.isBefore(LocalDateTime.of(appointment.visitDate(), appointment.endTime()))) {
+            throw new ConflictException("仅可在预约时段内核销");
+        }
+        if (!verification.matches(appointment.appointmentNo(), body.verificationCode())) {
+            throw new IllegalArgumentException("核销码不正确");
+        }
+        int changed = jdbc.update("update appointments set status='COMPLETED',completed_at=?,checked_in_at=? where id=? and status='CONFIRMED'",
+                now, now, id);
+        if (changed != 1) throw new ConflictException("预约状态已变化，请刷新后重试");
+        jdbc.update("delete from appointment_active_keys where appointment_id=?", id);
+        operationLogService.record(actorId(authentication), "APPOINTMENT", "CHECK_IN", "APPOINTMENT", String.valueOf(id));
+        return ApiResponse.ok(appointmentById(id), "admin-appointment-check-in");
+    }
+
     private AppointmentController.AppointmentView appointmentById(long id) {
         List<AppointmentController.AppointmentView> items = jdbc.query(AppointmentController.selectAppointments() + " where a.id=?",
-                (rs, rowNum) -> AppointmentController.view(rs), id);
+                (rs, rowNum) -> AppointmentController.view(rs, verification), id);
         if (items.isEmpty()) throw new ResourceNotFoundException("预约不存在");
         return items.get(0);
     }
@@ -171,7 +194,7 @@ public class AdminAppointmentController {
 
     private AppointmentController.AppointmentView appointmentByIdForUpdate(long id) {
         List<AppointmentController.AppointmentView> items = jdbc.query(AppointmentController.selectAppointments() + " where a.id=? for update",
-                (rs, rowNum) -> AppointmentController.view(rs), id);
+                (rs, rowNum) -> AppointmentController.view(rs, verification), id);
         if (items.isEmpty()) throw new ResourceNotFoundException("预约不存在");
         return items.get(0);
     }
@@ -194,4 +217,5 @@ public class AdminAppointmentController {
     public record SlotView(long id, LocalDate visitDate, LocalTime startTime, LocalTime endTime, int capacity, int reservedPeople, String status) {}
     public record SlotInput(@NotNull @FutureOrPresent LocalDate visitDate,@NotNull LocalTime startTime,@NotNull LocalTime endTime,@Min(1) @Max(500) int capacity,@NotBlank @jakarta.validation.constraints.Pattern(regexp="OPEN|CLOSED|CANCELLED") String status) {}
     public record AdminCancel(@NotBlank @Size(max=255) String reason) {}
+    public record CheckIn(@NotBlank @jakarta.validation.constraints.Pattern(regexp="[0-9A-Fa-f]{10}") String verificationCode) {}
 }

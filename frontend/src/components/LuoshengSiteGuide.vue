@@ -317,7 +317,24 @@ interface MessageBlock {
   items: InlineSpan[][]
 }
 
-function parseInlineSpans(line: string): InlineSpan[] {
+function parseInlineSpans(rawLine: string, isStreaming = false): InlineSpan[] {
+  let line = rawLine
+  if (isStreaming) {
+    // Strip lone trailing asterisk or empty trailing ** before closing content arrives
+    if (line.endsWith('**')) {
+      const before = line.slice(0, -2)
+      if ((before.match(/\*\*/g)?.length ?? 0) % 2 === 0) {
+        line = before
+      }
+    } else if (line.endsWith('*') && !line.endsWith('**')) {
+      line = line.slice(0, -1)
+    }
+    const pairCount = line.match(/\*\*/g)?.length ?? 0
+    if (pairCount % 2 === 1) {
+      line = `${line}**`
+    }
+  }
+
   const spans: InlineSpan[] = []
   const pattern = /\*\*([^*]+)\*\*/g
   let lastIndex = 0
@@ -335,27 +352,52 @@ function parseInlineSpans(line: string): InlineSpan[] {
   return spans.length > 0 ? spans : [{ text: line, bold: false }]
 }
 
-function parseMessageBlocks(text: string): MessageBlock[] {
+function parseMessageBlocks(text: string, isStreaming = false): MessageBlock[] {
   const lines = text.split(/\n+/).map(l => l.trim()).filter(Boolean)
   const blocks: MessageBlock[] = []
-  for (const line of lines) {
+  lines.forEach((line, idx) => {
+    const lineStreaming = isStreaming && idx === lines.length - 1
     const bulletMatch = line.match(/^[-*•]\s+(.+)$/)
     const orderedMatch = line.match(/^\d+[.)]\s+(.+)$/)
     if (bulletMatch?.[1]) {
       const last = blocks.at(-1)
-      const spans = parseInlineSpans(bulletMatch[1])
+      const spans = parseInlineSpans(bulletMatch[1], lineStreaming)
       if (last?.kind === 'ul') last.items.push(spans)
       else blocks.push({ kind: 'ul', items: [spans] })
     } else if (orderedMatch?.[1]) {
       const last = blocks.at(-1)
-      const spans = parseInlineSpans(orderedMatch[1])
+      const spans = parseInlineSpans(orderedMatch[1], lineStreaming)
       if (last?.kind === 'ol') last.items.push(spans)
       else blocks.push({ kind: 'ol', items: [spans] })
     } else {
-      blocks.push({ kind: 'p', items: [parseInlineSpans(line)] })
+      blocks.push({ kind: 'p', items: [parseInlineSpans(line, lineStreaming)] })
+    }
+  })
+  return blocks
+}
+
+const parsedBlocksByMsgId = computed<Record<string, MessageBlock[]>>(() => {
+  const map: Record<string, MessageBlock[]> = {}
+  for (const msg of store.messages) {
+    if (msg.role !== 'divider' && msg.text) {
+      map[msg.id] = parseMessageBlocks(msg.text, Boolean(msg.streaming))
     }
   }
-  return blocks
+  return map
+})
+
+function dividerQuickQuestion(msg: GuideMessage): string {
+  if (msg.role !== 'divider') return ''
+  const ctx = msg.dividerContext ?? store.pageContext
+  return getRoutePreset(ctx, guideLocale.value).starters[0] ?? ''
+}
+
+function askFromDivider(msg: GuideMessage) {
+  const q = dividerQuickQuestion(msg)
+  if (!q || streaming.value) return
+  msg.dividerConsumed = true
+  store.persist()
+  void sendMessage(q)
 }
 
 watch(
@@ -464,8 +506,20 @@ onBeforeUnmount(() => {
 
           <!-- Conversation messages -->
           <template v-for="msg in store.messages" :key="msg.id">
-            <div v-if="msg.role === 'divider'" class="luosheng-divider" role="separator">
-              <span>{{ strings.dividerPrefix }} · {{ msg.text }}</span>
+            <div v-if="msg.role === 'divider'" class="luosheng-divider-group" role="separator">
+              <div class="luosheng-divider">
+                <span>{{ strings.dividerPrefix }} · {{ msg.text }}</span>
+              </div>
+              <button
+                v-if="!msg.dividerConsumed && dividerQuickQuestion(msg)"
+                type="button"
+                class="luosheng-divider-chip"
+                data-testid="luosheng-divider-starter"
+                :disabled="streaming"
+                @click="askFromDivider(msg)"
+              >
+                {{ dividerQuickQuestion(msg) }}
+              </button>
             </div>
 
             <article
@@ -492,15 +546,15 @@ onBeforeUnmount(() => {
               </p>
 
               <div class="luosheng-bubble">
-                <template v-if="msg.text">
-                  <template v-for="(block, bIdx) in parseMessageBlocks(msg.text)" :key="bIdx">
+                <template v-if="msg.text && parsedBlocksByMsgId[msg.id]">
+                  <template v-for="(block, bIdx) in parsedBlocksByMsgId[msg.id]" :key="bIdx">
                     <p v-if="block.kind === 'p'">
                       <template v-for="(span, sIdx) in block.items[0]" :key="sIdx">
                         <strong v-if="span.bold">{{ span.text }}</strong>
                         <template v-else>{{ span.text }}</template>
                       </template>
                       <span
-                        v-if="msg.streaming && bIdx === parseMessageBlocks(msg.text).length - 1"
+                        v-if="msg.streaming && bIdx === (parsedBlocksByMsgId[msg.id]?.length ?? 1) - 1"
                         class="luosheng-cursor"
                         aria-hidden="true"
                       ></span>
@@ -512,7 +566,7 @@ onBeforeUnmount(() => {
                           <template v-else>{{ span.text }}</template>
                         </template>
                         <span
-                          v-if="msg.streaming && bIdx === parseMessageBlocks(msg.text).length - 1 && iIdx === block.items.length - 1"
+                          v-if="msg.streaming && bIdx === (parsedBlocksByMsgId[msg.id]?.length ?? 1) - 1 && iIdx === block.items.length - 1"
                           class="luosheng-cursor"
                           aria-hidden="true"
                         ></span>
@@ -525,7 +579,7 @@ onBeforeUnmount(() => {
                           <template v-else>{{ span.text }}</template>
                         </template>
                         <span
-                          v-if="msg.streaming && bIdx === parseMessageBlocks(msg.text).length - 1 && iIdx === block.items.length - 1"
+                          v-if="msg.streaming && bIdx === (parsedBlocksByMsgId[msg.id]?.length ?? 1) - 1 && iIdx === block.items.length - 1"
                           class="luosheng-cursor"
                           aria-hidden="true"
                         ></span>
@@ -859,12 +913,45 @@ onBeforeUnmount(() => {
   border-color: var(--guide-metal);
 }
 
+.luosheng-divider-group {
+  display: grid;
+  justify-items: center;
+  gap: 0.45rem;
+}
+
 .luosheng-divider {
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 0.6rem;
   font-size: var(--text-xs);
   color: var(--guide-muted);
+}
+
+.luosheng-divider-chip {
+  min-height: 34px;
+  padding: 0.25rem 0.85rem;
+  border: 1px solid color-mix(in oklch, var(--guide-metal) 55%, var(--border-strong));
+  border-radius: var(--radius-pill);
+  background: var(--guide-paper);
+  color: var(--guide-ink);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-curatorial), transform 100ms ease-out;
+}
+
+.luosheng-divider-chip:hover:not(:disabled) {
+  border-color: var(--guide-signal);
+}
+
+.luosheng-divider-chip:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.luosheng-divider-chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .luosheng-divider::before,

@@ -198,4 +198,69 @@ describe('admin quality workflows', () => {
     await selectTab(wrapper, '商品')
     expect(wrapper.find('.admin-product-edit').exists()).toBe(false)
   })
+
+  it('renders observability metrics, governs Luosheng runtime mode, and checks in confirmed appointments', async () => {
+    apiGet.mockImplementation((path: string) => {
+      if (path === '/admin/dashboard/summary') {
+        return Promise.resolve({
+          userCount: 12,
+          appointmentCount: 5,
+          orderCount: 4,
+          salesAmount: '258.00',
+          pendingAppointmentCount: 2,
+          checkedInTodayCount: 1,
+          lowStockProducts: [{ id: 8, sku: 'HL-CUP-01', slug: 'river-line-teacup-set', name: '河流纹茶杯套装', stockQuantity: 3, availableStock: 3 }],
+          upcoming7dSlots: [{ visitDate: '2026-11-25', capacity: 30, reservedPeople: 18 }],
+          orderStatusCounts: { PENDING_PAYMENT: 0, PAID: 2, CANCELLED: 0, COMPLETED: 2 },
+        })
+      }
+      if (path === '/admin/guide/overview') {
+        return Promise.resolve({
+          enabled: true,
+          modelEnabled: true,
+          usedToday: 14,
+          dailyLimit: 200,
+          inFlight: 1,
+          degradationCount: 1,
+          redlineBlockCount: 0,
+          runtimeMode: 'NORMAL',
+          paused: false,
+          filePaused: false,
+        })
+      }
+      if (path.startsWith('/admin/appointments?')) {
+        return Promise.resolve(page([{
+          id: 31,
+          appointmentNo: 'AP20261124TEST01',
+          verificationCode: 'A1B2C3D4E5',
+          status: 'CONFIRMED',
+          contactName: '周景行',
+          contactPhone: '13900001111',
+          visitDate: '2026-11-25',
+          startTime: '10:00:00',
+          endTime: '11:30:00',
+          visitorCount: 2,
+        }]))
+      }
+      return defaultGet(path)
+    })
+
+    const { wrapper } = await view(AdminOperationsView)
+    expect(wrapper.get('[data-testid="admin-guide-governance"]').text()).toContain('14 / 200')
+    expect(wrapper.get('[data-testid="admin-upcoming-slots"]').text()).toContain('18/30')
+    expect(wrapper.get('[data-testid="admin-low-stock"]').text()).toContain('河流纹茶杯套装')
+
+    await wrapper.get('[data-testid="guide-mode-deterministic"]').trigger('click')
+    await flushPromises()
+    expect(apiRequest).toHaveBeenCalledWith('/admin/guide/runtime-mode', 'POST', { mode: 'DETERMINISTIC' }, 'admin-token')
+
+    await wrapper.get('[data-testid="guide-cache-invalidate"]').trigger('click')
+    await flushPromises()
+    expect(apiRequest).toHaveBeenCalledWith('/admin/guide/cache/invalidate', 'POST', undefined, 'admin-token')
+
+    await selectTab(wrapper, '预约')
+    await wrapper.get('[data-testid="admin-checkin-btn"]').trigger('click')
+    await flushPromises()
+    expect(apiRequest).toHaveBeenCalledWith('/admin/appointments/31/check-in', 'POST', { verificationCode: 'A1B2C3D4E5' }, 'admin-token')
+  })
 })

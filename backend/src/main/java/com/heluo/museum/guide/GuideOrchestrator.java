@@ -15,6 +15,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -43,6 +44,25 @@ public class GuideOrchestrator {
     private final GuideDailyGenerationLimit dailyLimit;
     private final Semaphore concurrencyPermits;
     private final ExecutorService asyncExecutor;
+    private final int maxConcurrency;
+    private final AtomicLong degradations = new AtomicLong();
+    private final AtomicLong redlineBlocks = new AtomicLong();
+    private volatile Policy runtimePolicy = new Policy(RuntimeMode.NORMAL, 0, false);
+
+    record Policy(RuntimeMode mode, long revision, boolean filePaused) {
+        boolean paused() { return filePaused || mode == RuntimeMode.PAUSED; }
+    }
+
+    Policy policy() {
+        Policy current = runtimePolicy;
+        return new Policy(current.mode(), current.revision(), isPaused());
+    }
+
+    public enum RuntimeMode { NORMAL, DETERMINISTIC, PAUSED }
+
+    public record Overview(boolean enabled, boolean modelEnabled, int usedToday, int dailyLimit,
+                           int inFlight, long degradationCount, long redlineBlockCount,
+                           RuntimeMode runtimeMode, boolean paused, boolean filePaused) {}
 
     public GuideOrchestrator(
             GuideProperties properties,
@@ -57,6 +77,7 @@ public class GuideOrchestrator {
         this.fallback = fallback;
         int daily = Math.max(0, properties.getDailyTurnLimit());
         int maxConc = Math.max(1, properties.getMaxConcurrentGenerations());
+        this.maxConcurrency = maxConc;
         this.dailyLimit = new GuideDailyGenerationLimit(Clock.system(ZoneId.of("Asia/Shanghai")), daily);
         this.concurrencyPermits = new Semaphore(maxConc);
         AtomicInteger seq = new AtomicInteger(1);
@@ -69,6 +90,19 @@ public class GuideOrchestrator {
 
     public ExecutorService asyncExecutor() {
         return asyncExecutor;
+    }
+
+    public Overview overview() {
+        Policy current = policy();
+        return new Overview(properties.isEnabled(), properties.isModelEnabled(), dailyLimit.usedToday(),
+                Math.max(0, properties.getDailyTurnLimit()), maxConcurrency - concurrencyPermits.availablePermits(),
+                degradations.get(), redlineBlocks.get(), current.mode(), current.paused(), current.filePaused());
+    }
+
+    synchronized void changeMode(RuntimeMode mode, Runnable audit) {
+        audit.run();
+        Policy previous = runtimePolicy;
+        if (mode != previous.mode()) runtimePolicy = new Policy(mode, previous.revision() + 1, false);
     }
 
     @PreDestroy
@@ -89,7 +123,8 @@ public class GuideOrchestrator {
 
     public void handle(String requestId, ChatRequest request, StreamListener listener) {
         // 1. Operational pause file check
-        if (isPaused()) {
+        Policy admitted = policy();
+        if (admitted.paused()) {
             ChatResponse resp = fallback.paused(requestId, request.locale());
             listener.onDelta(resp.text());
             listener.onDone(resp);
@@ -97,7 +132,7 @@ public class GuideOrchestrator {
         }
 
         // 2. If model is disabled intentionally or unconfigured -> deterministic direct mode
-        if (!properties.isModelEnabled()) {
+        if (!properties.isModelEnabled() || admitted.mode() == RuntimeMode.DETERMINISTIC) {
             ChatResponse resp = fallback.respond(requestId, request, false);
             listener.onDelta(resp.text());
             listener.onDone(resp);
@@ -106,7 +141,7 @@ public class GuideOrchestrator {
 
         if (!llmClient.isConfigured()) {
             LOG.warn("Guide model enabled but missing valid endpoint/model/key; falling back to deterministic mode");
-            ChatResponse resp = fallback.respond(requestId, request, true);
+            ChatResponse resp = degrade(requestId, request);
             listener.onDelta(resp.text());
             listener.onDone(resp);
             return;
@@ -115,57 +150,49 @@ public class GuideOrchestrator {
         // 3. Concurrency & daily budget admission
         if (!concurrencyPermits.tryAcquire()) {
             LOG.warn("Guide concurrency limit reached; degrading gracefully");
-            ChatResponse resp = fallback.respond(requestId, request, true);
+            ChatResponse resp = degrade(requestId, request);
             listener.onDelta(resp.text());
             listener.onDone(resp);
             return;
         }
 
-        boolean deltaEmitted = false;
+        StringBuilder visible = new StringBuilder();
         try {
             if (!dailyLimit.tryStart()) {
                 LOG.warn("Guide daily turn limit reached; degrading gracefully");
-                ChatResponse resp = fallback.respond(requestId, request, true);
+                ChatResponse resp = degrade(requestId, request);
                 listener.onDelta(resp.text());
                 listener.onDone(resp);
                 return;
             }
 
-            ToolAuditContext audit = new ToolAuditContext();
+            ToolAuditContext audit = new ToolAuditContext(request.locale());
             List<Map<String, Object>> messages = promptBuilder.buildMessages(request, audit);
 
-            boolean[] streamed = {false};
+            SentenceGuard guard = new SentenceGuard(request, listener, visible, admitted);
             GuideLlmClient.StreamOutcome outcome = llmClient.complete(
                     messages,
                     audit,
                     listener::onStatus,
-                    delta -> {
-                        streamed[0] = true;
-                        listener.onDelta(delta);
-                    });
-            deltaEmitted = streamed[0] || outcome.emittedDelta();
+                    guard::feed);
+            guard.finish();
 
             GuideResponseValidator.ValidationResult validated = validator.validate(
                     request, outcome.body(), outcome.rawMeta(), audit);
+            ensurePolicy(admitted);
 
             if (!validated.accepted()) {
                 LOG.warn("Guide response rejected by validator reason={}; replacing with deterministic fallback",
                         validated.rejectionReason());
-                ChatResponse safe = fallback.respond(requestId, request, true);
-                if (deltaEmitted) {
-                    listener.onReplace(safe.text());
-                } else {
-                    listener.onDelta(safe.text());
-                }
+                if ("FACTUAL_REDLINE".equals(validated.rejectionReason())) redlineBlocks.incrementAndGet();
+                ChatResponse safe = degrade(requestId, request);
+                listener.onReplace(safe.text());
                 listener.onDone(safe);
                 return;
             }
 
-            // If bare URLs were stripped from the streamed body, atomically sync cleaned text
-            if (deltaEmitted && !validated.text().equals(outcome.body().strip())) {
+            if (!validated.text().equals(visible.toString().strip())) {
                 listener.onReplace(validated.text());
-            } else if (!deltaEmitted) {
-                listener.onDelta(validated.text());
             }
 
             ChatResponse finalResp = new ChatResponse(
@@ -179,18 +206,77 @@ public class GuideOrchestrator {
                     false);
             listener.onDone(finalResp);
         } catch (Exception ex) {
-            LOG.warn("Guide LLM generation failed ({}): {}; falling back to deterministic mode",
-                    ex.getClass().getSimpleName(), ex.getMessage());
-            ChatResponse safe = fallback.respond(requestId, request, true);
-            if (deltaEmitted) {
-                listener.onReplace(safe.text());
-            } else {
-                listener.onDelta(safe.text());
-            }
+            LOG.warn("Guide LLM generation stopped: {}; falling back to deterministic mode", ex.getClass().getSimpleName());
+            if (ex instanceof UnsafeSentence unsafe && unsafe.redline) redlineBlocks.incrementAndGet();
+            Policy current = policy();
+            ChatResponse safe = current.paused() ? fallback.paused(requestId, request.locale())
+                    : ex instanceof PolicyChanged ? fallback.respond(requestId, request, false) : degrade(requestId, request);
+            listener.onReplace(safe.text());
             listener.onDone(safe);
         } finally {
             concurrencyPermits.release();
         }
+    }
+
+    private void ensurePolicy(Policy admitted) {
+        if (!policy().equals(admitted)) throw new PolicyChanged();
+    }
+
+    private static final class PolicyChanged extends RuntimeException {}
+
+    private ChatResponse degrade(String requestId, ChatRequest request) {
+        degradations.incrementAndGet();
+        return fallback.respond(requestId, request, true);
+    }
+
+    private final class SentenceGuard {
+        private static final int MAX_SENTENCE_CHARS = 1200;
+        private final StringBuilder pending = new StringBuilder();
+        private final ChatRequest request;
+        private final StreamListener listener;
+        private final StringBuilder visible;
+        private final Policy admitted;
+
+        private SentenceGuard(ChatRequest request, StreamListener listener, StringBuilder visible, Policy admitted) {
+            this.request = request;
+            this.listener = listener;
+            this.visible = visible;
+            this.admitted = admitted;
+        }
+
+        void feed(String text) {
+            ensurePolicy(admitted);
+            pending.append(text);
+            var matcher = GuideResponseValidator.SENTENCE_END.matcher(pending);
+            int consumed = 0;
+            while (matcher.find()) {
+                emit(pending.substring(consumed, matcher.end()));
+                consumed = matcher.end();
+            }
+            pending.delete(0, consumed);
+            if (pending.length() > MAX_SENTENCE_CHARS) throw new UnsafeSentence(false);
+        }
+
+        void finish() {
+            if (!pending.isEmpty()) emit(pending.toString());
+        }
+
+        private void emit(String sentence) {
+            String safe = validator.cleanProse(sentence, GuidePromptBuilder.isEnglish(request.locale()));
+            if (sentence.length() > MAX_SENTENCE_CHARS) throw new UnsafeSentence(false);
+            if (validator.violatesRedline(sentence, request.context())
+                    || validator.violatesRedline(safe, request.context())) throw new UnsafeSentence(true);
+            if (!safe.isEmpty()) {
+                visible.append(safe);
+                listener.onDelta(safe);
+            }
+        }
+    }
+
+    /** Escapes the upstream read loop; try-with-resources closes the model response. */
+    private static final class UnsafeSentence extends RuntimeException {
+        private final boolean redline;
+        private UnsafeSentence(boolean redline) { this.redline = redline; }
     }
 
     private boolean isPaused() {

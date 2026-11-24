@@ -119,11 +119,15 @@ export const useLuoshengStore = defineStore('luosheng-v2', {
         const label = next.title || next.path
         if (last?.role === 'divider') {
           last.text = label
+          last.dividerContext = { ...this.pageContext }
+          last.dividerConsumed = false
         } else {
           this.messages.push({
             id: makeUuid(),
             role: 'divider',
             text: label,
+            dividerContext: { ...this.pageContext },
+            dividerConsumed: false,
             createdAt: Date.now(),
           })
         }

@@ -1,5 +1,7 @@
 package com.heluo.museum.content;
 
+import com.heluo.museum.guide.GuideKnowledgeService;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.heluo.museum.common.api.ApiResponse;
 import com.heluo.museum.common.error.ConflictException;
@@ -37,16 +39,20 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminContentController {
     private final JdbcTemplate jdbc;
 
-    AdminContentController(JdbcTemplate jdbc) {
+    private final GuideKnowledgeService guideKnowledge;
+
+    AdminContentController(JdbcTemplate jdbc, GuideKnowledgeService guideKnowledge) {
+        this.guideKnowledge = guideKnowledge;
         this.jdbc = jdbc;
     }
 
     @GetMapping("/categories")
     public ApiResponse<List<CategoryAdminView>> categories() {
         List<CategoryAdminView> items = jdbc.query(
-                "select id,code,name,description,sort_order,enabled from categories order by sort_order,id",
+                "select id,code,name,description,sort_order,enabled,name_en,description_zh,description_en from categories order by sort_order,id",
                 (rs, rowNum) -> new CategoryAdminView(rs.getLong("id"), rs.getString("code"), rs.getString("name"),
-                        empty(rs.getString("description")), rs.getInt("sort_order"), rs.getBoolean("enabled")));
+                        empty(rs.getString("description")), rs.getInt("sort_order"), rs.getBoolean("enabled"),
+                        rs.getString("name_en"), rs.getString("description_zh"), rs.getString("description_en")));
         return ApiResponse.ok(items, "admin-categories");
     }
 
@@ -55,9 +61,11 @@ public class AdminContentController {
         if (count("select count(*) from categories where code=? or name=?", input.code(), input.name()) > 0) {
             throw new ConflictException("分类编码或名称已存在");
         }
-        jdbc.update("insert into categories(code,name,description,sort_order,enabled) values(?,?,?,?,?)",
-                input.code(), input.name(), blank(input.description()), input.sortOrder(), input.enabled());
+        jdbc.update("insert into categories(code,name,description,sort_order,enabled,name_en,description_zh,description_en) values(?,?,?,?,?,?,?,?)",
+                input.code(), input.name(), blank(input.description()), input.sortOrder(), input.enabled(),
+                blank(input.nameEn()), blank(input.descriptionZh()), blank(input.descriptionEn()));
         long id = jdbc.queryForObject("select id from categories where code=?", Long.class, input.code());
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(categoryById(id), "admin-category-create");
     }
 
@@ -67,8 +75,11 @@ public class AdminContentController {
         if (count("select count(*) from categories where (code=? or name=?) and id<>?", input.code(), input.name(), id) > 0) {
             throw new ConflictException("分类编码或名称已存在");
         }
-        jdbc.update("update categories set code=?,name=?,description=?,sort_order=?,enabled=? where id=?", input.code(),
-                input.name(), blank(input.description()), input.sortOrder(), input.enabled(), id);
+        jdbc.update("update categories set code=?,name=?,description=?,sort_order=?,enabled=?,"
+                        + "name_en=coalesce(?,name_en),description_zh=coalesce(?,description_zh),description_en=coalesce(?,description_en) where id=?", input.code(),
+                input.name(), blank(input.description()), input.sortOrder(), input.enabled(),
+                input.nameEn(), input.descriptionZh(), input.descriptionEn(), id);
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(categoryById(id), "admin-category-update");
     }
 
@@ -88,7 +99,7 @@ public class AdminContentController {
         listArguments.add(normalized.size());
         listArguments.add(normalized.offset());
         List<ArtifactAdminView> items = jdbc.query(
-                "select a.title_en,a.summary_en,a.id,a.category_id,a.accession_no,a.title,a.slug,a.period,a.material,a.dimensions,"
+                "select a.title_en,a.summary_en,a.content_en,a.period_en,a.material_en,a.id,a.category_id,a.accession_no,a.title,a.slug,a.period,a.material,a.dimensions,"
                         + "a.collection_location,a.cover_image_url,a.cover_asset_ref,a.summary,a.content,a.status,a.deleted_at,a.updated_at,"
                         + "c.code category_code,c.name category_name from artifacts a join categories c on c.id=a.category_id"
                         + where + " order by a.updated_at desc,a.id desc limit ? offset ?",
@@ -110,11 +121,13 @@ public class AdminContentController {
         }
         long actorId = actorId(authentication);
         jdbc.update("insert into artifacts(category_id,accession_no,title,slug,period,material,dimensions,collection_location,"
-                        + "cover_image_url,cover_asset_ref,summary,content,created_by,updated_by,title_en,summary_en) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        + "cover_image_url,cover_asset_ref,summary,content,created_by,updated_by,title_en,summary_en,content_en,period_en,material_en) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 input.categoryId(), blank(input.accessionNo()), input.title(), input.slug(), blank(input.period()),
                 blank(input.material()), blank(input.dimensions()), blank(input.collectionLocation()),
-                blank(input.coverImageUrl()), blank(input.coverAssetRef()), blank(input.summary()), input.content(), actorId, actorId, blank(input.titleEn()), blank(input.summaryEn()));
+                blank(input.coverImageUrl()), blank(input.coverAssetRef()), blank(input.summary()), input.content(), actorId, actorId,
+                blank(input.titleEn()), blank(input.summaryEn()), blank(input.contentEn()), blank(input.periodEn()), blank(input.materialEn()));
         long id = jdbc.queryForObject("select id from artifacts where slug=?", Long.class, input.slug());
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(findArtifact(id), "admin-artifact-create");
     }
 
@@ -125,6 +138,7 @@ public class AdminContentController {
         ArtifactAdminView existing = findArtifact(id);
         ensureNotDeleted(existing.deleted());
         updateArtifactFields(id, actorId(authentication), input);
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(findArtifact(id), "admin-artifact-update");
     }
 
@@ -134,6 +148,7 @@ public class AdminContentController {
         ensureNotDeleted(existing.deleted());
         jdbc.update("update artifacts set status='PUBLISHED',published_at=current_timestamp(3),updated_by=? where id=?",
                 actorId(authentication), id);
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(findArtifact(id), "admin-artifact-publish");
     }
 
@@ -145,6 +160,7 @@ public class AdminContentController {
             throw new ConflictException("只有已发布文物可以撤回");
         }
         jdbc.update("update artifacts set status='WITHDRAWN',updated_by=? where id=?", actorId(authentication), id);
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(findArtifact(id), "admin-artifact-withdraw");
     }
 
@@ -154,6 +170,7 @@ public class AdminContentController {
         ensureNotDeleted(existing.deleted());
         jdbc.update("update artifacts set deleted_at=current_timestamp(3),deleted_by=?,updated_by=? where id=?",
                 actorId(authentication), actorId(authentication), id);
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(findArtifact(id), "admin-artifact-delete");
     }
 
@@ -165,6 +182,7 @@ public class AdminContentController {
         }
         jdbc.update("update artifacts set deleted_at=null,deleted_by=null,status='WITHDRAWN',updated_by=? where id=?",
                 actorId(authentication), id);
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(findArtifact(id), "admin-artifact-restore");
     }
 
@@ -184,7 +202,7 @@ public class AdminContentController {
         listArguments.add(normalized.size());
         listArguments.add(normalized.offset());
         List<ArticleAdminView> items = jdbc.query(
-                "select a.title_en,a.summary_en,a.id,a.category_id,a.title,a.slug,a.cover_image_url,a.cover_asset_ref,a.summary,a.content,"
+                "select a.title_en,a.summary_en,a.content_en,a.id,a.category_id,a.title,a.slug,a.cover_image_url,a.cover_asset_ref,a.summary,a.content,"
                         + "a.author_display,a.status,a.deleted_at,a.updated_at,c.code category_code,c.name category_name "
                         + "from articles a join categories c on c.id=a.category_id" + where
                         + " order by a.updated_at desc,a.id desc limit ? offset ?",
@@ -206,10 +224,11 @@ public class AdminContentController {
         }
         long actorId = actorId(authentication);
         jdbc.update("insert into articles(category_id,title,slug,cover_image_url,cover_asset_ref,summary,content,author_display,"
-                        + "created_by,updated_by,title_en,summary_en) values(?,?,?,?,?,?,?,?,?,?,?,?)",
+                        + "created_by,updated_by,title_en,summary_en,content_en) values(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 input.categoryId(), input.title(), input.slug(), blank(input.coverImageUrl()), blank(input.coverAssetRef()),
-                input.summary(), input.content(), blank(input.authorDisplay()), actorId, actorId, blank(input.titleEn()), blank(input.summaryEn()));
+                input.summary(), input.content(), blank(input.authorDisplay()), actorId, actorId, blank(input.titleEn()), blank(input.summaryEn()), blank(input.contentEn()));
         long id = jdbc.queryForObject("select id from articles where slug=?", Long.class, input.slug());
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(findArticle(id), "admin-article-create");
     }
 
@@ -219,6 +238,7 @@ public class AdminContentController {
         ArticleAdminView existing = findArticle(id);
         ensureNotDeleted(existing.deleted());
         updateArticleFields(id, actorId(authentication), input);
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(findArticle(id), "admin-article-update");
     }
 
@@ -228,6 +248,7 @@ public class AdminContentController {
         ensureNotDeleted(existing.deleted());
         jdbc.update("update articles set status='PUBLISHED',published_at=current_timestamp(3),updated_by=? where id=?",
                 actorId(authentication), id);
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(findArticle(id), "admin-article-publish");
     }
 
@@ -239,6 +260,7 @@ public class AdminContentController {
             throw new ConflictException("只有已发布文章可以撤回");
         }
         jdbc.update("update articles set status='WITHDRAWN',updated_by=? where id=?", actorId(authentication), id);
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(findArticle(id), "admin-article-withdraw");
     }
 
@@ -248,6 +270,7 @@ public class AdminContentController {
         ensureNotDeleted(existing.deleted());
         long actorId = actorId(authentication);
         jdbc.update("update articles set deleted_at=current_timestamp(3),deleted_by=?,updated_by=? where id=?", actorId, actorId, id);
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(findArticle(id), "admin-article-delete");
     }
 
@@ -259,6 +282,7 @@ public class AdminContentController {
         }
         jdbc.update("update articles set deleted_at=null,deleted_by=null,status='WITHDRAWN',updated_by=? where id=?",
                 actorId(authentication), id);
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(findArticle(id), "admin-article-restore");
     }
 
@@ -285,6 +309,9 @@ public class AdminContentController {
         addPatchText(input, sets, values, "titleEn", "title_en", 300, false, null);
         addPatchText(input, sets, values, "summaryEn", "summary_en", 1000, false, null);
         addPatchText(input, sets, values, "content", "content", Integer.MAX_VALUE, true, null);
+        addPatchText(input, sets, values, "contentEn", "content_en", 16000, false, null);
+        addPatchText(input, sets, values, "periodEn", "period_en", 100, false, null);
+        addPatchText(input, sets, values, "materialEn", "material_en", 100, false, null);
         finishPatch("artifacts", id, actorId, sets, values, textValue(input, "slug"));
     }
 
@@ -305,6 +332,7 @@ public class AdminContentController {
         addPatchText(input, sets, values, "titleEn", "title_en", 300, false, null);
         addPatchText(input, sets, values, "summaryEn", "summary_en", 1000, false, null);
         addPatchText(input, sets, values, "content", "content", Integer.MAX_VALUE, true, null);
+        addPatchText(input, sets, values, "contentEn", "content_en", 16000, false, null);
         addPatchText(input, sets, values, "authorDisplay", "author_display", 100, false, null);
         finishPatch("articles", id, actorId, sets, values, textValue(input, "slug"));
     }
@@ -375,9 +403,10 @@ public class AdminContentController {
 
     private CategoryAdminView categoryById(long id) {
         List<CategoryAdminView> result = jdbc.query(
-                "select id,code,name,description,sort_order,enabled from categories where id=?",
+                "select id,code,name,description,sort_order,enabled,name_en,description_zh,description_en from categories where id=?",
                 (rs, rowNum) -> new CategoryAdminView(rs.getLong("id"), rs.getString("code"), rs.getString("name"),
-                        empty(rs.getString("description")), rs.getInt("sort_order"), rs.getBoolean("enabled")), id);
+                        empty(rs.getString("description")), rs.getInt("sort_order"), rs.getBoolean("enabled"),
+                        rs.getString("name_en"), rs.getString("description_zh"), rs.getString("description_en")), id);
         if (result.isEmpty()) {
             throw new ResourceNotFoundException("分类不存在");
         }
@@ -386,7 +415,7 @@ public class AdminContentController {
 
     private ArtifactAdminView findArtifact(long id) {
         List<ArtifactAdminView> result = jdbc.query(
-                "select a.title_en,a.summary_en,a.id,a.category_id,a.accession_no,a.title,a.slug,a.period,a.material,a.dimensions,"
+                "select a.title_en,a.summary_en,a.content_en,a.period_en,a.material_en,a.id,a.category_id,a.accession_no,a.title,a.slug,a.period,a.material,a.dimensions,"
                         + "a.collection_location,a.cover_image_url,a.cover_asset_ref,a.summary,a.content,a.status,a.deleted_at,a.updated_at,"
                         + "c.code category_code,c.name category_name from artifacts a join categories c on c.id=a.category_id where a.id=?",
                 (rs, rowNum) -> artifactView(rs), id);
@@ -398,7 +427,7 @@ public class AdminContentController {
 
     private ArticleAdminView findArticle(long id) {
         List<ArticleAdminView> result = jdbc.query(
-                "select a.title_en,a.summary_en,a.id,a.category_id,a.title,a.slug,a.cover_image_url,a.cover_asset_ref,a.summary,a.content,"
+                "select a.title_en,a.summary_en,a.content_en,a.id,a.category_id,a.title,a.slug,a.cover_image_url,a.cover_asset_ref,a.summary,a.content,"
                         + "a.author_display,a.status,a.deleted_at,a.updated_at,c.code category_code,c.name category_name "
                         + "from articles a join categories c on c.id=a.category_id where a.id=?",
                 (rs, rowNum) -> articleView(rs), id);
@@ -414,7 +443,8 @@ public class AdminContentController {
                 empty(rs.getString("period")), empty(rs.getString("material")), empty(rs.getString("dimensions")),
                 empty(rs.getString("collection_location")), empty(rs.getString("cover_image_url")),
                 empty(rs.getString("cover_asset_ref")), empty(rs.getString("summary")), rs.getString("content"),
-                rs.getString("status"), rs.getTimestamp("deleted_at") != null, rs.getTimestamp("updated_at").toInstant().toString(), rs.getString("title_en"), rs.getString("summary_en"));
+                rs.getString("status"), rs.getTimestamp("deleted_at") != null, rs.getTimestamp("updated_at").toInstant().toString(),
+                rs.getString("title_en"), rs.getString("summary_en"), rs.getString("content_en"), rs.getString("period_en"), rs.getString("material_en"));
     }
 
     private ArticleAdminView articleView(java.sql.ResultSet rs) throws java.sql.SQLException {
@@ -422,7 +452,8 @@ public class AdminContentController {
                 rs.getString("category_name"), rs.getString("title"), rs.getString("slug"),
                 empty(rs.getString("cover_image_url")), empty(rs.getString("cover_asset_ref")), rs.getString("summary"),
                 rs.getString("content"), empty(rs.getString("author_display")), rs.getString("status"),
-                rs.getTimestamp("deleted_at") != null, rs.getTimestamp("updated_at").toInstant().toString(), rs.getString("title_en"), rs.getString("summary_en"));
+                rs.getTimestamp("deleted_at") != null, rs.getTimestamp("updated_at").toInstant().toString(),
+                rs.getString("title_en"), rs.getString("summary_en"), rs.getString("content_en"));
     }
 
     private void requireCategory(long id) {
@@ -459,18 +490,21 @@ public class AdminContentController {
         return value == null ? "" : value;
     }
 
-    public record CategoryAdminView(long id, String code, String name, String description, int sortOrder, boolean enabled) {
+    public record CategoryAdminView(long id, String code, String name, String description, int sortOrder, boolean enabled,
+                                    String nameEn, String descriptionZh, String descriptionEn) {
     }
 
     public record ArtifactAdminView(long id, long categoryId, String categoryCode, String categoryName,
                                     String accessionNo, String title, String slug, String period, String material,
                                     String dimensions, String collectionLocation, String coverImageUrl, String coverAssetRef,
-                                    String summary, String content, String status, boolean deleted, String updatedAt, String titleEn, String summaryEn) {
+                                    String summary, String content, String status, boolean deleted, String updatedAt, String titleEn, String summaryEn,
+                                    String contentEn, String periodEn, String materialEn) {
     }
 
     public record ArticleAdminView(long id, long categoryId, String categoryCode, String categoryName,
                                    String title, String slug, String coverImageUrl, String coverAssetRef,
-                                   String summary, String content, String authorDisplay, String status, boolean deleted, String updatedAt, String titleEn, String summaryEn) {
+                                   String summary, String content, String authorDisplay, String status, boolean deleted, String updatedAt, String titleEn, String summaryEn,
+                                   String contentEn) {
     }
 
     public record CategoryInput(
@@ -478,7 +512,8 @@ public class AdminContentController {
             @NotBlank @Size(max = 64) String name,
             @Size(max = 255) String description,
             @NotNull Integer sortOrder,
-            @NotNull Boolean enabled) {
+            @NotNull Boolean enabled,
+            @Size(max = 100) String nameEn, @Size(max = 300) String descriptionZh, @Size(max = 300) String descriptionEn) {
     }
 
     public record ArtifactInput(
@@ -495,7 +530,8 @@ public class AdminContentController {
             @Size(max = 500) String summary,
             @NotBlank String content,
             @Size(max = 300) String titleEn,
-            @Size(max = 1000) String summaryEn) {
+            @Size(max = 1000) String summaryEn, @Size(max = 16000) String contentEn,
+            @Size(max = 100) String periodEn, @Size(max = 100) String materialEn) {
     }
 
     public record ArticleInput(
@@ -508,6 +544,6 @@ public class AdminContentController {
             @NotBlank String content,
             @Size(max = 100) String authorDisplay,
             @Size(max = 300) String titleEn,
-            @Size(max = 1000) String summaryEn) {
+            @Size(max = 1000) String summaryEn, @Size(max = 16000) String contentEn) {
     }
 }

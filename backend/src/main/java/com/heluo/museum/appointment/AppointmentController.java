@@ -38,10 +38,14 @@ public class AppointmentController {
     private final OperationLogService operationLogService;
     private final Clock clock;
 
-    AppointmentController(JdbcTemplate jdbc, OperationLogService operationLogService, Clock clock) {
+    private final AppointmentVerification verification;
+
+    AppointmentController(JdbcTemplate jdbc, OperationLogService operationLogService, Clock clock,
+                          AppointmentVerification verification) {
         this.jdbc = jdbc;
         this.operationLogService = operationLogService;
         this.clock = clock;
+        this.verification = verification;
     }
 
     @PostMapping
@@ -101,7 +105,7 @@ public class AppointmentController {
         args[args.length - 2] = size;
         args[args.length - 1] = (page - 1) * size;
         List<AppointmentView> items = jdbc.query(selectAppointments() + where + " order by s.visit_date desc,s.start_time desc,a.id desc limit ? offset ?",
-                (rs, rowNum) -> view(rs), args);
+                (rs, rowNum) -> view(rs, verification), args);
         return ApiResponse.ok(ContentPage.of(items, page, size, total), "my-appointments");
     }
 
@@ -148,18 +152,19 @@ public class AppointmentController {
                 + "join appointment_slots s on s.id=a.slot_id";
     }
 
-    static AppointmentView view(java.sql.ResultSet rs) throws java.sql.SQLException {
+    static AppointmentView view(java.sql.ResultSet rs, AppointmentVerification verification) throws java.sql.SQLException {
         LocalDate date = rs.getDate("visit_date").toLocalDate();
         LocalTime start = rs.getTime("start_time").toLocalTime();
         LocalTime end = rs.getTime("end_time").toLocalTime();
-        return new AppointmentView(rs.getLong("id"), rs.getString("appointment_no"), rs.getLong("user_id"), rs.getLong("slot_id"),
+        String number = rs.getString("appointment_no");
+        return new AppointmentView(rs.getLong("id"), number, rs.getLong("user_id"), rs.getLong("slot_id"),
                 rs.getInt("visitor_count"), rs.getString("contact_name"), rs.getString("contact_phone"), rs.getString("contact_email"),
                 empty(rs.getString("notes")), rs.getString("status"), empty(rs.getString("cancel_reason")), date, start, end,
-                LocalDateTime.of(date, start));
+                LocalDateTime.of(date, start), verification.code(number));
     }
 
     AppointmentView appointmentById(long id) {
-        List<AppointmentView> items = jdbc.query(selectAppointments() + " where a.id=?", (rs, rowNum) -> view(rs), id);
+        List<AppointmentView> items = jdbc.query(selectAppointments() + " where a.id=?", (rs, rowNum) -> view(rs, verification), id);
         if (items.isEmpty()) {
             throw new ResourceNotFoundException("预约不存在");
         }
@@ -168,7 +173,7 @@ public class AppointmentController {
 
     private AppointmentView appointmentByIdForUpdate(long id) {
         List<AppointmentView> items = jdbc.query(selectAppointments() + " where a.id=? for update",
-                (rs, rowNum) -> view(rs), id);
+                (rs, rowNum) -> view(rs, verification), id);
         if (items.isEmpty()) {
             throw new ResourceNotFoundException("预约不存在");
         }
@@ -185,7 +190,7 @@ public class AppointmentController {
 
     private AppointmentView findByCreationKey(long userId, String key) {
         List<AppointmentView> items = jdbc.query(selectAppointments() + " where a.user_id=? and a.creation_idempotency_key=?",
-                (rs, rowNum) -> view(rs), userId, key);
+                (rs, rowNum) -> view(rs, verification), userId, key);
         return items.isEmpty() ? null : items.get(0);
     }
 
@@ -223,5 +228,6 @@ public class AppointmentController {
     record Slot(long id, LocalDate visitDate, LocalDateTime startAt, int capacity, int reservedPeople, String status) {}
     public record AppointmentView(long id, String appointmentNo, long userId, long slotId, int visitorCount, String contactName,
                                   String contactPhone, String contactEmail, String notes, String status, String cancelReason,
-                                  LocalDate visitDate, LocalTime startTime, LocalTime endTime, LocalDateTime startAt) {}
+                                  LocalDate visitDate, LocalTime startTime, LocalTime endTime, LocalDateTime startAt,
+                                  String verificationCode) {}
 }

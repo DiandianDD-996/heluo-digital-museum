@@ -169,4 +169,54 @@ describe('LuoshengSiteGuide v2', () => {
     expect(router.currentRoute.value.path).toBe('/exhibits/heluo-bronze-ding-3d')
     wrapper.unmount()
   })
+
+  it('surfaces a clickable quick-ask capsule on cross-page dividers and balances unclosed ** mid-stream without flicker', async () => {
+    let streamController!: ReadableStreamDefaultController<Uint8Array>
+    const encoder = new TextEncoder()
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(makeSseResponse([
+        'event:done\ndata:{"requestId":"r4","text":"你好，我是洛笙。","citations":[],"actions":[],"followUps":[],"boundaryNote":"","mode":"ai","degraded":false}\n\n',
+      ]))
+      .mockImplementationOnce(() => Promise.resolve(new Response(new ReadableStream<Uint8Array>({
+        start(ctrl) { streamController = ctrl },
+      }), { status: 200, headers: { 'Content-Type': 'text/event-stream; charset=utf-8' } }))))
+
+    const wrapper = mount(LuoshengSiteGuide, { global: { plugins: [router] } })
+    const store = useLuoshengStore()
+    await wrapper.get('[data-testid="luosheng-fab"]').trigger('click')
+    await wrapper.get('[data-testid="luosheng-input"]').setValue('你好')
+    await wrapper.get('form.luosheng-composer').trigger('submit')
+    await flushPromises()
+
+    // Switch page context -> inserts divider with quick-ask capsule
+    store.setPageContext({
+      route: 'artifact-detail',
+      path: '/artifacts/river-map-jade-bi',
+      title: '河图玉璧（概念展品）',
+      artifactSlug: 'river-map-jade-bi',
+      exhibitSlug: null,
+      articleSlug: null,
+    })
+    await flushPromises()
+
+    const dividerStarter = wrapper.get('[data-testid="luosheng-divider-starter"]')
+    expect(dividerStarter.text()).toContain('这件展品最值得看哪些细节？')
+
+    // Click the divider quick-ask capsule -> starts streaming without raw ** flicker
+    await dividerStarter.trigger('click')
+    await flushPromises()
+
+    streamController.enqueue(encoder.encode('event:delta\ndata:{"text":"先看外缘与**中央穿孔"}\n\n'))
+    await flushPromises()
+    expect(wrapper.find('.luosheng-bubble strong').text()).toBe('中央穿孔')
+    expect(wrapper.text()).not.toContain('**')
+
+    streamController.enqueue(encoder.encode('event:done\ndata:{"requestId":"r5","text":"先看外缘与**中央穿孔**的留白。","citations":[],"actions":[],"followUps":[],"boundaryNote":"","mode":"ai","degraded":false}\n\n'))
+    streamController.close()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="luosheng-divider-starter"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('先看外缘与中央穿孔的留白。')
+    wrapper.unmount()
+  })
 })

@@ -54,6 +54,6 @@ public class GlobalExceptionHandler {
     log.error("API request failed: reason={}", e.getClass().getSimpleName());
     return response(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "服务暂时无法完成请求，请稍后重试", List.of(), request);
   }
-  private ResponseEntity<ApiError> response(HttpStatus status,String code,String message,List<ApiError.FieldError> errors,HttpServletRequest request){return ResponseEntity.status(status).body(new ApiError(code,message,errors,RequestCorrelationFilter.currentId()));}
+  private ResponseEntity<ApiError> response(HttpStatus status,String code,String message,List<ApiError.FieldError> errors,HttpServletRequest request){return ResponseEntity.status(status).contentType(org.springframework.http.MediaType.APPLICATION_JSON).body(new ApiError(code,message,errors,RequestCorrelationFilter.currentId()));}
 }
 

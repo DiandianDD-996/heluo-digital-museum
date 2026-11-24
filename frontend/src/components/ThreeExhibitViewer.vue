@@ -27,7 +27,9 @@ const props = withDefaults(defineProps<{
   alt: string
   enablePointCloud?: boolean
   initialMode?: DisplayMode
-}>(), { enablePointCloud: true, initialMode: 'solid' })
+  showSpatialGuide?: boolean
+  activePart?: FocusPart | null
+}>(), { enablePointCloud: true, initialMode: 'solid', showSpatialGuide: false, activePart: null })
 const emit = defineEmits<{
   (event: 'mode-change', value: DisplayMode): void
   (event: 'view-change', value: ViewName): void
@@ -35,7 +37,38 @@ const emit = defineEmits<{
   (event: 'quality-change', value: PointCloudQuality): void
   (event: 'state-change', value: ViewerRuntimeState): void
   (event: 'point-cloud-state', value: PointCloudState): void
+  (event: 'user-interact'): void
 }>()
+
+interface ProjectedPin {
+  id: FocusPart
+  x: number
+  y: number
+  elbowX: number
+  elbowY: number
+  endX: number
+  alignRight: boolean
+  occluded: boolean
+  labelZh: string
+  labelEn: string
+  subZh: string
+  subEn: string
+}
+
+const projectedPins = ref<ProjectedPin[]>([])
+const projectedDims = ref<{ hx: number; hy: number; wx: number; wy: number; visible: boolean }>({
+  hx: 0, hy: 0, wx: 0, wy: 0, visible: false,
+})
+const stageSize = ref<{ w: number; h: number }>({ w: 800, h: 600 })
+let syncSpatialCageVisibility: ((visible: boolean) => void) | undefined
+
+watch(() => props.showSpatialGuide, (visible) => {
+  syncSpatialCageVisibility?.(Boolean(visible))
+  if (!visible) {
+    projectedPins.value = []
+    projectedDims.value = { hx: 0, hy: 0, wx: 0, wy: 0, visible: false }
+  }
+})
 const { locale } = useLocale()
 const viewerCopy = computed(() => locale.value === 'zh-CN' ? {
   unsupported: '当前浏览器不支持 WebGL，已为你保留展项封面和说明。', loadFailed: '3D 模型暂时无法加载，已切换为展项封面和文字说明。你可以稍后重试。', unavailable: '互动 3D 展项暂时不可用，已切换为展项封面和文字说明。你可以稍后重试。',
@@ -196,6 +229,7 @@ async function initialize() {
       controlsRef = undefined
       cameraRef = undefined
       targetRef = undefined
+      syncSpatialCageVisibility = undefined
       changeMode = () => undefined
       cleanup = undefined
     }
@@ -377,6 +411,7 @@ async function initialize() {
       cameraTransition = undefined
       controlsActive = true
       pausePointerInteraction(320)
+      emit('user-interact')
     }
     const onControlsEnd = () => {
       controlsActive = false
@@ -793,6 +828,7 @@ async function initialize() {
       emit('mode-change', 'solid')
     }
 
+    let updateSpatialProjection: (() => void) | undefined
     const loader = new loaderModule.GLTFLoader()
     loader.setMeshoptDecoder(meshoptModule.MeshoptDecoder)
     emit('state-change', 'loading-model')
@@ -843,6 +879,130 @@ async function initialize() {
         artifact.position.set(-center.x * scale, -bounds.min.y * scale + .51, -center.z * scale)
         artifact.updateMatrixWorld(true)
         scene.add(artifact)
+
+        // Build precision 3D scale reference cage & real surface anchors from world bounds (245 x 200 mm)
+        const worldBounds = new THREE.Box3().setFromObject(artifact)
+        const wSize = worldBounds.getSize(new THREE.Vector3())
+        const wCenter = worldBounds.getCenter(new THREE.Vector3())
+        const spatialCage = new THREE.Group()
+        const boxGeom = new THREE.BoxGeometry(wSize.x * 1.03, wSize.y * 1.01, wSize.z * 1.03)
+        const edgesGeom = new THREE.EdgesGeometry(boxGeom)
+        boxGeom.dispose()
+        const cageLineMat = new THREE.LineBasicMaterial({
+          color: '#d8b878',
+          transparent: true,
+          opacity: 0.24,
+          depthWrite: false,
+        })
+        const cageLines = new THREE.LineSegments(edgesGeom, cageLineMat)
+        cageLines.position.copy(wCenter)
+        spatialCage.add(cageLines)
+
+        // Crisp vertical height ruler bracket on +X/+Z corner
+        const rx = worldBounds.max.x + 0.22
+        const rz = worldBounds.max.z * 0.35
+        const rulerPts = [
+          new THREE.Vector3(rx, worldBounds.min.y, rz),
+          new THREE.Vector3(rx, worldBounds.max.y, rz),
+          new THREE.Vector3(rx - 0.08, worldBounds.min.y, rz),
+          new THREE.Vector3(rx + 0.08, worldBounds.min.y, rz),
+          new THREE.Vector3(rx - 0.08, worldBounds.max.y, rz),
+          new THREE.Vector3(rx + 0.08, worldBounds.max.y, rz),
+        ]
+        const rulerMat = new THREE.LineBasicMaterial({ color: '#e6c88c', transparent: true, opacity: 0.56, depthWrite: false })
+        const rulerSegs = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(rulerPts), rulerMat)
+        spatialCage.add(rulerSegs)
+        spatialCage.visible = Boolean(props.showSpatialGuide)
+        scene.add(spatialCage)
+        syncSpatialCageVisibility = (visible: boolean) => { spatialCage.visible = visible }
+
+        const anchorDefs: Array<{
+          id: FocusPart
+          pos: import('three').Vector3
+          normal: import('three').Vector3
+          labelZh: string
+          labelEn: string
+          subZh: string
+          subEn: string
+        }> = [
+          {
+            id: 'ear',
+            pos: new THREE.Vector3(worldBounds.max.x * 0.68, worldBounds.min.y + wSize.y * 0.91, 0),
+            normal: new THREE.Vector3(0.76, 0.65, 0).normalize(),
+            labelZh: '双耳 · 对称立廓',
+            labelEn: 'Upright Loop Ears',
+            subZh: '俯视成对，侧视收窄为一线',
+            subEn: 'Paired from above; thin profile on side',
+          },
+          {
+            id: 'motif',
+            pos: new THREE.Vector3(0, worldBounds.min.y + wSize.y * 0.63, worldBounds.max.z * 0.88),
+            normal: new THREE.Vector3(0, 0.12, 1).normalize(),
+            labelZh: '器腹 · 凸出宽线带',
+            labelEn: 'Raised Belly Band',
+            subZh: '商代安阳期块范分型秩序',
+            subEn: 'Shang Anyang piece-mold register',
+          },
+          {
+            id: 'feet',
+            pos: new THREE.Vector3(0, worldBounds.min.y + wSize.y * 0.22, worldBounds.min.z * 0.72),
+            normal: new THREE.Vector3(0, -0.15, -1).normalize(),
+            labelZh: '三足 · 承重三角',
+            labelEn: 'Tripod Support',
+            subZh: '转至背面三足间距一目了然',
+            subEn: 'Rotate to back view to resolve all three legs',
+          },
+        ]
+        const projTmp = new THREE.Vector3()
+        const camDirTmp = new THREE.Vector3()
+        const hMid3D = new THREE.Vector3(rx + 0.12, wCenter.y, rz)
+        const wMid3D = new THREE.Vector3(0, worldBounds.min.y - 0.12, worldBounds.max.z * 0.78)
+
+        updateSpatialProjection = () => {
+          if (!props.showSpatialGuide || !container.value) return
+          const cw = container.value.clientWidth || 1
+          const ch = container.value.clientHeight || 1
+          stageSize.value = { w: cw, h: ch }
+
+          const pins: ProjectedPin[] = []
+          for (const def of anchorDefs) {
+            projTmp.copy(def.pos).project(camera)
+            if (projTmp.z > 1) continue
+            const sx = (projTmp.x * 0.5 + 0.5) * cw
+            const sy = (-projTmp.y * 0.5 + 0.5) * ch
+            camDirTmp.copy(camera.position).sub(def.pos).normalize()
+            const facing = camDirTmp.dot(def.normal)
+            const occluded = facing < -0.14
+            const alignRight = sx >= cw * 0.5
+            const dir = alignRight ? 1 : -1
+            const elbowX = Math.max(24, Math.min(cw - 24, sx + dir * (cw < 640 ? 18 : 30)))
+            const elbowY = Math.max(68, Math.min(ch - 210, sy - 16))
+            const endX = Math.max(16, Math.min(cw - 16, elbowX + dir * (cw < 640 ? 58 : 88)))
+            pins.push({
+              id: def.id,
+              x: sx,
+              y: sy,
+              elbowX,
+              elbowY,
+              endX,
+              alignRight,
+              occluded,
+              labelZh: def.labelZh,
+              labelEn: def.labelEn,
+              subZh: def.subZh,
+              subEn: def.subEn,
+            })
+          }
+          projectedPins.value = pins
+
+          projTmp.copy(hMid3D).project(camera)
+          const hx = Math.max(48, Math.min(cw - 68, (projTmp.x * 0.5 + 0.5) * cw))
+          const hy = Math.max(76, Math.min(ch - 196, (-projTmp.y * 0.5 + 0.5) * ch))
+          projTmp.copy(wMid3D).project(camera)
+          const wx = Math.max(60, Math.min(cw - 60, (projTmp.x * 0.5 + 0.5) * cw))
+          const wy = Math.max(88, Math.min(ch - 196, (-projTmp.y * 0.5 + 0.5) * ch))
+          projectedDims.value = { hx, hy, wx, wy, visible: true }
+        }
         const compositionLift = window.innerWidth <= 760 ? .1 : .22
         target.set(0, .51 + size.y * scale * .5 - compositionLift, 0)
         setView('front', { animated: false })
@@ -993,6 +1153,7 @@ async function initialize() {
         }
       }
       try { submitRender() } catch { fail(viewerCopy.value.unavailable); return }
+      updateSpatialProjection?.()
       const measured = performanceMonitor.record(time, modelReady && !transition && !cameraTransition && !pointCloudBusy, quality)
       if (measured && host) host.dataset.renderFpsWindow = measured.fps.toFixed(2)
       if (measured?.quality) {
@@ -1032,6 +1193,69 @@ onBeforeUnmount(() => { initializationVersion += 1; cleanup?.() })
 <template>
   <div class="three-viewer">
     <div ref="container" class="three-canvas" role="img" data-cursor="native" :aria-label="`${alt}${viewerCopy.aria}`"></div>
+
+    <!-- Real-time 3D Projected Spatial Micro-Light Anchors & 245x200mm Dimension Overlay -->
+    <div
+      v-if="showSpatialGuide && !loading && !error && projectedPins.length"
+      class="three-spatial-overlay"
+      data-testid="three-spatial-overlay"
+    >
+      <svg
+        class="three-spatial-svg"
+        :viewBox="`0 0 ${stageSize.w} ${stageSize.h}`"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <template v-for="pin in projectedPins" :key="`line-${pin.id}`">
+          <polyline
+            v-if="!pin.occluded"
+            :points="`${pin.x},${pin.y} ${pin.elbowX},${pin.elbowY} ${pin.endX},${pin.elbowY}`"
+            class="three-spatial-leader"
+            :class="{ 'is-active': activePart === pin.id }"
+          />
+        </template>
+      </svg>
+
+      <span
+        v-if="projectedDims.visible"
+        class="three-dim-badge font-mono"
+        :style="{ transform: `translate3d(${projectedDims.hx}px, ${projectedDims.hy}px, 0)` }"
+      >
+        H 245 mm
+      </span>
+      <span
+        v-if="projectedDims.visible"
+        class="three-dim-badge font-mono"
+        :style="{ transform: `translate3d(${projectedDims.wx}px, ${projectedDims.wy}px, 0) translateX(-50%)` }"
+      >
+        Ø 200 mm
+      </span>
+
+      <template v-for="pin in projectedPins" :key="pin.id">
+        <button
+          type="button"
+          class="three-spatial-pin"
+          :class="{ 'is-occluded': pin.occluded, 'is-active': activePart === pin.id }"
+          :style="{ transform: `translate3d(${pin.x}px, ${pin.y}px, 0)` }"
+          :aria-label="locale === 'en-US' ? pin.labelEn : pin.labelZh"
+          @click="focusPart(pin.id, { animated: true })"
+        >
+          <span class="three-spatial-pin__halo" aria-hidden="true"></span>
+          <span class="three-spatial-pin__core" aria-hidden="true"></span>
+        </button>
+
+        <div
+          v-if="!pin.occluded"
+          class="three-spatial-callout"
+          :class="{ 'is-right': pin.alignRight, 'is-left': !pin.alignRight, 'is-active': activePart === pin.id }"
+          :style="{ transform: `translate3d(${pin.elbowX}px, ${pin.elbowY}px, 0)` }"
+        >
+          <strong>{{ locale === 'en-US' ? pin.labelEn : pin.labelZh }}</strong>
+          <small>{{ locale === 'en-US' ? pin.subEn : pin.subZh }}</small>
+        </div>
+      </template>
+    </div>
+
     <Transition name="exhibit-loading">
       <div v-if="loading" class="three-overlay" role="status" aria-live="polite"><div class="exhibit-loader" data-glass="dark"><span class="exhibit-loader__artifact" aria-hidden="true"><i></i><b></b></span><div class="exhibit-loader__copy"><small>DIGITAL OBJECT</small><strong>{{ viewerCopy.loading }}</strong><span class="exhibit-loader__track" aria-hidden="true"><i :style="{ width: `${loadingProgress || 12}%` }"></i></span><em>{{ loadingProgress ? `${loadingProgress}%` : 'LOADING' }}</em></div></div></div>
     </Transition>
@@ -1135,5 +1359,137 @@ onBeforeUnmount(() => { initializationVersion += 1; cleanup?.() })
   width: auto;
   min-height: 44px;
   border-radius: 8px;
+}
+
+/* ── Spatial Micro-Light Anchors & 245x200mm Scale Overlay ── */
+.three-spatial-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.three-spatial-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.three-spatial-leader {
+  fill: none;
+  stroke: oklch(82% 0.052 78 / 0.45);
+  stroke-width: 0.9;
+  transition: stroke 180ms ease;
+}
+
+.three-spatial-leader.is-active {
+  stroke: oklch(88% 0.068 80 / 0.88);
+  stroke-width: 1.15;
+}
+
+.three-dim-badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 0.16rem 0.48rem;
+  border-radius: var(--radius-xs);
+  border: 1px solid oklch(82% 0.052 78 / 0.28);
+  background: oklch(14% 0.006 74 / 0.76);
+  color: oklch(88% 0.048 80);
+  font-size: var(--text-xs);
+  line-height: 1.3;
+  letter-spacing: 0.04em;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  white-space: nowrap;
+}
+
+.three-spatial-pin {
+  position: absolute;
+  top: -22px;
+  left: -22px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: opacity 220ms var(--ease-curatorial);
+}
+
+.three-spatial-pin.is-occluded {
+  opacity: 0.18;
+  pointer-events: none;
+}
+
+.three-spatial-pin__halo {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 1px solid oklch(86% 0.062 80 / 0.62);
+  animation: spatial-pin-breathe 2.4s ease-in-out infinite;
+}
+
+.three-spatial-pin.is-active .three-spatial-pin__halo {
+  width: 22px;
+  height: 22px;
+  border-color: oklch(91% 0.072 82 / 0.95);
+}
+
+.three-spatial-pin__core {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: oklch(93% 0.055 82);
+  box-shadow: 0 0 8px oklch(84% 0.07 78 / 0.65);
+}
+
+.three-spatial-callout {
+  position: absolute;
+  top: -22px;
+  left: 0;
+  display: grid;
+  gap: 1px;
+  padding: 0.2rem 0.45rem;
+  border-radius: var(--radius-xs);
+  background: oklch(14% 0.006 74 / 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: oklch(94% 0.008 82);
+  white-space: nowrap;
+}
+
+.three-spatial-callout.is-right {
+  margin-left: 6px;
+  text-align: left;
+}
+
+.three-spatial-callout.is-left {
+  transform-origin: right center;
+  margin-left: -6px;
+  translate: -100% 0;
+  text-align: right;
+}
+
+.three-spatial-callout strong {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: oklch(90% 0.048 80);
+}
+
+.three-spatial-callout small {
+  font-size: var(--text-xs);
+  color: oklch(78% 0.01 78);
+}
+
+@keyframes spatial-pin-breathe {
+  0%, 100% { transform: scale(0.88); opacity: 0.52; }
+  50% { transform: scale(1.18); opacity: 0.96; }
 }
 </style>

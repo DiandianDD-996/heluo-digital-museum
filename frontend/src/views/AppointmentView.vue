@@ -11,13 +11,14 @@ import { useLocale } from '../stores/locale'
 import InlineStatus from '../components/InlineStatus.vue'
 import FluidButton from '../components/FluidButton.vue'
 import AppointmentContactFields from '../components/AppointmentContactFields.vue'
+import MuseumPassCard from '../components/MuseumPassCard.vue'
 import PointerDotField from '../components/PointerDotField.vue'
 import { isPublicSlotDate } from '../lib/publicSlotDate'
 import { guideEnabled, useLuoshengStore } from '../stores/luoshengStore'
 
 interface Slot { id: number; visitDate: string; startTime: string; endTime: string; remainingPeople: number }
 interface CalendarDay { iso: string; day: string; weekday: string; available: boolean; full: boolean }
-interface CreatedAppointment { appointmentNo: string }
+interface CreatedAppointment { appointmentNo: string; verificationCode?: string }
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -33,6 +34,8 @@ const submitError = ref('')
 const fieldErrors = reactive<Record<string, string>>({})
 const message = ref('')
 const bookingNo = ref('')
+const bookingVerifyCode = ref('')
+const passModalOpen = ref(false)
 const submitting = ref(false)
 const mobileSummaryOpen = ref(false)
 const mobileSummarySnapPoint = ref<'medium' | 'full'>('full')
@@ -332,8 +335,13 @@ async function submit() {
     Object.assign(form, payload)
     message.value = pageCopy.value.success
     bookingNo.value = created.appointmentNo
+    bookingVerifyCode.value = created.verificationCode ?? ''
     creationKey.value = null
     clearAppointmentDraft()
+    mobileSummaryOpen.value = false
+    if (selectedSlot.value) {
+      passModalOpen.value = true
+    }
   } catch (reason) {
     submitError.value = bookingError(reason, 'submit')
     if (reason instanceof ApiRequestError && reason.status >= 400 && reason.status < 500 && reason.status !== 408) {
@@ -425,6 +433,50 @@ async function pulseSelection() {
   })
 }
 
+const issuedPass = computed(() => {
+  if (!message.value || !bookingNo.value || !selectedSlot.value) return null
+  return {
+    appointmentNo: bookingNo.value,
+    verificationCode: bookingVerifyCode.value,
+    visitDate: selectedSlot.value.visitDate,
+    startTime: selectedSlot.value.startTime,
+    endTime: selectedSlot.value.endTime,
+    visitorCount: form.visitorCount,
+    contactName: form.contactName,
+    status: 'PENDING' as const,
+  }
+})
+
+const passModalCopy = computed(() => locale.value === 'en-US' ? {
+  eyebrow: 'HELUO KEEPSAKE · ADMISSION PASS ISSUED',
+  title: 'Your collector’s museum pass is ready',
+  hint: 'Saved automatically under Account › My Bookings. Switch keepsake plates or export as a high-res PNG anytime.',
+  viewBookings: 'View my bookings',
+  reopen: 'Open keepsake pass',
+  stayHere: 'Stay on this page',
+  closeAria: 'Close museum pass dialog',
+} : {
+  eyebrow: '河洛礼遇 · 入馆纪念票根已签发',
+  title: '这份河洛藏书票，敬赠此行',
+  hint: '凭证已同步归档至「个人中心 · 我的预约」；可自由切换馆藏画片，或保存高清 PNG 留作纪念。',
+  viewBookings: '查看我的预约',
+  reopen: '检视纪念票根',
+  stayHere: '收起，留在当前页',
+  closeAria: '关闭电子票根弹窗',
+})
+
+function onPassModalKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && passModalOpen.value) {
+    passModalOpen.value = false
+  }
+}
+
+watch(passModalOpen, (isOpen) => {
+  if (typeof window === 'undefined') return
+  if (isOpen) window.addEventListener('keydown', onPassModalKeydown)
+  else window.removeEventListener('keydown', onPassModalKeydown)
+})
+
 watch(selectedDate, () => { void revealTimes() })
 watch(() => route.query.date, () => {
   previewRouteDate()
@@ -435,6 +487,7 @@ watch(message, (text) => { if (text) void revealResult() })
 watch([() => form.slotId, () => form.visitorCount], () => { void pulseSelection() })
 
 onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') window.removeEventListener('keydown', onPassModalKeydown)
   mobileDateQuery?.removeEventListener('change', syncMobileDatePicker)
   loadController?.abort()
   gsapContext?.revert()
@@ -483,9 +536,24 @@ onBeforeUnmount(() => {
             <h2>{{ workbenchCopy.submitted }}</h2>
             <p>{{ message }}</p>
             <p class="font-mono">{{ locale === 'en-US' ? 'Booking No.' : '预约编号' }}：{{ bookingNo }}</p>
-            <RouterLink class="appointment-result__link" to="/profile">{{ locale === 'en-US' ? 'View my bookings' : '查看我的预约' }}<ArrowRight aria-hidden="true" /></RouterLink>
+            <div class="appointment-result__actions">
+              <button
+                v-if="issuedPass"
+                type="button"
+                class="appointment-result__pass-btn"
+                data-testid="reopen-museum-pass"
+                @click="passModalOpen = true"
+              >
+                <Tickets aria-hidden="true" />{{ passModalCopy.reopen }}
+              </button>
+              <RouterLink v-if="!passModalOpen" class="appointment-result__link" to="/profile">
+                {{ passModalCopy.viewBookings }}<ArrowRight aria-hidden="true" />
+              </RouterLink>
+            </div>
           </div>
         </div>
+
+        <MuseumPassCard v-if="issuedPass" :pass="issuedPass" />
 
         <InlineStatus v-if="fieldErrors.slotId" id="booking-slot-error" kind="error" :message="fieldErrors.slotId" />
         <FluidButton v-if="creationKey" data-recover-booking block :disabled="submitting" :loading="submitting" @click="submit()">
@@ -676,6 +744,14 @@ onBeforeUnmount(() => {
             <div v-if="bookingNo" class="pass-stub__code">
               <span>{{ locale === 'en-US' ? 'PASS NO.' : '凭证编号' }}</span>
               <strong class="font-mono">{{ bookingNo }}</strong>
+              <button
+                v-if="issuedPass"
+                type="button"
+                class="pass-stub__open-btn"
+                @click="passModalOpen = true"
+              >
+                <Tickets aria-hidden="true" />{{ passModalCopy.reopen }}
+              </button>
             </div>
           </section>
         </div>
@@ -695,7 +771,7 @@ onBeforeUnmount(() => {
           <h2>{{ workbenchCopy.submitted }}</h2>
           <p>{{ message }}</p>
           <p class="font-mono">{{ bookingNo }}</p>
-          <RouterLink to="/profile">{{ locale === 'en-US' ? 'View my bookings' : '查看我的预约' }}<ArrowRight aria-hidden="true" /></RouterLink>
+          <RouterLink v-if="!passModalOpen" to="/profile">{{ passModalCopy.viewBookings }}<ArrowRight aria-hidden="true" /></RouterLink>
         </div>
       </div>
       <InlineStatus v-if="submitError" data-submit-error kind="error" :message="submitError" />
@@ -716,6 +792,63 @@ onBeforeUnmount(() => {
         <p class="appointment-privacy">{{ pageCopy.privacy }}</p>
       </form>
     </BottomSheet>
+
+    <!-- Ceremonial Keepsake Pass Modal: immediately presented on booking success -->
+    <Teleport to="body">
+      <Transition name="pass-modal-fade">
+        <div
+          v-if="passModalOpen && issuedPass"
+          class="pass-modal-backdrop"
+          data-testid="museum-pass-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pass-modal-title"
+          @click.self="passModalOpen = false"
+        >
+          <div class="pass-modal-stage">
+            <header class="pass-modal-head">
+              <div class="pass-modal-head__copy">
+                <p class="pass-modal-head__eyebrow font-mono">{{ passModalCopy.eyebrow }}</p>
+                <h2 id="pass-modal-title">{{ passModalCopy.title }}</h2>
+                <p class="pass-modal-head__msg">{{ message }}</p>
+              </div>
+              <button
+                type="button"
+                class="pass-modal-close"
+                :aria-label="passModalCopy.closeAria"
+                @click="passModalOpen = false"
+              >
+                ×
+              </button>
+            </header>
+
+            <div class="pass-modal-body">
+              <MuseumPassCard :pass="issuedPass" surface="velvet" />
+            </div>
+
+            <footer class="pass-modal-foot">
+              <p class="pass-modal-foot__hint">{{ passModalCopy.hint }}</p>
+              <div class="pass-modal-foot__actions">
+                <button
+                  type="button"
+                  class="pass-modal-stay"
+                  @click="passModalOpen = false"
+                >
+                  {{ passModalCopy.stayHere }}
+                </button>
+                <RouterLink
+                  class="pass-modal-profile"
+                  to="/profile"
+                  @click="passModalOpen = false"
+                >
+                  {{ passModalCopy.viewBookings }}<ArrowRight aria-hidden="true" />
+                </RouterLink>
+              </div>
+            </footer>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </section>
 </template>
 
@@ -1475,6 +1608,227 @@ onBeforeUnmount(() => {
   color: var(--ink-primary);
 }
 
+.appointment-result__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  margin-top: 0.55rem;
+}
+
+.appointment-result__pass-btn,
+.pass-stub__open-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  padding: 0 1.05rem;
+  border: 1px solid var(--accent-bronze);
+  border-radius: var(--radius-pill);
+  background: color-mix(in oklch, var(--accent-bronze) 12%, var(--surface-elevated));
+  color: var(--ink-primary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 180ms var(--ease-standard), transform 180ms var(--ease-standard);
+}
+
+.appointment-result__pass-btn:hover,
+.pass-stub__open-btn:hover {
+  background: color-mix(in oklch, var(--accent-bronze) 22%, var(--surface-elevated));
+}
+
+.pass-stub__open-btn {
+  width: 100%;
+  margin-top: 0.65rem;
+}
+
+/* ── Ceremonial Keepsake Pass Velvet Stage (Zero Bulky Modal Chrome) ── */
+.pass-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 108;
+  display: grid;
+  place-items: center;
+  padding: clamp(1rem, 3.5vw, 2.5rem);
+  background:
+    radial-gradient(ellipse 68% 58% at 50% 42%, oklch(20% 0.015 76 / 0.88), oklch(8% 0.006 72 / 0.94) 75%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  overflow-y: auto;
+}
+
+.pass-modal-stage {
+  width: min(100%, 940px);
+  display: grid;
+  gap: var(--space-5);
+  padding: clamp(0.5rem, 1.5vw, 1rem);
+  color: oklch(95% 0.012 86);
+}
+
+.pass-modal-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid oklch(86% 0.03 80 / 0.16);
+}
+
+.pass-modal-head__copy {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.pass-modal-head__eyebrow {
+  margin: 0;
+  font-size: var(--text-xs);
+  letter-spacing: 0.18em;
+  color: oklch(82% 0.072 78);
+}
+
+.pass-modal-head h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 2.4vw, 1.85rem);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: oklch(97% 0.008 86);
+}
+
+.pass-modal-head__msg {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: oklch(80% 0.012 82);
+}
+
+.pass-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border: 1px solid oklch(86% 0.02 80 / 0.22);
+  border-radius: 50%;
+  background: transparent;
+  color: oklch(84% 0.01 82);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 180ms var(--ease-standard), color 180ms var(--ease-standard);
+}
+
+.pass-modal-close:hover {
+  border-color: oklch(84% 0.075 78);
+  color: oklch(98% 0.008 86);
+}
+
+.pass-modal-body {
+  min-width: 0;
+}
+
+.pass-modal-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid oklch(86% 0.03 80 / 0.14);
+}
+
+.pass-modal-foot__hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.65;
+  color: oklch(72% 0.012 80);
+  max-width: 50ch;
+}
+
+.pass-modal-foot__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.pass-modal-stay {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border: 0;
+  background: transparent;
+  color: oklch(78% 0.012 80);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: color 180ms var(--ease-standard);
+}
+
+.pass-modal-stay:hover {
+  color: oklch(96% 0.008 86);
+}
+
+.pass-modal-profile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  padding: 0 1.4rem;
+  border-radius: 2px;
+  background: oklch(95% 0.014 86);
+  color: oklch(14% 0.01 72);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  transition: opacity 180ms var(--ease-standard);
+}
+
+.pass-modal-profile:hover {
+  opacity: 0.92;
+}
+
+.pass-modal-profile svg {
+  width: 15px;
+  height: 15px;
+}
+
+.pass-modal-fade-enter-active,
+.pass-modal-fade-leave-active {
+  transition: opacity 260ms var(--ease-standard);
+}
+
+.pass-modal-fade-enter-active .pass-modal-stage,
+.pass-modal-fade-leave-active .pass-modal-stage {
+  transition: transform 320ms var(--ease-standard), opacity 260ms var(--ease-standard);
+}
+
+.pass-modal-fade-enter-from,
+.pass-modal-fade-leave-to {
+  opacity: 0;
+}
+
+.pass-modal-fade-enter-from .pass-modal-stage,
+.pass-modal-fade-leave-to .pass-modal-stage {
+  opacity: 0;
+  transform: translateY(16px) scale(0.975);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pass-modal-fade-enter-active,
+  .pass-modal-fade-leave-active,
+  .pass-modal-fade-enter-active .pass-modal-stage,
+  .pass-modal-fade-leave-active .pass-modal-stage {
+    transition: none;
+  }
+}
+
 /* ── Responsive ── */
 @media (max-width: 1040px) {
   .appointment-layout {
@@ -1509,6 +1863,25 @@ onBeforeUnmount(() => {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.35rem;
+  }
+
+  .pass-modal-backdrop {
+    align-items: start;
+    padding: 0.75rem;
+  }
+
+  .pass-modal-foot {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pass-modal-foot__actions {
+    justify-content: stretch;
+  }
+
+  .pass-modal-stay,
+  .pass-modal-profile {
+    flex: 1 1 auto;
   }
 }
 </style>

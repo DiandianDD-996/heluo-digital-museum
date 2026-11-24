@@ -24,8 +24,7 @@ public class PocketBaySpaController {
     }
 
     @GetMapping({
-            "/", "/explore", "/artifacts/{slug}", "/articles/{slug}",
-            "/exhibits", "/exhibits/{slug}", "/appointment", "/shop",
+            "/", "/explore", "/exhibits", "/appointment", "/shop",
             "/login", "/reset-password", "/profile", "/admin", "/admin/operations"
     })
     public String index(HttpServletResponse response) {

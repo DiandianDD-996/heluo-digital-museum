@@ -63,6 +63,14 @@
       "summary": "基于 Cleveland Museum of Art 1962.281 CC0 鼎模型，保留原始器型与纹样并重制古青铜 PBR 材质的 3D 数字展项，支持自由旋转、缩放与实体/点云切换。",
       "summaryEn": "Interactive 3D digital reconstruction modeled from Cleveland Museum of Art 1962.281 (CC0), supporting free rotation, zoom, viewpoint focus, and solid/point-cloud inspection.",
       "description": "本展项以 Cleveland Museum of Art 1962.281 Tripod (Ding) 的 CC0 模型为基础网格，保留原始器型与纹样，由项目完成法线、AO、粗糙度、金属度和局部氧化铜绿重制，并在深色博物馆顶光展厅中呈现。该版本为项目数字重制，不是馆方扫描数据或官方复原。拖动模型可自由旋转视角，滚轮或双指可缩放，亦可切换实体/点云模式对比外轮廓；若设备不支持 WebGL，仍可查看高清静态 3 看点图版与文字说明。"
+    },
+    "river-map-stone-raking": {
+      "title": "河洛图纹石板 · 斜射光刻痕检视",
+      "titleEn": "River-Map Pattern Stone · Raking-Light Inspection",
+      "displayNo": "02",
+      "summary": "以低掠射角可调光学台细察石板阴刻河道、同心圆阵与石理风化痕迹，支持 360° 光向牵引、2.4× 光学放大镜与乌金墨拓显影。",
+      "summaryEn": "Sweep low-angle raking light across the incised stone tablet to inspect carved river channels, compass rings, and weathered slate grain with a 2.4× optical loupe and ink-rubbing relief mode.",
+      "description": "本展项围绕馆内原创概念展品《河洛图纹石板》构建 WebGL 斜射光（Raking Light）光学检视台：通过调节掠射光源方位角与低仰角阴影，原本平视难以察觉的浅阴刻双河交汇线、河图同心节点与石材层理得以清晰浮现，亦可一键切换“乌金墨拓”模式比对拓印留白。本品为项目原创概念数字展项，不代表特定考古出土石刻拓本。"
     }
   },
   "products": {

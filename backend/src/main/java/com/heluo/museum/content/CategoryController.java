@@ -14,8 +14,11 @@ public class CategoryController {
   CategoryController(JdbcTemplate jdbc) { this.jdbc = jdbc; }
   @GetMapping
   public ApiResponse<List<Category>> list() {
-    var items=jdbc.query("select id,code,name,description,sort_order from categories where enabled=1 order by sort_order,id",(rs,row)->new Category(rs.getLong("id"),rs.getString("code"),rs.getString("name"),rs.getString("description"),rs.getInt("sort_order")));
+    var items=jdbc.query("select id,code,name,description,sort_order,name_en,description_zh,description_en from categories where enabled=1 order by sort_order,id",
+        (rs,row)->new Category(rs.getLong("id"),rs.getString("code"),rs.getString("name"),rs.getString("description"),rs.getInt("sort_order"),
+            rs.getString("name_en"),rs.getString("description_zh"),rs.getString("description_en")));
     return ApiResponse.ok(items,"categories");
   }
-  public record Category(long id,String code,String name,String description,int sortOrder) {}
+  public record Category(long id,String code,String name,String description,int sortOrder,
+                         String nameEn,String descriptionZh,String descriptionEn) {}
 }

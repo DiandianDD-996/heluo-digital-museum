@@ -94,8 +94,31 @@ public class GuideKnowledgeService {
         }
     }
 
-    public void invalidateCache() {
+    public synchronized void invalidateCatalog() {
         cachedCatalog = null;
+    }
+
+    public void invalidateAfterCommit() {
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() { invalidateCatalog(); }
+                    });
+        } else {
+            invalidateCatalog();
+        }
+    }
+
+    Map<String, String> enabledCategories() {
+        Map<String, String> categories = new java.util.LinkedHashMap<>();
+        jdbc.query("select code, name from categories where enabled=1 order by sort_order,id",
+                rs -> { categories.put(rs.getString("code"), rs.getString("name")); });
+        return categories;
+    }
+
+    public void invalidateCache() {
+        invalidateCatalog();
     }
 
     public Optional<ArtifactItem> findArtifact(String slug) {

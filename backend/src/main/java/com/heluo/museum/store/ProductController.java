@@ -15,14 +15,19 @@ public class ProductController {
     private final JdbcTemplate jdbc;
     ProductController(JdbcTemplate jdbc) { this.jdbc = jdbc; }
     @GetMapping public ApiResponse<List<Card>> list() {
-        return ApiResponse.ok(jdbc.query("select id,slug,name,summary,price,stock_quantity,locked_stock,cover_image_url from products where status='PUBLISHED' and deleted_at is null order by published_at desc,id desc",
-                (r,n)->new Card(r.getLong(1),r.getString(2),r.getString(3),empty(r.getString(4)),r.getBigDecimal(5).toPlainString(),Math.max(0,r.getInt(6)-r.getInt(7)),empty(r.getString(8)))),"products");
+        return ApiResponse.ok(jdbc.query("select id,slug,name,summary,price,stock_quantity,locked_stock,cover_image_url,name_en,summary_en,category_code,inspiration_artifact_slug from products where status='PUBLISHED' and deleted_at is null order by published_at desc,id desc",
+                (r,n)->new Card(r.getLong(1),r.getString(2),r.getString(3),empty(r.getString(4)),r.getBigDecimal(5).toPlainString(),Math.max(0,r.getInt(6)-r.getInt(7)),empty(r.getString(8)),
+                        r.getString(9),r.getString(10),r.getString(11),r.getString(12))),"products");
     }
     @GetMapping("/{slug}") public ApiResponse<Detail> detail(@PathVariable String slug) {
-        List<Detail> rows=jdbc.query("select id,slug,name,summary,description,price,stock_quantity,locked_stock,cover_image_url from products where slug=? and status='PUBLISHED' and deleted_at is null",(r,n)->new Detail(r.getLong(1),r.getString(2),r.getString(3),empty(r.getString(4)),empty(r.getString(5)),r.getBigDecimal(6).toPlainString(),Math.max(0,r.getInt(7)-r.getInt(8)),empty(r.getString(9))),slug);
+        List<Detail> rows=jdbc.query("select id,slug,name,summary,description,price,stock_quantity,locked_stock,cover_image_url,name_en,summary_en,description_en,category_code,inspiration_artifact_slug from products where slug=? and status='PUBLISHED' and deleted_at is null",
+                (r,n)->new Detail(r.getLong(1),r.getString(2),r.getString(3),empty(r.getString(4)),empty(r.getString(5)),r.getBigDecimal(6).toPlainString(),Math.max(0,r.getInt(7)-r.getInt(8)),empty(r.getString(9)),
+                        r.getString(10),r.getString(11),r.getString(12),r.getString(13),r.getString(14)),slug);
         if(rows.isEmpty())throw new ResourceNotFoundException("商品不存在或已下架");return ApiResponse.ok(rows.get(0),"product");
     }
     private static String empty(String value){return value==null?"":value;}
-    public record Card(long id,String slug,String name,String summary,String price,int availableStock,String coverImageUrl){}
-    public record Detail(long id,String slug,String name,String summary,String description,String price,int availableStock,String coverImageUrl){}
+    public record Card(long id,String slug,String name,String summary,String price,int availableStock,String coverImageUrl,
+                       String nameEn,String summaryEn,String categoryCode,String inspirationArtifactSlug){}
+    public record Detail(long id,String slug,String name,String summary,String description,String price,int availableStock,String coverImageUrl,
+                         String nameEn,String summaryEn,String descriptionEn,String categoryCode,String inspirationArtifactSlug){}
 }

@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -74,6 +75,8 @@ class GuideV2IntegrationTests {
     @Autowired JdbcTemplate jdbc;
     @Autowired GuideProperties properties;
     @Autowired GuideKnowledgeService knowledge;
+    @Autowired GuideToolExecutor tools;
+    @Autowired GuideOrchestrator orchestrator;
 
     @FunctionalInterface
     interface MockHandler {
@@ -120,6 +123,54 @@ class GuideV2IntegrationTests {
         properties.setModelEnabled(true);
         Files.deleteIfExists(tempDir.resolve("guide-paused"));
         knowledge.invalidateCache();
+    }
+
+    @Test
+    void detailToolReturnsSignedEvidenceInTheRequestedLanguage() throws Exception {
+        for (var entry : Map.of("artifact", "heluo-bronze-ding", "exhibit", "heluo-bronze-ding-3d").entrySet()) {
+            var audit = new GuideToolExecutor.ToolAuditContext("en-US");
+            var args = mapper.writeValueAsString(Map.of("type", entry.getKey(), "slug", entry.getValue()));
+            var result = mapper.readTree(tools.execute("get_museum_item_detail", args, audit));
+            assertThat(result.path("ok").asBoolean()).isTrue();
+            var cards = result.path("verifiedEvidenceCards");
+            assertThat(cards.size()).isEqualTo(9);
+            var source = java.util.stream.StreamSupport.stream(cards.spliterator(), false)
+                    .filter(card -> "LS-DING-SOURCE".equals(card.path("id").asText())).findFirst().orElseThrow();
+            assertThat(source.path("spoken").asText()).contains("This digital ding references Cleveland Museum of Art");
+            assertThat(audit.allowedCitations()).containsKey("LS-DING-SOURCE");
+        }
+    }
+
+    @Test
+    void sameRequestDoesNotReplayAnAiAnswerAfterModeOrPauseChanges() throws Exception {
+        AtomicInteger calls = new AtomicInteger();
+        CURRENT_HANDLER.set((req, exchange) -> {
+            calls.incrementAndGet();
+            sendSseChunks(exchange, List.of("河洛青铜鼎是一件数字重制展品。\n<<<LUOSHENG_META>>>\n{\"citations\":[\"LS-DING-SOURCE\"]}"));
+        });
+        String body = mapper.writeValueAsString(Map.of("requestId", UUID.randomUUID().toString(),
+                "conversationId", "runtime-mode-replay", "message", "介绍河洛青铜鼎", "locale", "zh-CN",
+                "context", Map.of("route", "artifact-detail", "artifactSlug", "heluo-bronze-ding")));
+        try {
+            mvc.perform(post("/api/v1/guide/chat").header("Sec-Fetch-Site", "same-origin")
+                            .contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data.mode").value("ai"));
+            orchestrator.changeMode(GuideOrchestrator.RuntimeMode.DETERMINISTIC, () -> {});
+            mvc.perform(post("/api/v1/guide/chat").header("Sec-Fetch-Site", "same-origin")
+                            .contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data.mode").value("deterministic"))
+                    .andExpect(jsonPath("$.data.degraded").value(false));
+            Files.createFile(tempDir.resolve("guide-paused"));
+            var paused = mvc.perform(post("/api/v1/guide/chat/stream").header("Sec-Fetch-Site", "same-origin")
+                            .contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(request().asyncStarted()).andReturn();
+            var response = mvc.perform(asyncDispatch(paused)).andExpect(status().isOk()).andReturn();
+            assertThat(response.getResponse().getContentAsString(StandardCharsets.UTF_8)).contains("运维暂停状态", "event:done");
+            assertThat(calls.get()).isEqualTo(1);
+        } finally {
+            Files.deleteIfExists(tempDir.resolve("guide-paused"));
+            orchestrator.changeMode(GuideOrchestrator.RuntimeMode.NORMAL, () -> {});
+        }
     }
 
     @Test
@@ -259,9 +310,33 @@ class GuideV2IntegrationTests {
 
         String sseBody = completed.getResponse().getContentAsString(StandardCharsets.UTF_8);
         assertThat(sseBody).contains("event:replace");
+        assertThat(sseBody).doesNotContain("出土于洛阳二里头", "800 万元", "LUOSHENG_META");
         assertThat(sseBody).contains("\"mode\":\"deterministic\"");
         assertThat(sseBody).contains("\"degraded\":true");
         assertThat(sseBody).contains("克利夫兰艺术博物馆");
+    }
+
+    @Test
+    void sentenceGuardSanitizesDeltasAndRejectsConceptAuthenticityAcrossRoutes() throws Exception {
+        CURRENT_HANDLER.set((req, exchange) -> sendSseChunks(exchange, List.of(
+                "请观察 heluo-bronze-", "ding 的三足，链接 https://example.",
+                "test/item?x=1。", "河图玉璧是馆藏", "真品，具有考古价值。\n",
+                "<<<LUOSHENG_", "META>>>\n{}")));
+        String payload = mapper.writeValueAsString(Map.of("conversationId", UUID.randomUUID().toString(),
+                "requestId", UUID.randomUUID().toString(), "message", "玉璧有什么特点？",
+                "locale", "zh-CN", "context", Map.of("route", "home")));
+        MvcResult started = mvc.perform(post("/api/v1/guide/chat/stream")
+                .header("Sec-Fetch-Site", "same-origin").header("X-Forwarded-For", "192.0.2.75")
+                .contentType(MediaType.APPLICATION_JSON).content(payload))
+                .andExpect(request().asyncStarted()).andReturn();
+        var body = mvc.perform(asyncDispatch(started)).andExpect(status().isOk()).andReturn()
+                .getResponse().getContentAsString(StandardCharsets.UTF_8);
+        assertThat(body).contains("event:delta", "请观察 河洛青铜鼎", "event:replace", "event:done")
+                .doesNotContain("https://example", "馆藏真品", "LUOSHENG_META", "heluo-bronze-ding 的三足");
+        mvc.perform(post("/api/v1/guide/chat").header("Sec-Fetch-Site", "same-origin")
+                .header("X-Forwarded-For", "192.0.2.76")
+                .contentType(MediaType.APPLICATION_JSON).content(payload))
+                .andExpect(jsonPath("$.data.mode").value("deterministic"));
     }
 
     @Test
@@ -342,6 +417,7 @@ class GuideV2IntegrationTests {
         String fixedReqId = UUID.randomUUID().toString();
         String body = mapper.writeValueAsString(Map.of(
                 "requestId", fixedReqId,
+                "conversationId", "one-conversation",
                 "message", "介绍一下河洛青铜鼎",
                 "locale", "zh-CN",
                 "context", Map.of("route", "artifact-detail", "artifactSlug", "heluo-bronze-ding")));
@@ -356,6 +432,33 @@ class GuideV2IntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.requestId").value(fixedReqId));
         assertThat(llmCalls.get()).isEqualTo(1);
+
+        mvc.perform(post("/api/v1/guide/chat/stream").header("Sec-Fetch-Site", "same-origin")
+                        .accept(MediaType.TEXT_EVENT_STREAM)
+                        .contentType(MediaType.APPLICATION_JSON).content(body.replace("介绍一下河洛青铜鼎", "另一个问题")))
+                .andExpect(status().isConflict());
+
+        MvcResult replay = mvc.perform(post("/api/v1/guide/chat/stream").header("Sec-Fetch-Site", "same-origin")
+                        .accept(MediaType.TEXT_EVENT_STREAM).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(request().asyncStarted()).andReturn();
+        mvc.perform(asyncDispatch(replay)).andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("event:done")));
+        assertThat(llmCalls.get()).isEqualTo(1);
+
+        mvc.perform(post("/api/v1/guide/chat").header("Sec-Fetch-Site", "same-origin")
+                        .contentType(MediaType.APPLICATION_JSON).content(body.replace("one-conversation", "new-conversation")))
+                .andExpect(status().isOk());
+        assertThat(llmCalls.get()).isEqualTo(2);
+
+        mvc.perform(post("/api/v1/guide/chat").header("Sec-Fetch-Site", "same-origin")
+                        .header("X-Forwarded-For", "192.0.2.38")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk());
+        assertThat(llmCalls.get()).isEqualTo(3);
+
+        mvc.perform(post("/api/v1/guide/chat").header("Sec-Fetch-Site", "same-origin")
+                        .contentType(MediaType.APPLICATION_JSON).content(body.replace(fixedReqId, "short")))
+                .andExpect(status().isUnprocessableEntity());
 
         // Read-only exhibit preset endpoint serves verified Tier-1 cards in both zh-CN and en-US
         mvc.perform(get("/api/v1/guide/exhibits/heluo-bronze-ding-3d"))

@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -35,7 +36,8 @@ public class GuideResponseValidator {
     private static final Set<String> VALID_MODES = Set.of("solid", "points");
     private static final Set<String> STATIC_ROUTES = Set.of("/explore", "/exhibits", "/appointment", "/shop");
 
-    private static final Pattern BARE_URL = Pattern.compile("https?://[^\\s)）\\]】\"'<>]+", Pattern.CASE_INSENSITIVE);
+    private static final Pattern BARE_URL = Pattern.compile("(?:https?://|www\\.)[^\\s。！？）)\\]】\"'<>]*", Pattern.CASE_INSENSITIVE);
+    static final Pattern SENTENCE_END = Pattern.compile("[。！？\\r\\n]|[.!?](?=\\s)");
     private static final Pattern ISO_DATE = Pattern.compile("^\\d{4}-\\d{2}-\\d{2}$");
 
     // High-risk affirmative hallucination patterns (checked per sentence, skipped if sentence contains explicit negation)
@@ -60,7 +62,13 @@ public class GuideResponseValidator {
             Pattern.CASE_INSENSITIVE);
 
     private static final Pattern REDLINE_CONCEPT_AS_REAL = Pattern.compile(
-            "(是|属于)[^。！？\\n]{0,8}(真实考古|真实出土|馆藏真品|考古发掘出土)",
+            "真实考古|真实出土|馆藏真品|考古发掘出土|(?:出土|发掘|发现)(?:于|自)|遗址出土|"
+                    + "excavated\\b|unearthed\\b|(?:authentic|genuine|real)\\s+(?:archaeological|museum|artifact|artefact|relic|antiquity)",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern CONCEPT_NAME = Pattern.compile(
+            "玉璧|青铜爵|彩陶水纹罐|图纹石板|水鸟青铜雕塑|heluo-bronze-jue|river-map-jade-bi|"
+                    + "painted-pottery-water-jar|river-map-pattern-stone|water-bird-bronze|"
+                    + "jade bi|bronze jue|painted pottery (?:water|jar)|pattern(?:ed)? stone|(?:bronze water bird|water bird bronze)",
             Pattern.CASE_INSENSITIVE);
 
     private final GuideKnowledgeService knowledge;
@@ -73,13 +81,13 @@ public class GuideResponseValidator {
 
     public ValidationResult validate(ChatRequest request, String rawBody, String rawMeta, ToolAuditContext audit) {
         boolean english = GuidePromptBuilder.isEnglish(request.locale());
-        String cleanedBody = stripBareUrls(rawBody == null ? "" : rawBody).strip();
+        String cleanedBody = cleanProse(rawBody == null ? "" : rawBody, english).strip();
 
         if (cleanedBody.isBlank()) {
             return ValidationResult.rejected("EMPTY_BODY");
         }
 
-        if (violatesRedline(cleanedBody, request.context())) {
+        if (violatesRedline(rawBody, request.context()) || violatesRedline(cleanedBody, request.context())) {
             return ValidationResult.rejected("FACTUAL_REDLINE");
         }
 
@@ -93,12 +101,9 @@ public class GuideResponseValidator {
     }
 
     boolean violatesRedline(String body, PageContext context) {
-        boolean isConceptContext = context != null
-                && context.artifactSlug() != null
-                && !context.artifactSlug().isBlank()
-                && !GuideKnowledgeService.DING_ARTIFACT_SLUG.equals(context.artifactSlug());
-
-        String[] sentences = body.split("[。！？!?\n]+");
+        boolean isConceptContext = context != null && context.artifactSlug() != null
+                && CONCEPT_NAME.matcher(context.artifactSlug()).find();
+        String[] sentences = SENTENCE_END.split(body);
         for (String sentence : sentences) {
             String s = sentence.strip();
             if (s.isEmpty()) continue;
@@ -114,7 +119,8 @@ public class GuideResponseValidator {
             if (REDLINE_KING_REIGN.matcher(s).find() && !NEGATION_MARKER.matcher(s).find()) {
                 return true;
             }
-            if (isConceptContext && REDLINE_CONCEPT_AS_REAL.matcher(s).find() && !NEGATION_MARKER.matcher(s).find()) {
+            if ((isConceptContext || CONCEPT_NAME.matcher(s).find())
+                    && REDLINE_CONCEPT_AS_REAL.matcher(s).find() && !isNegated(s)) {
                 return true;
             }
         }
@@ -123,6 +129,28 @@ public class GuideResponseValidator {
 
     String stripBareUrls(String text) {
         return BARE_URL.matcher(text).replaceAll("").replaceAll("[ \\t]{2,}", " ");
+    }
+
+    private static boolean isNegated(String sentence) {
+        return NEGATION_MARKER.matcher(sentence.replaceAll("(?i)\\bconcept\\b", "")).find()
+                || Pattern.compile("(?i)\\bnot (?:an? )?(?:excavated|real|genuine)|虚构|编造").matcher(sentence).find();
+    }
+
+    String cleanProse(String text, boolean english) {
+        String cleaned = stripBareUrls(text).replaceAll("(?i)<{0,3}LUOSHENG_META>{0,3}", "");
+        if (knowledge == null) return cleaned;
+        var catalog = knowledge.catalog();
+        Map<String, String> labels = new LinkedHashMap<>();
+        catalog.artifacts().forEach(a -> labels.put(a.slug(), english && !a.titleEn().isBlank() ? a.titleEn() : a.title()));
+        catalog.articles().forEach(a -> labels.put(a.slug(), english && !a.titleEn().isBlank() ? a.titleEn() : a.title()));
+        catalog.exhibits().forEach(a -> labels.put(a.slug(), english && !a.titleEn().isBlank() ? a.titleEn() : a.title()));
+        catalog.products().forEach(a -> labels.put(a.slug(), english && !a.nameEn().isBlank() ? a.nameEn() : a.name()));
+        String backtick = Character.toString(96);
+        for (String slug : labels.keySet().stream().sorted(java.util.Comparator.comparingInt(String::length).reversed()).toList()) {
+            cleaned = cleaned.replaceAll("(?i)" + backtick + "*" + Pattern.quote(slug) + backtick + "*",
+                    Matcher.quoteReplacement(labels.get(slug)));
+        }
+        return cleaned;
     }
 
     private JsonNode parseTolerantJson(String rawMeta) {
@@ -335,13 +363,26 @@ public class GuideResponseValidator {
                 String kw = qNode.get("q").asText("").trim();
                 if (!kw.isBlank() && kw.length() <= 60) q.put("q", kw);
             }
-            if (qNode.has("category") && qNode.get("category").isTextual()) {
+            if ("/explore".equals(path) && qNode.has("category") && qNode.get("category").isTextual()) {
                 String cat = qNode.get("category").asText("").trim();
-                if (!cat.isBlank() && cat.length() <= 40) q.put("category", cat);
+                String code = categoryCode(cat);
+                if (code != null) q.put("category", code);
             }
             if (!q.isEmpty()) cleanQuery = q;
         }
         return Action.navigate(path, cleanQuery, label);
+    }
+
+    private String categoryCode(String category) {
+        String alias = switch (category.toLowerCase(Locale.ROOT)) {
+            case "青铜", "青铜礼器", "bronze", "bronze ritual vessels" -> "BRONZE";
+            case "玉", "玉礼意象", "jade" -> "JADE";
+            case "河洛", "河洛故事", "彩陶", "石刻", "river" -> "RIVER";
+            default -> category;
+        };
+        return knowledge.enabledCategories().entrySet().stream()
+                .filter(e -> e.getKey().equalsIgnoreCase(alias) || e.getValue().equalsIgnoreCase(category))
+                .map(Map.Entry::getKey).findFirst().orElse(null);
     }
 
     private static int parseSafeInt(String text) {

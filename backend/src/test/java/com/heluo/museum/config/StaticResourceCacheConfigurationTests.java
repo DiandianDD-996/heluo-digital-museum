@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -15,12 +16,33 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(properties = {
         "spring.profiles.active=test,pocketbay",
-        "spring.datasource.url=jdbc:h2:mem:museum-static-cache;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
+        "spring.datasource.url=jdbc:h2:mem:museum-static-cache;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
+        "museum.bootstrap.enabled=true",
+        "museum.bootstrap.admin-username=static-cache-admin",
+        "museum.bootstrap.admin-password=only-for-static-cache-tests"
 })
 @AutoConfigureMockMvc
 class StaticResourceCacheConfigurationTests {
     @Autowired
     MockMvc mvc;
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    @Test
+    @org.springframework.transaction.annotation.Transactional
+    void publishedDetailsEscapeMetadataAndDraftsNeverExposeIt() throws Exception {
+        jdbc.update("update articles set title=?,summary=?,cover_image_url=? where slug='how-to-read-bronze'",
+                "A <script> & \"quote\"", "Summary < &", "/media/example.webp");
+        mvc.perform(get("/articles/how-to-read-bronze").header("Host", "forged.example"))
+                .andExpect(status().isOk())
+                .andExpect(result -> assertThat(result.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8))
+                        .contains("<title>A &lt;script&gt; &amp; &quot;quote&quot;</title>",
+                                "Summary &lt; &amp;", "http://localhost:8088/media/example.webp",
+                                "http://localhost:8088/articles/how-to-read-bronze")
+                        .doesNotContain("forged.example", "<script>"));
+        jdbc.update("update articles set status='DRAFT' where slug='how-to-read-bronze'");
+        mvc.perform(get("/articles/how-to-read-bronze")).andExpect(status().isNotFound())
+                .andExpect(result -> assertThat(result.getResponse().getContentAsString()).doesNotContain("Summary"));
+    }
 
     @Test
     void hashedAssetsAreImmutableForGetAndHead() throws Exception {
@@ -61,10 +83,12 @@ class StaticResourceCacheConfigurationTests {
         mvc.perform(get("/index.html"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "no-cache, must-revalidate"));
-        mvc.perform(get("/exhibits/fixture"))
+        mvc.perform(get("/exhibits/heluo-bronze-ding-3d"))
                 .andExpect(status().isOk())
-                .andExpect(forwardedUrl("/index.html"))
-                .andExpect(header().string("Cache-Control", "no-cache, must-revalidate"));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("og:title")))
+                .andExpect(header().string("Cache-Control", "no-store"));
+        mvc.perform(get("/exhibits/fixture")).andExpect(status().isNotFound())
+                .andExpect(header().string("Cache-Control", "no-store"));
         var missing = mvc.perform(get("/assets/missing-abcdefgh.js"))
                 .andExpect(status().isNotFound())
                 .andReturn().getResponse();

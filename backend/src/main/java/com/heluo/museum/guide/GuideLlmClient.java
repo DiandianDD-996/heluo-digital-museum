@@ -163,8 +163,7 @@ public class GuideLlmClient {
         int status = response.statusCode();
         if (status < 200 || status >= 300) {
             try (InputStream body = response.body()) {
-                byte[] errBytes = body.readNBytes(1024);
-                LOG.warn("Guide LLM upstream HTTP status={} body={}", status, new String(errBytes, StandardCharsets.UTF_8));
+                LOG.warn("Guide LLM upstream HTTP status={}", status);
             }
             throw new IOException("LLM upstream returned HTTP " + status);
         }

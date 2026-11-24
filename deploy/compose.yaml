@@ -1,10 +1,11 @@
 services:
   mailpit:
     image: axllent/mailpit:v1.27.7
+    profiles: ["dev-mail"]
     environment:
       MP_MAX_MESSAGES: 500
     ports:
-      - "${MUSEUM_MAIL_WEB_PORT:-8025}:8025"
+      - "127.0.0.1:${MUSEUM_MAIL_WEB_PORT:-8025}:8025"
     networks: [museum-network]
 
   mysql:
@@ -35,7 +36,7 @@ services:
       MUSEUM_BOOTSTRAP_ADMIN_USERNAME: ${MUSEUM_BOOTSTRAP_ADMIN_USERNAME:-}
       MUSEUM_BOOTSTRAP_ADMIN_PASSWORD: ${MUSEUM_BOOTSTRAP_ADMIN_PASSWORD:-}
       MUSEUM_BOOTSTRAP_ADMIN_EMAIL: ${MUSEUM_BOOTSTRAP_ADMIN_EMAIL:-}
-      MUSEUM_SMTP_HOST: ${MUSEUM_SMTP_HOST:-mailpit}
+      MUSEUM_SMTP_HOST: "${MUSEUM_SMTP_HOST:-}"
       MUSEUM_SMTP_PORT: ${MUSEUM_SMTP_PORT:-1025}
       MUSEUM_SMTP_USERNAME: ${MUSEUM_SMTP_USERNAME:-}
       MUSEUM_SMTP_PASSWORD: ${MUSEUM_SMTP_PASSWORD:-}
@@ -43,6 +44,8 @@ services:
       MUSEUM_SMTP_STARTTLS: ${MUSEUM_SMTP_STARTTLS:-false}
       MUSEUM_MAIL_FROM: ${MUSEUM_MAIL_FROM:-no-reply@heluo.local}
       MUSEUM_PUBLIC_BASE_URL: ${MUSEUM_PUBLIC_BASE_URL:-http://localhost:${MUSEUM_WEB_PORT:-8088}}
+      MUSEUM_SPA_INDEX_URL: http://frontend/index.html
+      MUSEUM_TRUSTED_PROXY_CIDRS: "${MUSEUM_TRUSTED_PROXY_CIDRS:-127.0.0.1/32,::1/128,${MUSEUM_NGINX_IP:-172.30.88.10}/32}"
       MUSEUM_GUIDE_ENABLED: ${MUSEUM_GUIDE_ENABLED:-false}
       MUSEUM_GUIDE_MODEL_ENABLED: ${MUSEUM_GUIDE_MODEL_ENABLED:-true}
       MUSEUM_GUIDE_MODEL_ENDPOINT: ${MUSEUM_GUIDE_MODEL_ENDPOINT:-https://api.deepseek.com/chat/completions}
@@ -58,8 +61,6 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-      mailpit:
-        condition: service_started
     networks: [museum-network]
 
   frontend:
@@ -70,10 +71,15 @@ services:
     depends_on: [backend]
     ports:
       - "${MUSEUM_WEB_PORT:-8088}:80"
-    networks: [museum-network]
+    networks:
+      museum-network:
+        ipv4_address: "${MUSEUM_NGINX_IP:-172.30.88.10}"
 
 networks:
   museum-network:
+    ipam:
+      config:
+        - subnet: "${MUSEUM_NETWORK_SUBNET:-172.30.88.0/24}"
 
 volumes:
   mysql-data:

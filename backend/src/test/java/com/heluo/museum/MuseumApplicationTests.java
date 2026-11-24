@@ -14,6 +14,8 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -513,6 +515,106 @@ class MuseumApplicationTests {
                 org.springframework.http.HttpMethod.GET, new HttpEntity<>(authHeaders(otherToken)), String.class);
         assertThat(otherList.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(otherList.getBody()).contains("\"total\":0");
+    }
+
+    @Test
+    void resetThrottlesOneAccountAcrossTrustedClientsWithoutChangingResponse() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        String username = "reset_" + suffix;
+        registerAndLogin(username);
+        jdbc.update("update users set email=? where username=?", username + "@example.test", username);
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        com.fasterxml.jackson.databind.node.ObjectNode reference = null;
+        for (int i = 1; i <= 4; i++) {
+            var headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("X-Forwarded-For", "198.51.100." + i);
+            var response = restTemplate.postForEntity("http://localhost:" + port + "/api/v1/auth/password-reset/request",
+                    new HttpEntity<>(Map.of("username", username, "email", username + "@example.test"), headers), String.class);
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+            var body = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(response.getBody());
+            assertThat(body.remove("requestId").asText()).isNotBlank();
+            if (reference == null) reference = body;
+            assertThat(body).isEqualTo(reference);
+        }
+        assertThat(jdbc.queryForObject("select count(*) from password_reset_tokens where user_id=(select id from users where username=?)",
+                Integer.class, username)).isEqualTo(3);
+    }
+
+    @Test
+    void administratorChecksInValidPassOnceAndDashboardCountsIt() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        String owner = "pass_" + suffix;
+        var ownerHeaders = authHeaders(registerAndLogin(owner));
+        var otherHeaders = authHeaders(registerAndLogin("other_" + suffix));
+        var adminHeaders = authHeaders(createAdminToken("staff_" + suffix));
+        long userId = jdbc.queryForObject("select id from users where username=?", Long.class, owner);
+        var now = java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Shanghai"));
+        var date = now.toLocalDate();
+        var start = now.toLocalTime().minusSeconds(20);
+        var end = now.toLocalTime().plusMinutes(1);
+        org.junit.jupiter.api.Assumptions.assumeTrue(end.isAfter(start));
+        jdbc.update("insert into appointment_slots(visit_date,start_time,end_time,capacity,reserved_people,status,created_by,updated_by) values(?,?,?,?,2,'OPEN',?,?)",
+                date, start.withNano(0), end.withNano(0), 30, userId, userId);
+        long slotId = jdbc.queryForObject("select id from appointment_slots where visit_date=? and start_time=? and end_time=?",
+                Long.class, date, start.withNano(0), end.withNano(0));
+        jdbc.update("insert into appointments(appointment_no,user_id,slot_id,visitor_count,contact_name,contact_phone,contact_email,status) values(?,?,?,?,?,?,?,'CONFIRMED')",
+                "PASS-" + suffix, userId, slotId, 2, "访客", "13800138000", "visit@example.test");
+        long id = jdbc.queryForObject("select id from appointments where appointment_no=?", Long.class, "PASS-" + suffix);
+        String root = "http://localhost:" + port + "/api/v1";
+        var detail = restTemplate.exchange(root + "/appointments/" + id, org.springframework.http.HttpMethod.GET,
+                new HttpEntity<>(ownerHeaders), String.class);
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        String code = mapper.readTree(detail.getBody()).path("data").path("verificationCode").asText();
+        assertThat(code).matches("[0-9A-F]{10}");
+        var outsider = restTemplate.exchange(root + "/appointments/" + id, org.springframework.http.HttpMethod.GET,
+                new HttpEntity<>(otherHeaders), String.class);
+        assertThat(outsider.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(outsider.getBody()).doesNotContain(code);
+        String endpoint = root + "/admin/appointments/" + id + "/check-in";
+        assertThat(restTemplate.postForEntity(endpoint, new HttpEntity<>(Map.of("verificationCode",code), otherHeaders), String.class)
+                .getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        String wrong = (code.startsWith("0") ? "1" : "0") + code.substring(1);
+        assertThat(restTemplate.postForEntity(endpoint, new HttpEntity<>(Map.of("verificationCode",wrong), adminHeaders), String.class)
+                .getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        var pass = new HttpEntity<>(Map.of("verificationCode",code), adminHeaders);
+        var completed = restTemplate.postForEntity(endpoint, pass, String.class);
+        assertThat(completed.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(completed.getBody()).contains("\"status\":\"COMPLETED\"");
+        assertThat(restTemplate.postForEntity(endpoint, pass, String.class).getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(jdbc.queryForObject("select count(*) from operation_logs where action='CHECK_IN' and target_id=?", Integer.class,
+                String.valueOf(id))).isEqualTo(1);
+        var dashboard = restTemplate.exchange(root + "/admin/dashboard/summary", org.springframework.http.HttpMethod.GET,
+                new HttpEntity<>(adminHeaders), String.class);
+        assertThat(dashboard.getStatusCode()).isEqualTo(HttpStatus.OK);
+        var summary = mapper.readTree(dashboard.getBody()).path("data");
+        assertThat(summary.path("checkedInTodayCount").asLong()).isEqualTo(1);
+        assertThat(summary.path("upcoming7dSlots").size()).isEqualTo(7);
+        assertThat(summary.path("orderStatusCounts").has("PENDING_PAYMENT")).isTrue();
+    }
+
+    @Test
+    void guideGovernanceRemainsAdminOnlyWhenPublicGuideIsDisabled() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        var user = authHeaders(registerAndLogin("guest_" + suffix));
+        var admin = authHeaders(createAdminToken("guide_" + suffix));
+        String root = "http://localhost:" + port + "/api/v1/admin/guide";
+        assertThat(restTemplate.exchange(root + "/overview", org.springframework.http.HttpMethod.GET,
+                new HttpEntity<>(user), String.class).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        var initial = restTemplate.exchange(root + "/overview", org.springframework.http.HttpMethod.GET,
+                new HttpEntity<>(admin), String.class);
+        assertThat(initial.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(initial.getBody()).contains("\"enabled\":false");
+        try {
+            var paused = restTemplate.postForEntity(root + "/runtime-mode", new HttpEntity<>(Map.of("mode", "PAUSED"), admin), String.class);
+            assertThat(paused.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(paused.getBody()).contains("\"paused\":true");
+            assertThat(restTemplate.postForEntity(root + "/cache/invalidate", new HttpEntity<>(admin), String.class).getStatusCode()).isEqualTo(HttpStatus.OK);
+        } finally {
+            restTemplate.postForEntity(root + "/runtime-mode", new HttpEntity<>(Map.of("mode", "NORMAL"), admin), String.class);
+        }
+        assertThat(jdbc.queryForObject("select count(*) from operation_logs where module='GUIDE' and action='RUNTIME_MODE' and target_id='PAUSED'",
+                Integer.class)).isEqualTo(1);
     }
 
     private String registerAndLogin(String username) {

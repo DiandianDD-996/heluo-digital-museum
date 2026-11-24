@@ -5,6 +5,10 @@ import com.heluo.museum.common.audit.OperationLogService;
 import com.heluo.museum.common.error.ConflictException;
 import com.heluo.museum.common.error.ResourceNotFoundException;
 import com.heluo.museum.common.notification.NotificationService;
+import com.heluo.museum.common.web.SlidingWindowLimiter;
+import com.heluo.museum.common.web.SlidingWindowLimiter.Quota;
+import com.heluo.museum.common.web.TrustedClientIpResolver;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
@@ -16,9 +20,12 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.Clock;
+import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -40,15 +47,19 @@ public class AuthController {
     private final JwtService jwt;
     private final NotificationService notificationService;
     private final OperationLogService operationLogService;
+    private final TrustedClientIpResolver clientIps;
+    private final SlidingWindowLimiter passwordResetLimiter;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
     private final SecureRandom secureRandom = new SecureRandom();
 
     AuthController(JdbcTemplate jdbc, JwtService jwt, NotificationService notificationService,
-                   OperationLogService operationLogService) {
+                   OperationLogService operationLogService, TrustedClientIpResolver clientIps, Clock clock) {
         this.jdbc = jdbc;
         this.jwt = jwt;
         this.notificationService = notificationService;
         this.operationLogService = operationLogService;
+        this.clientIps = clientIps;
+        this.passwordResetLimiter = new SlidingWindowLimiter(clock);
     }
 
     @PostMapping("/register")
@@ -114,10 +125,17 @@ public class AuthController {
 
     @PostMapping("/password-reset/request")
     @Transactional
-    public ResponseEntity<ApiResponse<Map<String, String>>> requestPasswordReset(@Valid @RequestBody PasswordResetRequest body) {
+    public ResponseEntity<ApiResponse<Map<String, String>>> requestPasswordReset(
+            @Valid @RequestBody PasswordResetRequest body, HttpServletRequest request) {
+        String username = body.username().strip();
+        if (!passwordResetLimiter.tryAcquire(
+                new Quota("ip", clientIps.resolve(request), Duration.ofMinutes(1), 5),
+                new Quota("account", username.toLowerCase(Locale.ROOT), Duration.ofMinutes(10), 3))) {
+            return passwordResetAccepted();
+        }
         List<ResetUser> users = jdbc.query(
                 "select id,email from users where username=? and email=? and status='ACTIVE' and deleted_at is null",
-                (rs, rowNum) -> new ResetUser(rs.getLong("id"), rs.getString("email")), body.username(), body.email().trim());
+                (rs, rowNum) -> new ResetUser(rs.getLong("id"), rs.getString("email")), username, body.email().trim());
         if (!users.isEmpty()) {
             ResetUser user = users.get(0);
             String rawToken = newToken();
@@ -127,6 +145,10 @@ public class AuthController {
             notificationService.sendPasswordReset(user.email(), rawToken);
             operationLogService.record(user.id(), "AUTH", "PASSWORD_RESET_REQUEST", "USER", String.valueOf(user.id()));
         }
+        return passwordResetAccepted();
+    }
+
+    private static ResponseEntity<ApiResponse<Map<String, String>>> passwordResetAccepted() {
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(ApiResponse.ok(Map.of("status", "accepted"), "password-reset-request"));
     }
@@ -214,7 +236,8 @@ public class AuthController {
     public record Login(@NotBlank String username, @NotBlank String password) {
     }
 
-    public record PasswordResetRequest(@NotBlank String username, @NotBlank @Email String email) {
+    public record PasswordResetRequest(@NotBlank @Size(max = 64) String username,
+                                       @NotBlank @Email @Size(max = 254) String email) {
     }
 
     public record PasswordResetConfirm(@NotBlank String resetToken, @NotBlank @Size(min = 8, max = 72) String newPassword) {

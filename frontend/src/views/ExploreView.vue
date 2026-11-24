@@ -155,8 +155,23 @@ const themeDescriptions = computed<Record<string, string>>(() => locale.value ==
 const conceptSuffix = /\s*(?:（概念展品）|\(Concept\))$/
 const objectTitle = (artifact: ArtifactCard) => artifactCopy(artifact).title.replace(conceptSuffix, '')
 const isConcept = (artifact: ArtifactCard) => conceptSuffix.test(artifactCopy(artifact).title)
-const categoryName = (category: Pick<Category, 'code' | 'name'>) => locale.value === 'en-US' ? (categoryEnglish[category.code] ?? category.name) : category.name
-const artifactCopy = (artifact: ArtifactCard) => ({ ...localizedContent(artifact, locale.value), ...(locale.value === 'en-US' && artifactEnglish[artifact.slug] ? { period: artifactEnglish[artifact.slug].period, material: artifactEnglish[artifact.slug].material, categoryName: artifactEnglish[artifact.slug].category } : {}) })
+const categoryName = (category: Pick<Category, 'code' | 'name' | 'nameEn'>) => locale.value === 'en-US' ? (category.nameEn?.trim() || categoryEnglish[category.code] || category.name) : category.name
+const categoryDescription = (category: Category) => {
+  if (locale.value === 'en-US') return category.descriptionEn?.trim() || themeDescriptions.value[category.code] || category.description || ''
+  return category.descriptionZh?.trim() || themeDescriptions.value[category.code] || category.description || ''
+}
+const artifactCopy = (artifact: ArtifactCard) => {
+  const localized = localizedContent(artifact, locale.value)
+  if (locale.value !== 'en-US') return localized
+  const matchedCat = categories.value.find(c => c.code === artifact.categoryCode)
+  const fallback = artifactEnglish[artifact.slug]
+  return {
+    ...localized,
+    period: artifact.periodEn?.trim() || fallback?.period || localized.period,
+    material: artifact.materialEn?.trim() || fallback?.material || localized.material,
+    categoryName: matchedCat?.nameEn?.trim() || categoryEnglish[artifact.categoryCode] || fallback?.category || artifact.categoryName,
+  }
+}
 const artifactMaterial = (artifact: ArtifactCard): 'bronze' | 'jade' | 'ink' => (artifact.categoryCode === 'BRONZE' ? 'bronze' : artifact.categoryCode === 'JADE' ? 'jade' : 'ink')
 const articleCopy = (article: ArticleCard) => ({ ...localizedContent(article, locale.value), ...(locale.value === 'en-US' && articleEnglish[article.slug] ? { categoryName: articleEnglish[article.slug].category, authorDisplay: 'Heluo Digital Museum' } : {}) })
 const searchCopy = (item: SearchResult) => {
@@ -284,15 +299,38 @@ async function loadContent(page = collectionPage.value) {
   }
 }
 
+const searchScope = computed<'all' | 'museum'>(() => route.query.scope === 'museum' ? 'museum' : 'all')
+function setSearchScope(scope: 'all' | 'museum') {
+  if (!submittedQuery.value || searchScope.value === scope) return
+  void router.push({
+    query: {
+      q: submittedQuery.value,
+      ...(scope === 'museum' ? { scope: 'museum' } : {}),
+    },
+  })
+}
+function searchDestination(item: SearchResult) {
+  if (item.path?.trim()) return item.path.trim()
+  if (item.type === 'exhibit') return `/exhibits/${item.slug}`
+  if (item.type === 'product') return `/shop?item=${encodeURIComponent(item.slug)}`
+  return `/${item.type === 'artifact' ? 'artifacts' : 'articles'}/${item.slug}`
+}
+function searchTypeLabel(item: SearchResult) {
+  if (item.type === 'exhibit') return locale.value === 'en-US' ? '3D Exhibit' : '数字展项'
+  if (item.type === 'product') return locale.value === 'en-US' ? 'Museum Store' : '河洛文创'
+  return item.type === 'artifact' ? copy.value.artifact : copy.value.article
+}
+
 async function loadSearch() {
   const query = submittedQuery.value
+  const scope = searchScope.value
   const requestId = ++searchRequestId
   submittedQuery.value = query
   searchResults.value = []
   searching.value = true
   searchError.value = ''
   try {
-    const result = await apiGet<ContentPage<SearchResult>>(`/search?keyword=${encodeURIComponent(query)}&type=all&page=${collectionPage.value}&size=24`)
+    const result = await apiGet<ContentPage<SearchResult>>(`/search?keyword=${encodeURIComponent(query)}&type=${scope}&page=${collectionPage.value}&size=24`)
     if (requestId === searchRequestId) {
       searchResults.value = result.items
       searchTotal.value = result.total
@@ -402,9 +440,31 @@ onBeforeUnmount(() => {
 
     <section v-if="hasSubmittedSearch" id="collection-search-results" class="collection-results gallery-results" aria-live="polite" :aria-busy="searching">
       <header class="gallery-section-head">
-        <div>
+        <div class="gallery-results__heading">
           <h2>{{ locale === 'en-US' ? `${copy.results} “${submittedQuery}”` : `“${submittedQuery}”${copy.results}` }}</h2>
-          <p v-if="!searching && !searchError" class="gallery-count">{{ searchTotal }} {{ copy.items }}</p>
+          <div class="gallery-results__sub">
+            <p v-if="!searching && !searchError" class="gallery-count">{{ searchTotal }} {{ copy.items }}</p>
+            <div class="gallery-scope-switch" role="group" :aria-label="locale === 'en-US' ? 'Search scope' : '检索范围'">
+              <button
+                type="button"
+                class="gallery-scope-btn"
+                :class="{ 'is-active': searchScope === 'all' }"
+                :aria-pressed="searchScope === 'all'"
+                @click="setSearchScope('all')"
+              >
+                {{ locale === 'en-US' ? 'Collection & Journal' : '馆藏与专题' }}
+              </button>
+              <button
+                type="button"
+                class="gallery-scope-btn"
+                :class="{ 'is-active': searchScope === 'museum' }"
+                :aria-pressed="searchScope === 'museum'"
+                @click="setSearchScope('museum')"
+              >
+                {{ locale === 'en-US' ? 'Full Museum (+3D & Store)' : '全馆四类（含展厅与文创）' }}
+              </button>
+            </div>
+          </div>
         </div>
         <button class="text-action gallery-text-link" type="button" @click="clearSearch">{{ copy.clearSearch }}<Right aria-hidden="true" /></button>
       </header>
@@ -427,9 +487,9 @@ onBeforeUnmount(() => {
           :key="`${item.type}-${item.slug}`"
           class="search-result-card gallery-result-card"
           data-motion="explore-result"
-          :class="{ 'gallery-result-card--artifact': item.type === 'artifact' }"
-          :variant="item.type"
-          :to="`/${item.type === 'artifact' ? 'artifacts' : 'articles'}/${item.slug}`"
+          :class="{ 'gallery-result-card--artifact': item.type === 'artifact' || item.type === 'exhibit' }"
+          :variant="item.type === 'artifact' || item.type === 'exhibit' ? 'artifact' : 'article'"
+          :to="searchDestination(item)"
           :media-src="searchVisual(item)"
           media-alt=""
         >
@@ -437,7 +497,7 @@ onBeforeUnmount(() => {
             <img v-if="searchVisual(item) && !failedImages.has(searchVisual(item))" :src="searchVisual(item)" :srcset="mediaSrcset(searchVisual(item))" :sizes="mediaSizes" alt="" loading="lazy" decoding="async" @error="failedImages.add(searchVisual(item))" />
             <span v-else class="gallery-image-fallback"><Picture aria-hidden="true" />{{ copy.imageUnavailable }}</span>
           </template>
-          <template #meta>{{ item.type === 'artifact' ? copy.artifact : copy.article }} · {{ searchCopy(item).categoryName }}<span v-if="item.type === 'artifact' && item.slug === 'heluo-bronze-ding'"> · {{ locale === 'en-US' ? 'AI editorial image' : 'AI策展配图' }}</span></template>
+          <template #meta>{{ searchTypeLabel(item) }}<span v-if="searchCopy(item).categoryName"> · {{ searchCopy(item).categoryName }}</span><span v-if="item.price" class="font-mono"> · ¥{{ item.price }}</span><span v-if="item.type === 'artifact' && item.slug === 'heluo-bronze-ding'"> · {{ locale === 'en-US' ? 'AI editorial image' : 'AI策展配图' }}</span></template>
           <template #title>{{ searchCopy(item).title }}</template>
           <template #summary><p>{{ searchCopy(item).summary }}</p></template>
           <template #action>{{ copy.read }}<Right aria-hidden="true" /></template>
@@ -573,7 +633,7 @@ onBeforeUnmount(() => {
               />
               <span class="gallery-themes__copy">
                 <strong>{{ categoryName(category) }}</strong>
-                <small v-if="themeDescriptions[category.code]">{{ themeDescriptions[category.code] }}</small>
+                <small v-if="categoryDescription(category)">{{ categoryDescription(category) }}</small>
               </span>
               <Right class="gallery-themes__arrow" aria-hidden="true" />
             </RouterLink>
@@ -1329,6 +1389,56 @@ onBeforeUnmount(() => {
 
   .gallery-story__body h3 {
     font-size: var(--text-md);
+  }
+}
+
+.gallery-results__sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  margin-top: var(--space-2);
+}
+
+.gallery-scope-switch {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.gallery-scope-btn {
+  min-height: 36px;
+  padding: 0 0.85rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-elevated);
+  color: var(--ink-secondary);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-curatorial), background-color var(--duration-fast) var(--ease-curatorial), color var(--duration-fast) var(--ease-curatorial), transform 100ms ease-out;
+}
+
+.gallery-scope-btn:hover {
+  border-color: var(--accent-bronze);
+  color: var(--ink-primary);
+}
+
+.gallery-scope-btn:active {
+  transform: scale(0.97);
+}
+
+.gallery-scope-btn.is-active {
+  background: var(--accent-jade);
+  border-color: var(--accent-jade);
+  color: var(--accent-jade-ink);
+  font-weight: 600;
+}
+
+@media (pointer: coarse) {
+  .gallery-scope-btn {
+    min-height: 44px;
   }
 }
 </style>

@@ -19,15 +19,20 @@ import BottomSheet from '../components/BottomSheet.vue'
 import CartPanelContent from '../components/CartPanelContent.vue'
 import FluidButton from '../components/FluidButton.vue'
 import InlineStatus from '../components/InlineStatus.vue'
+import ProductProvenanceDrawer from '../components/ProductProvenanceDrawer.vue'
 
 interface Product {
   id: number
   slug: string
   name: string
+  nameEn?: string | null
   summary: string
+  summaryEn?: string | null
   price: string
   availableStock: number
   coverImageUrl: string
+  categoryCode?: string | null
+  inspirationArtifactSlug?: string | null
 }
 
 interface CartItem {
@@ -64,8 +69,14 @@ const router = useRouter()
 const products = ref<Product[]>([])
 type ProductCategory = 'all' | 'objects' | 'textiles' | 'paper'
 const activeCategory = ref<ProductCategory>('all')
-const productCategory = (product: Product): ProductCategory => product.slug === 'heluo-silk-scarf' ? 'textiles' : product.slug === 'river-map-notebook' ? 'paper' : 'objects'
+const productCategory = (product: Product): ProductCategory => {
+  if (product.categoryCode === 'TEXTILE' || product.slug === 'heluo-silk-scarf') return 'textiles'
+  if (product.categoryCode === 'STATIONERY' || product.slug === 'river-map-notebook') return 'paper'
+  return 'objects'
+}
 const visibleProducts = computed(() => activeCategory.value === 'all' ? products.value : products.value.filter(product => productCategory(product) === activeCategory.value))
+const provenanceProduct = ref<Product | null>(null)
+const provenanceOpen = computed(() => provenanceProduct.value !== null)
 const cart = ref<CartItem[]>([])
 const loading = ref(true)
 const productError = ref('')
@@ -146,7 +157,22 @@ const productEnglish: Record<string, { name: string; summary: string }> = {
 
 const displayProduct = (product: Product) => {
   const normalized = resolveProductPresentation(product)
-  return locale.value === 'en-US' && productEnglish[product.slug] ? { ...normalized, ...productEnglish[product.slug] } : normalized
+  if (locale.value === 'en-US') {
+    const fallbackEn = productEnglish[product.slug]
+    return {
+      ...normalized,
+      name: product.nameEn?.trim() || fallbackEn?.name || normalized.name,
+      summary: product.summaryEn?.trim() || fallbackEn?.summary || normalized.summary,
+    }
+  }
+  return normalized
+}
+
+function syncRouteProvenanceItem() {
+  const requestedSlug = typeof route?.query?.item === 'string' ? route.query.item.trim() : ''
+  if (!requestedSlug) return
+  const matched = products.value.find((item) => item.slug === requestedSlug)
+  if (matched) provenanceProduct.value = matched
 }
 
 function useFallbackProductImage(event: Event, product: Product) {
@@ -166,7 +192,10 @@ async function loadProducts() {
   productError.value = ''
   try {
     const result = await apiGet<Product[]>('/products')
-    if (requestId === productRequestId) products.value = result
+    if (requestId === productRequestId) {
+      products.value = result
+      syncRouteProvenanceItem()
+    }
     if (requestId === productRequestId && result.length && !storefrontCued) {
       storefrontCued = true
       void audioSystem.playNarrative('discovery', { volume: 0.22 })
@@ -510,6 +539,15 @@ onBeforeUnmount(() => gsapContext?.revert())
               >
                 {{ addingProductId === product.id ? shopCopy.adding : pendingCheckout ? shopCopy.pending : t.shopText.add }}
               </FluidButton>
+              <button
+                type="button"
+                class="product-provenance-btn"
+                data-testid="open-provenance-btn"
+                @click="provenanceProduct = product"
+              >
+                <span>{{ locale === 'en-US' ? 'Object Provenance & Notes' : '器物纹样溯源 · 策展手记' }}</span>
+                <i aria-hidden="true">→</i>
+              </button>
             </div>
           </article>
         </div>
@@ -582,6 +620,15 @@ onBeforeUnmount(() => gsapContext?.revert())
         @checkout="checkout"
       />
     </BottomSheet>
+
+    <ProductProvenanceDrawer
+      :open="provenanceOpen"
+      :product="provenanceProduct"
+      :adding="provenanceProduct !== null && addingProductId === provenanceProduct.id"
+      :disabled="pendingCheckout !== null || (addingProductId !== null && addingProductId !== provenanceProduct?.id)"
+      @close="provenanceProduct = null"
+      @add="add"
+    />
   </section>
 </template>
 
@@ -876,6 +923,36 @@ onBeforeUnmount(() => gsapContext?.revert())
 }
 
 /* ── Mobile Bag Bar (Docked in Flow / Sticky Subheader — Zero Card Occlusion) ── */
+.product-provenance-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 0.875rem;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  color: var(--ink-secondary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-curatorial),
+              color var(--duration-fast) var(--ease-curatorial),
+              background-color var(--duration-fast) var(--ease-curatorial);
+}
+
+.product-provenance-btn:hover {
+  border-color: var(--accent-bronze);
+  color: var(--ink-primary);
+  background: color-mix(in oklab, var(--accent-bronze) 8%, var(--surface-subtle));
+}
+
+.product-provenance-btn i {
+  font-style: normal;
+  color: var(--accent-bronze);
+}
+
 .shop-mobile-bar {
   display: none;
 }

@@ -50,13 +50,14 @@ public class ArtifactController {
         listArguments.add(normalized.size());
         listArguments.add(normalized.offset());
         List<Card> items = jdbc.query(
-                "select a.slug,a.title,a.summary,a.title_en,a.summary_en,a.period,a.material,a.cover_image_url,c.code category_code,c.name category_name "
+                "select a.slug,a.title,a.summary,a.title_en,a.summary_en,a.period,a.material,a.period_en,a.material_en,a.cover_image_url,c.code category_code,c.name category_name "
                         + "from artifacts a join categories c on c.id=a.category_id" + where
                         + " order by a.published_at desc,a.id desc limit ? offset ?",
                 (rs, rowNum) -> new Card(rs.getString("slug"), rs.getString("title"),
                         nullable(rs.getString("summary")), nullable(rs.getString("period")),
                         nullable(rs.getString("material")), nullable(rs.getString("cover_image_url")),
-                        rs.getString("category_code"), rs.getString("category_name"), rs.getString("title_en"), rs.getString("summary_en")),
+                        rs.getString("category_code"), rs.getString("category_name"), rs.getString("title_en"), rs.getString("summary_en"),
+                        rs.getString("period_en"), rs.getString("material_en")),
                 listArguments.toArray());
         return ApiResponse.ok(ContentPage.of(items, normalized.page(), normalized.size(), total), "artifacts");
     }
@@ -64,7 +65,7 @@ public class ArtifactController {
     @GetMapping("/{slug}")
     public ApiResponse<Detail> detail(@PathVariable String slug) {
         List<Detail> details = jdbc.query(
-                "select a.id,a.slug,a.title,a.summary,a.title_en,a.summary_en,a.content,a.period,a.material,a.dimensions,a.collection_location,"
+                "select a.id,a.slug,a.title,a.summary,a.title_en,a.summary_en,a.content,a.content_en,a.period,a.material,a.period_en,a.material_en,a.dimensions,a.collection_location,"
                         + "a.cover_image_url,c.code category_code,c.name category_name "
                         + "from artifacts a join categories c on c.id=a.category_id "
                         + "where a.slug=? and a.status='PUBLISHED' and a.deleted_at is null and c.enabled=1",
@@ -72,17 +73,20 @@ public class ArtifactController {
                         nullable(rs.getString("summary")), rs.getString("content"), nullable(rs.getString("period")),
                         nullable(rs.getString("material")), nullable(rs.getString("dimensions")),
                         nullable(rs.getString("collection_location")), nullable(rs.getString("cover_image_url")),
-                        new Category(rs.getString("category_code"), rs.getString("category_name")), rs.getString("title_en"), rs.getString("summary_en")),
+                        new Category(rs.getString("category_code"), rs.getString("category_name")), List.of(),
+                        rs.getString("title_en"), rs.getString("summary_en"), rs.getString("content_en"),
+                        rs.getString("period_en"), rs.getString("material_en")),
                 slug);
         if (details.isEmpty()) {
             throw new ResourceNotFoundException("文物不存在或未发布");
         }
         Detail detail = details.get(0);
         List<ExhibitSummary> exhibits = jdbc.query(
-                "select slug,title,summary,cover_image_url from exhibits_3d "
+                "select slug,title,summary,cover_image_url,title_en,summary_en,description_en from exhibits_3d "
                         + "where artifact_id=? and status='PUBLISHED' and deleted_at is null order by published_at desc,id desc",
                 (rs, rowNum) -> new ExhibitSummary(rs.getString("slug"), rs.getString("title"),
-                        nullable(rs.getString("summary")), nullable(rs.getString("cover_image_url"))), detail.id());
+                        nullable(rs.getString("summary")), nullable(rs.getString("cover_image_url")),
+                        rs.getString("title_en"), rs.getString("summary_en"), rs.getString("description_en")), detail.id());
         return ApiResponse.ok(detail.withExhibits(exhibits), "artifact");
     }
 
@@ -96,7 +100,7 @@ public class ArtifactController {
 
     record PageRequest(int page, int size) {
         static PageRequest of(int page, int size) {
-            if (page < 1 || size < 1 || size > 100) {
+            if (page < 1 || size < 1 || size > 100 || (page - 1L) * size > Integer.MAX_VALUE) {
                 throw new IllegalArgumentException("page 必须大于 0，size 必须在 1 到 100 之间");
             }
             return new PageRequest(page, size);
@@ -108,27 +112,24 @@ public class ArtifactController {
     }
 
     public record Card(String slug, String title, String summary, String period, String material,
-                       String coverImageUrl, String categoryCode, String categoryName, String titleEn, String summaryEn) {
+                       String coverImageUrl, String categoryCode, String categoryName, String titleEn, String summaryEn,
+                       String periodEn, String materialEn) {
     }
 
     public record Category(String code, String name) {
     }
 
-    public record ExhibitSummary(String slug, String title, String summary, String coverImageUrl) {
+    public record ExhibitSummary(String slug, String title, String summary, String coverImageUrl,
+                                 String titleEn, String summaryEn, String descriptionEn) {
     }
 
     public record Detail(long id, String slug, String title, String summary, String content, String period,
                          String material, String dimensions, String collectionLocation, String coverImageUrl,
-                         Category category, List<ExhibitSummary> exhibits, String titleEn, String summaryEn) {
-        Detail(long id, String slug, String title, String summary, String content, String period, String material,
-               String dimensions, String collectionLocation, String coverImageUrl, Category category, String titleEn, String summaryEn) {
-            this(id, slug, title, summary, content, period, material, dimensions, collectionLocation,
-                    coverImageUrl, category, List.of(), titleEn, summaryEn);
-        }
-
+                         Category category, List<ExhibitSummary> exhibits, String titleEn, String summaryEn,
+                         String contentEn, String periodEn, String materialEn) {
         Detail withExhibits(List<ExhibitSummary> publicExhibits) {
             return new Detail(id, slug, title, summary, content, period, material, dimensions, collectionLocation,
-                    coverImageUrl, category, publicExhibits, titleEn, summaryEn);
+                    coverImageUrl, category, publicExhibits, titleEn, summaryEn, contentEn, periodEn, materialEn);
         }
     }
 }

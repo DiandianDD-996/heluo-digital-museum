@@ -142,7 +142,7 @@ public class GuideToolExecutor {
                 if (a.exhibitSlug() != null) {
                     payload.put("exhibitSlug", a.exhibitSlug());
                     knowledge.findExhibit(a.exhibitSlug()).ifPresent(audit::recordExhibit);
-                    List<GuideEvidenceReader.Evidence> cards = knowledge.evidenceCards(a.exhibitSlug());
+                    List<GuideEvidenceReader.Evidence> cards = knowledge.evidenceCards(a.exhibitSlug(), audit.locale);
                     if (!cards.isEmpty()) {
                         cards.forEach(audit::recordEvidence);
                         payload.put("verifiedEvidenceCards", cards.stream().map(this::evidenceView).toList());
@@ -190,7 +190,7 @@ public class GuideToolExecutor {
                     audit.recordArtifact(a);
                     payload.put("artifactContent", a.content());
                 });
-                List<GuideEvidenceReader.Evidence> cards = knowledge.evidenceCards(e.slug());
+                List<GuideEvidenceReader.Evidence> cards = knowledge.evidenceCards(e.slug(), audit.locale);
                 if (!cards.isEmpty()) {
                     cards.forEach(audit::recordEvidence);
                     payload.put("verifiedEvidenceCards", cards.stream().map(this::evidenceView).toList());
@@ -399,6 +399,11 @@ public class GuideToolExecutor {
      * (via pre-injection or tool execution) so GuideResponseValidator can enforce strict allowlists.
      */
     public static final class ToolAuditContext {
+        private final String locale;
+
+        public ToolAuditContext() { this("zh-CN"); }
+
+        public ToolAuditContext(String locale) { this.locale = locale; }
         private final Map<String, CitationMeta> allowedCitations = new LinkedHashMap<>();
         private final Set<String> allowedExternalUrls = new LinkedHashSet<>();
         private final List<String> invokedTools = new ArrayList<>();

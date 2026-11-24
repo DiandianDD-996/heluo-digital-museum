@@ -18,13 +18,22 @@ final class GuideDailyGenerationLimit {
     }
 
     synchronized boolean tryStart() {
+        refreshDay();
+        if (used >= maxAttempts) return false;
+        used++;
+        return true;
+    }
+
+    synchronized int usedToday() {
+        refreshDay();
+        return used;
+    }
+
+    private void refreshDay() {
         LocalDate today = LocalDate.now(clock);
         if (day == null || today.isAfter(day)) {
             day = today;
             used = 0;
         }
-        if (used >= maxAttempts) return false;
-        used++;
-        return true;
     }
 }

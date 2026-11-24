@@ -5,6 +5,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const setMode = vi.hoisted(() => vi.fn())
+const focusPart = vi.hoisted(() => vi.fn())
 const recovery = vi.hoisted(() => ({ consume: vi.fn(() => false), reload: vi.fn() }))
 const routeHarness = vi.hoisted(() => ({
   route: null as null | { params: { slug: string }; fullPath: string },
@@ -40,15 +41,25 @@ import { useAudio } from '../stores/audio'
 
 const viewerStub = defineComponent({
   name: 'ThreeExhibitViewer',
-  props: { modelUrl: { type: String, required: true } },
-  emits: ['mode-change', 'quality-change', 'state-change', 'point-cloud-state', 'part-focus'],
+  props: {
+    modelUrl: { type: String, required: true },
+    showSpatialGuide: { type: Boolean, default: false },
+    activePart: { type: String, default: null },
+  },
+  emits: ['mode-change', 'quality-change', 'state-change', 'point-cloud-state', 'part-focus', 'user-interact'],
   setup(props, { emit, expose }) {
     onMounted(() => emit('state-change', 'ready'))
     expose({
       setMode: (mode: 'solid' | 'points') => { setMode(mode); emit('mode-change', mode) },
+      focusPart: (part: string, opts?: unknown) => { focusPart(part, opts); emit('part-focus', part) },
       setView: vi.fn(), resetView: vi.fn(), rotate: vi.fn(), zoomIn: vi.fn(), zoomOut: vi.fn(),
     })
-    return () => h('div', { class: 'viewer-stub', 'data-model-url': props.modelUrl })
+    return () => h('div', {
+      class: 'viewer-stub',
+      'data-model-url': props.modelUrl,
+      'data-spatial-guide': String(props.showSpatialGuide),
+      'data-active-part': props.activePart ?? '',
+    })
   },
 })
 
@@ -75,6 +86,7 @@ function mediaQuery(matches: (query: string) => boolean) {
 describe('ExhibitDetailView point-cloud mode control', () => {
   beforeEach(() => {
     setMode.mockReset()
+    focusPart.mockReset()
     recovery.consume.mockReset().mockReturnValue(false)
     recovery.reload.mockReset()
     apiGet.mockReset().mockResolvedValue(exhibitFixture)
@@ -371,5 +383,42 @@ describe('ExhibitDetailView point-cloud mode control', () => {
     await flushPromises()
     expect(wrapper3.find('[data-testid="darkroom-audio-invite"]').exists()).toBe(false)
     wrapper3.unmount()
+  })
+
+  it('toggles 3D spatial scale guide and yields micro-tour immediately on visitor gesture', async () => {
+    vi.useFakeTimers()
+    const wrapper = mount(ExhibitDetailView, {
+      global: { stubs: { ThreeExhibitViewer: viewerStub, BottomSheet: true } },
+    })
+    await flushPromises()
+
+    expect(wrapper.get('.viewer-stub').attributes('data-spatial-guide')).toBe('false')
+    await wrapper.get('[data-testid="spatial-guide-toggle"]').trigger('click')
+    expect(wrapper.get('.viewer-stub').attributes('data-spatial-guide')).toBe('true')
+
+    await wrapper.get('[data-testid="start-micro-tour"]').trigger('click')
+    expect(wrapper.get('[data-testid="micro-tour-bar"]').attributes('data-tour-state')).toBe('playing')
+    expect(focusPart).toHaveBeenCalledTimes(1)
+    expect(focusPart).toHaveBeenLastCalledWith('ear', { animated: true })
+
+    // Auto-advances to stop 2 after 3s
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(focusPart).toHaveBeenCalledTimes(2)
+    expect(focusPart).toHaveBeenLastCalledWith('motif', { animated: true })
+
+    // Visitor drags/orbits the model -> immediately yields without snapping camera to stop 3
+    wrapper.findComponent(viewerStub).vm.$emit('user-interact')
+    await flushPromises()
+    expect(wrapper.get('[data-testid="micro-tour-bar"]').attributes('data-tour-state')).toBe('paused')
+    await vi.advanceTimersByTimeAsync(6000)
+    expect(focusPart).toHaveBeenCalledTimes(2)
+
+    // Visitor can still manually step forward at their own pace
+    await wrapper.get('[data-testid="micro-tour-next"]').trigger('click')
+    expect(focusPart).toHaveBeenCalledTimes(3)
+    expect(focusPart).toHaveBeenLastCalledWith('feet', { animated: true })
+
+    wrapper.unmount()
+    vi.useRealTimers()
   })
 })

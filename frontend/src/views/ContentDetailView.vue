@@ -13,6 +13,7 @@ import LoadingSkeleton from '../components/LoadingSkeleton.vue'
 import PlainTextLinks from '../components/PlainTextLinks.vue'
 import { GUIDE_ARTIFACT_SLUG, GUIDE_EXHIBIT_SLUG } from '../lib/guideTypes'
 import { useLocale } from '../stores/locale'
+import { useCuratorialBookmarks } from '../stores/curatorialBookmarks'
 import { guideEnabled, useLuoshengStore } from '../stores/luoshengStore'
 
 const route = useRoute()
@@ -144,11 +145,32 @@ function scrollToLookpoints() {
 
 const contentBlocks = computed(() => (detail.value?.content.split(/\n\s*\n/).filter(Boolean) ?? []).map((text) => ({
   text,
-  heading: text.length <= 30 && (text.includes('｜') || text === '留给观众的问题'),
+  heading: text.length <= 48 && (text.includes('｜') || text.includes(' | ') || text === '留给观众的问题' || text === 'A Question for the Viewer'),
 })))
+
+const localizedExhibit = (exhibit: ArtifactDetail['exhibits'][number]) => localizedContent(exhibit, locale.value)
 
 const contents = computed(() => contentBlocks.value.flatMap((block, index) => block.heading ? [{ title: block.text, id: `reading-section-${index}` }] : []))
 const isConcept = computed(() => (artifact.value ?? article.value)?.title.includes('概念展品') ?? false)
+const bookmarks = useCuratorialBookmarks()
+const currentBookmarkKind = computed(() => (isArtifact.value ? 'artifact' : 'article') as 'artifact' | 'article')
+const savedInJournal = computed(() => (
+  detail.value ? bookmarks.isBookmarked(currentBookmarkKind.value, detail.value.slug) : false
+))
+function toggleDetailBookmark() {
+  const raw = artifact.value ?? article.value
+  if (!raw || !detail.value) return
+  bookmarks.toggleBookmark({
+    kind: currentBookmarkKind.value,
+    slug: raw.slug,
+    title: raw.title,
+    titleEn: raw.titleEn || detail.value.title,
+    subtitle: raw.category.name,
+    subtitleEn: raw.category.nameEn || raw.category.name,
+    imageUrl: detailCoverUrl.value,
+    path: route.path,
+  })
+}
 
 function returnToCollection() {
   const previous = window.history.state?.back
@@ -339,8 +361,8 @@ onBeforeUnmount(() => {
 
           <!-- Specimen Plaque Card -->
           <dl v-if="artifact" class="object-facts" :aria-label="copy.plaqueTitle">
-            <div v-if="artifact.period" data-motion="facts"><dt>{{ copy.period }}</dt><dd>{{ artifact.period }}</dd></div>
-            <div v-if="artifact.material" data-motion="facts"><dt>{{ copy.material }}</dt><dd>{{ artifact.material }}</dd></div>
+            <div v-if="(detail as ArtifactDetail).period" data-motion="facts"><dt>{{ copy.period }}</dt><dd>{{ (detail as ArtifactDetail).period }}</dd></div>
+            <div v-if="(detail as ArtifactDetail).material" data-motion="facts"><dt>{{ copy.material }}</dt><dd>{{ (detail as ArtifactDetail).material }}</dd></div>
             <div v-if="artifact.dimensions" data-motion="facts"><dt>{{ copy.dimensions }}</dt><dd>{{ artifact.dimensions }}</dd></div>
             <div v-if="artifact.collectionLocation" data-motion="facts"><dt>{{ copy.location }}</dt><dd>{{ artifact.collectionLocation }}</dd></div>
           </dl>
@@ -368,6 +390,15 @@ onBeforeUnmount(() => {
               @click="guideStore.openGuide($event.currentTarget as HTMLElement)"
             >
               {{ isEnglish ? 'Ask Luosheng' : '问洛笙' }}
+            </button>
+            <button
+              type="button"
+              class="fluid-button fluid-button--secondary museum-button"
+              data-testid="detail-bookmark-btn"
+              :aria-pressed="savedInJournal"
+              @click="toggleDetailBookmark"
+            >
+              {{ savedInJournal ? (isEnglish ? '★ Saved in Journal' : '★ 已收入手账') : (isEnglish ? '☆ Save to Journal' : '☆ 收入观展手账') }}
             </button>
           </div>
         </div>
@@ -424,8 +455,8 @@ onBeforeUnmount(() => {
               decoding="async"
             />
             <div data-motion="related-copy">
-              <h3>{{ exhibit.title }}</h3>
-              <p>{{ exhibit.summary }}</p>
+              <h3>{{ localizedExhibit(exhibit).title }}</h3>
+              <p>{{ localizedExhibit(exhibit).summary }}</p>
               <span class="related-exhibit__cta">{{ copy.enter }} →</span>
             </div>
           </RouterLink>

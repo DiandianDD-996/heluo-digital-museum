@@ -1,5 +1,7 @@
 export const GUIDE_ARTIFACT_SLUG = 'heluo-bronze-ding'
 export const GUIDE_EXHIBIT_SLUG = 'heluo-bronze-ding-3d'
+export const STONE_ARTIFACT_SLUG = 'river-map-pattern-stone'
+export const STONE_EXHIBIT_SLUG = 'river-map-stone-raking'
 
 export type GuideLocale = 'zh-CN' | 'en-US'
 export type GuideViewName = 'front' | 'left' | 'right' | 'back' | 'top'
@@ -89,6 +91,8 @@ export interface GuideMessage {
   boundaryNote?: string
   mode?: 'ai' | 'deterministic'
   degraded?: boolean
+  dividerContext?: GuidePageContext
+  dividerConsumed?: boolean
   createdAt: number
 }
 

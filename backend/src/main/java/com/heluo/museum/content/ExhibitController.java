@@ -22,21 +22,22 @@ public class ExhibitController {
     @GetMapping
     public ApiResponse<List<Card>> list() {
         return ApiResponse.ok(jdbc.query(
-                "select e.slug,e.title,e.summary,e.cover_image_url,e.display_no,e.source_credit,e.license_label,e.collection_location,"
+                "select e.slug,e.title,e.summary,e.title_en,e.summary_en,e.description_en,e.cover_image_url,e.display_no,e.source_credit,e.license_label,e.collection_location,"
                         + "a.slug artifact_slug,a.title artifact_title from exhibits_3d e join artifacts a on a.id=e.artifact_id join categories c on c.id=a.category_id "
                         + "where e.status='PUBLISHED' and e.deleted_at is null and a.status='PUBLISHED' and a.deleted_at is null and c.enabled=1 "
                         + "order by e.published_at desc,e.id desc",
                 (rs, rowNum) -> new Card(rs.getString("slug"), rs.getString("title"), empty(rs.getString("summary")),
                         empty(rs.getString("cover_image_url")), empty(rs.getString("display_no")),
                         empty(rs.getString("source_credit")), empty(rs.getString("license_label")),
-                        empty(rs.getString("collection_location")), rs.getString("artifact_slug"), rs.getString("artifact_title"))),
+                        empty(rs.getString("collection_location")), rs.getString("artifact_slug"), rs.getString("artifact_title"),
+                        rs.getString("title_en"), rs.getString("summary_en"), rs.getString("description_en"))),
                 "exhibits");
     }
 
     @GetMapping("/{slug}")
     public ApiResponse<Map<String, Object>> detail(@PathVariable String slug) {
         Map<String, Object> row = jdbc.queryForMap(
-                "select e.slug,e.title,e.summary,e.description,e.model_url,e.model_format,e.model_size_bytes,e.mobile_model_url,e.mobile_model_size_bytes,e.cover_image_url,"
+                "select e.slug,e.title,e.summary,e.description,e.title_en,e.summary_en,e.description_en,e.model_url,e.model_format,e.model_size_bytes,e.mobile_model_url,e.mobile_model_size_bytes,e.cover_image_url,"
                         + "e.display_no,e.source_credit,e.source_url,e.license_label,e.collection_location,"
                         + "a.slug artifact_slug,a.title artifact_title from exhibits_3d e join artifacts a on a.id=e.artifact_id join categories c on c.id=a.category_id "
                         + "where e.slug=? and e.status='PUBLISHED' and e.deleted_at is null and a.status='PUBLISHED' and a.deleted_at is null and c.enabled=1",
@@ -46,6 +47,9 @@ public class ExhibitController {
         exhibit.put("title", row.get("title"));
         exhibit.put("summary", empty((String) row.get("summary")));
         exhibit.put("description", empty((String) row.get("description")));
+        exhibit.put("titleEn", row.get("title_en"));
+        exhibit.put("summaryEn", row.get("summary_en"));
+        exhibit.put("descriptionEn", row.get("description_en"));
         exhibit.put("modelUrl", row.get("model_url"));
         exhibit.put("modelFormat", row.get("model_format"));
         exhibit.put("modelSizeBytes", row.get("model_size_bytes"));
@@ -67,5 +71,5 @@ public class ExhibitController {
 
     public record Card(String slug, String title, String summary, String coverImageUrl, String displayNo,
                        String sourceCredit, String licenseLabel, String collectionLocation,
-                       String artifactSlug, String artifactTitle) { }
+                       String artifactSlug, String artifactTitle, String titleEn, String summaryEn, String descriptionEn) { }
 }

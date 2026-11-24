@@ -1,6 +1,8 @@
 import {
   GUIDE_ARTIFACT_SLUG,
   GUIDE_EXHIBIT_SLUG,
+  STONE_ARTIFACT_SLUG,
+  STONE_EXHIBIT_SLUG,
   type GuideLocale,
   type GuidePageContext,
   type GuideStreamStatusPhase,
@@ -94,6 +96,27 @@ export function getGuideStrings(locale: GuideLocale): GuideUiStrings {
 export function getRoutePreset(context: GuidePageContext, locale: GuideLocale): RoutePreset {
   const en = locale === 'en-US'
   const isDing = context.artifactSlug === GUIDE_ARTIFACT_SLUG || context.exhibitSlug === GUIDE_EXHIBIT_SLUG
+  const isStoneExhibit = context.exhibitSlug === STONE_EXHIBIT_SLUG || (context.route === 'exhibit-detail' && context.artifactSlug === STONE_ARTIFACT_SLUG)
+
+  if (context.route === 'exhibit-detail' && isStoneExhibit) {
+    return en
+      ? {
+          welcome: 'You are at the Raking-Light Stone Stele table (EXHIBIT 02). Drag the grazing light to reveal chisel grooves, or ask how to read the Heluo spatial lines.',
+          starters: [
+            'How does low-angle raking light help inspect carved stone lines?',
+            'What should I look for in the central five-dot node and main axes?',
+            'Compare this carved stone slab with the River-map Jade Bi',
+          ],
+        }
+      : {
+          welcome: '你正站在《河洛图纹石板 · 斜射光刻痕检视台》前。拖动低角度侧光即可照出刀口阴影，也可以问我如何读懂石上的空间秩序。',
+          starters: [
+            '为什么低角度斜射光能把浅石刻的刀口看清楚？',
+            '看这块图纹石板时，先抓哪三处线条与节点？',
+            '把这块图纹石板和《河图玉璧》并置看有什么味道？',
+          ],
+        }
+  }
 
   if (context.route === 'exhibit-detail' && isDing) {
     return en
