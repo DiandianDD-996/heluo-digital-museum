@@ -63,6 +63,7 @@ const monthWeekday = computed(() => {
 const copy = computed(() => locale.value === 'en-US' ? {
   museum: 'HELUO DIGITAL MUSEUM',
   city: 'Luoyang · Kaiyuan Ave',
+  admissionTag: 'ADMISSION · FREE ENTRY',
   sealText: ['HE', 'LUO'],
   guests: 'PARTY',
   peopleUnit: 'Guest',
@@ -85,6 +86,7 @@ const copy = computed(() => locale.value === 'en-US' ? {
 } : {
   museum: '河 洛 数 字 博 物 馆',
   city: '洛阳 · 开元大道与学府街',
+  admissionTag: 'ADMISSION · 预约免费入馆',
   sealText: ['河洛', '珍藏'],
   guests: '同行人数',
   peopleUnit: '位',
@@ -135,8 +137,8 @@ function onPointerMove(event: PointerEvent) {
   const ny = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height))
   foilX.value = nx * 100
   foilY.value = ny * 100
-  tiltY.value = (nx - 0.5) * 3.8
-  tiltX.value = (0.5 - ny) * 3.2
+  tiltY.value = (nx - 0.5) * 3.2
+  tiltX.value = (0.5 - ny) * 2.8
 }
 
 function onPointerLeave() {
@@ -185,14 +187,22 @@ function onPrint() {
     >
       <div class="exlibris-ticket__foil" aria-hidden="true"></div>
 
-      <!-- Left 57%: Full-Bleed Obsidian Darkroom Photogravure Plate -->
+      <!-- Left 57%: Cold-Obsidian Photogravure Darkroom Plate -->
       <figure class="exlibris-plate" :class="{ 'is-panoramic': isPanoramicPlate }">
-        <img
-          :src="activePlate.imageUrl"
-          :alt="locale === 'en-US' ? activePlate.titleEn : activePlate.titleZh"
-          decoding="async"
-        />
-        <div class="exlibris-plate__frame" aria-hidden="true"></div>
+        <div class="exlibris-plate__stage">
+          <img
+            :key="activePlate.id"
+            :src="activePlate.imageUrl"
+            :alt="locale === 'en-US' ? activePlate.titleEn : activePlate.titleZh"
+            decoding="async"
+          />
+        </div>
+        <div class="exlibris-plate__frame" aria-hidden="true">
+          <span class="exlibris-corner exlibris-corner--tl"></span>
+          <span class="exlibris-corner exlibris-corner--tr"></span>
+          <span class="exlibris-corner exlibris-corner--bl"></span>
+          <span class="exlibris-corner exlibris-corner--br"></span>
+        </div>
 
         <!-- Classical Vertical Calligraphy Title Slip + Carved Vermilion Seal -->
         <div class="exlibris-plate__colophon" :class="{ 'is-latin': locale === 'en-US' }">
@@ -208,8 +218,13 @@ function onPrint() {
           </span>
         </div>
 
-        <figcaption class="exlibris-plate__blessing">
-          “{{ locale === 'en-US' ? activePlate.blessingEn : activePlate.blessingZh }}”
+        <figcaption class="exlibris-plate__caption">
+          <span class="exlibris-plate__era font-mono">
+            {{ locale === 'en-US' ? activePlate.eraEn : activePlate.eraZh }}
+          </span>
+          <p class="exlibris-plate__blessing">
+            “{{ locale === 'en-US' ? activePlate.blessingEn : activePlate.blessingZh }}”
+          </p>
         </figcaption>
       </figure>
 
@@ -224,6 +239,7 @@ function onPrint() {
       <section class="exlibris-stub">
         <header class="exlibris-stub__head">
           <div>
+            <span class="exlibris-stub__kicker font-mono">{{ copy.admissionTag }}</span>
             <h3>{{ copy.museum }}</h3>
             <p>{{ copy.city }}</p>
           </div>
@@ -352,15 +368,15 @@ function onPrint() {
 .exlibris-ticket {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1.38fr) 16px minmax(268px, 1fr);
-  min-height: 368px;
-  border-radius: 3px;
+  grid-template-columns: minmax(0, 1.38fr) 16px minmax(276px, 1fr);
+  min-height: 384px;
+  border-radius: 4px;
   overflow: hidden;
   background: var(--surface-elevated);
-  border: 1px solid color-mix(in oklch, var(--accent-bronze) 34%, var(--border-strong));
+  border: 1px solid color-mix(in oklch, var(--accent-bronze) 36%, var(--border-strong));
   box-shadow:
-    0 24px 60px -22px oklch(8% 0.01 72 / 0.42),
-    0 4px 16px -6px oklch(8% 0.01 72 / 0.18);
+    0 26px 64px -22px oklch(8% 0.008 238 / 0.44),
+    0 4px 18px -6px oklch(8% 0.008 238 / 0.20);
   transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
   transform-style: preserve-3d;
   transition: transform 240ms var(--ease-curatorial), box-shadow 260ms var(--ease-curatorial);
@@ -368,8 +384,8 @@ function onPrint() {
 
 .exlibris-wrap--velvet .exlibris-ticket {
   box-shadow:
-    0 36px 90px -20px oklch(4% 0.008 72 / 0.78),
-    0 0 0 1px oklch(82% 0.05 78 / 0.16);
+    0 40px 96px -20px oklch(4% 0.006 238 / 0.84),
+    0 0 0 1px oklch(82% 0.05 78 / 0.22);
 }
 
 .exlibris-ticket__foil {
@@ -380,9 +396,9 @@ function onPrint() {
   opacity: 0;
   background: radial-gradient(
     480px circle at var(--foil-x, 50%) var(--foil-y, 35%),
-    oklch(86% 0.09 80 / 0.18),
-    oklch(76% 0.07 76 / 0.05) 36%,
-    transparent 64%
+    oklch(86% 0.085 78 / 0.16),
+    oklch(76% 0.06 76 / 0.04) 38%,
+    transparent 66%
   );
   transition: opacity 280ms var(--ease-curatorial);
 }
@@ -391,75 +407,106 @@ function onPrint() {
   opacity: 1;
 }
 
-/* ── Left 57%: Full-Bleed Darkroom Photogravure Plate ── */
+/* ── Left 57%: Cold-Obsidian Photogravure Darkroom Plate ── */
 .exlibris-plate {
   position: relative;
   margin: 0;
-  min-height: 368px;
-  background: oklch(11.5% 0.005 74);
+  min-height: 384px;
+  display: grid;
+  background-color: oklch(11.4% 0.006 238);
+  background-image:
+    radial-gradient(ellipse 68% 64% at 62% 38%, oklch(74% 0.048 78 / 0.16) 0%, oklch(36% 0.014 234 / 0.12) 48%, transparent 76%),
+    radial-gradient(circle 160px at 62% 48%, oklch(84% 0.04 78 / 0.05) 0%, transparent 72%);
   overflow: hidden;
 }
 
-.exlibris-plate img {
+/* Subtle elliptical museum plinth contact shadow */
+.exlibris-plate::before {
+  content: '';
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 42%;
-  filter: contrast(1.04) brightness(0.92);
-  transition: transform 700ms var(--ease-curatorial);
+  left: 61%;
+  bottom: 20%;
+  width: 44%;
+  height: 11%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    oklch(4% 0.006 238 / 0.82) 0%,
+    oklch(4% 0.006 238 / 0.34) 52%,
+    transparent 78%
+  );
 }
 
-.exlibris-plate.is-panoramic {
+.exlibris-plate__stage {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2.2rem 1.25rem 3.8rem 6.25rem;
-  background: oklch(11.5% 0.005 74);
-}
-
-.exlibris-plate.is-panoramic img {
-  position: relative;
-  inset: auto;
   width: 100%;
-  height: auto;
-  max-height: 210px;
+  height: 100%;
+  padding: 2.35rem 2.25rem 5.1rem 8.5rem;
+}
+
+.exlibris-plate.is-panoramic .exlibris-plate__stage {
+  padding: 2.5rem 2rem 5.1rem 7.75rem;
+}
+
+.exlibris-plate__stage img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: 256px;
   object-fit: contain;
-  -webkit-mask-image:
-    linear-gradient(180deg, transparent 0%, oklch(0% 0 0) 20%, oklch(0% 0 0) 80%, transparent 100%),
-    linear-gradient(90deg, transparent 0%, oklch(0% 0 0) 6%, oklch(0% 0 0) 94%, transparent 100%);
-  -webkit-mask-composite: source-in;
-  mask-image:
-    linear-gradient(180deg, transparent 0%, oklch(0% 0 0) 20%, oklch(0% 0 0) 80%, transparent 100%),
-    linear-gradient(90deg, transparent 0%, oklch(0% 0 0) 6%, oklch(0% 0 0) 94%, transparent 100%);
-  mask-composite: intersect;
+  object-position: center;
+  filter: drop-shadow(0 20px 28px oklch(4% 0.006 238 / 0.76)) contrast(1.03);
+  transition: transform 680ms var(--ease-curatorial);
 }
 
-.exlibris-ticket:hover .exlibris-plate img {
-  transform: scale(1.03);
+.exlibris-plate.is-panoramic .exlibris-plate__stage img {
+  max-height: 184px;
 }
 
-/* Left & bottom darkroom chiaroscuro veil for luminous typography */
+.exlibris-ticket:hover .exlibris-plate__stage img {
+  transform: scale(1.035);
+}
+
+/* Gentle left & bottom chiaroscuro vignette (Cold Obsidian hue 238) */
 .exlibris-plate::after {
   content: '';
   position: absolute;
   inset: 0;
   z-index: 1;
   background:
-    linear-gradient(90deg, oklch(10% 0.005 74 / 0.86) 0%, oklch(10% 0.005 74 / 0.36) 36%, transparent 68%),
-    linear-gradient(180deg, transparent 54%, oklch(9% 0.005 74 / 0.88) 100%);
+    linear-gradient(90deg, oklch(10% 0.006 238 / 0.72) 0%, oklch(10% 0.006 238 / 0.24) 28%, transparent 52%),
+    linear-gradient(180deg, transparent 58%, oklch(9% 0.006 238 / 0.90) 100%);
   pointer-events: none;
 }
 
-/* Hairline inner gold plate frame */
+/* Hairline inner gold plate frame with gilded corner ticks */
 .exlibris-plate__frame {
   position: absolute;
   inset: 14px;
   z-index: 2;
-  border: 1px solid oklch(82% 0.065 78 / 0.34);
+  border: 1px solid oklch(82% 0.062 78 / 0.30);
   pointer-events: none;
 }
+
+.exlibris-corner {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-color: oklch(84% 0.072 78 / 0.72);
+  border-style: solid;
+}
+
+.exlibris-corner--tl { top: -1px; left: -1px; border-width: 1.5px 0 0 1.5px; }
+.exlibris-corner--tr { top: -1px; right: -1px; border-width: 1.5px 1.5px 0 0; }
+.exlibris-corner--bl { bottom: -1px; left: -1px; border-width: 0 0 1.5px 1.5px; }
+.exlibris-corner--br { bottom: -1px; right: -1px; border-width: 0 1.5px 1.5px 0; }
 
 /* Vertical Calligraphy Title Slip + Vermilion Seal */
 .exlibris-plate__colophon {
@@ -470,7 +517,7 @@ function onPrint() {
   display: flex;
   flex-direction: row-reverse;
   align-items: flex-start;
-  gap: 0.55rem;
+  gap: 0.65rem;
 }
 
 .exlibris-plate__colophon.is-latin {
@@ -484,16 +531,16 @@ function onPrint() {
   font-family: var(--font-display);
   font-size: 1.32rem;
   font-weight: 600;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.2em;
   line-height: 1.1;
-  color: oklch(96% 0.012 86);
-  text-shadow: 0 2px 14px oklch(6% 0.005 74 / 0.72);
+  color: oklch(96% 0.008 86);
+  text-shadow: 0 2px 14px oklch(6% 0.006 238 / 0.76);
 }
 
 .exlibris-plate__colophon.is-latin .exlibris-plate__title {
   writing-mode: horizontal-tb;
   letter-spacing: 0.02em;
-  font-size: 1.35rem;
+  font-size: 1.3rem;
 }
 
 .exlibris-plate__edition {
@@ -501,8 +548,8 @@ function onPrint() {
   text-orientation: upright;
   font-family: var(--font-display);
   font-size: var(--text-xs);
-  letter-spacing: 0.18em;
-  color: oklch(82% 0.07 78 / 0.9);
+  letter-spacing: 0.2em;
+  color: oklch(82% 0.068 78 / 0.92);
   padding-top: 0.15rem;
 }
 
@@ -512,6 +559,11 @@ function onPrint() {
   letter-spacing: 0.14em;
 }
 
+.exlibris-plate__colophon.is-latin .exlibris-seal {
+  align-self: flex-start;
+  margin-top: 0.45rem;
+}
+
 .exlibris-seal {
   align-self: flex-end;
   display: grid;
@@ -519,10 +571,11 @@ function onPrint() {
   place-items: center;
   width: 30px;
   height: 30px;
-  margin-top: 0.25rem;
-  border: 1.5px solid oklch(56% 0.17 26);
-  background: oklch(50% 0.16 26 / 0.18);
-  color: oklch(68% 0.17 26);
+  margin-top: 0.35rem;
+  border: 1.5px solid oklch(58% 0.165 26);
+  border-radius: 2px;
+  background: oklch(50% 0.155 26 / 0.20);
+  color: oklch(70% 0.165 26);
   font-family: var(--font-display);
   font-size: 11px;
   font-weight: 700;
@@ -535,19 +588,31 @@ function onPrint() {
   font-style: normal;
 }
 
-.exlibris-plate__blessing {
+.exlibris-plate__caption {
   position: absolute;
   left: 28px;
   right: 28px;
-  bottom: 24px;
+  bottom: 22px;
   z-index: 3;
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+}
+
+.exlibris-plate__era {
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  color: oklch(80% 0.056 78 / 0.88);
+}
+
+.exlibris-plate__blessing {
   margin: 0;
   font-family: var(--font-display);
   font-size: var(--text-sm);
-  line-height: 1.65;
-  letter-spacing: 0.04em;
-  color: oklch(93% 0.015 84 / 0.92);
-  text-shadow: 0 1px 10px oklch(6% 0.005 74 / 0.75);
+  line-height: 1.58;
+  letter-spacing: 0.03em;
+  color: oklch(94% 0.008 86 / 0.94);
+  text-shadow: 0 1px 10px oklch(6% 0.006 238 / 0.78);
 }
 
 /* ── Center Die-Cut Tear Perforation ── */
@@ -555,14 +620,14 @@ function onPrint() {
   position: relative;
   display: flex;
   justify-content: center;
-  background: var(--surface-elevated);
+  background: color-mix(in oklch, var(--surface-elevated) 92%, var(--surface-subtle));
 }
 
 .exlibris-dash {
   width: 0;
   height: calc(100% - 26px);
   margin: auto 0;
-  border-left: 1px dashed color-mix(in oklch, var(--accent-bronze) 45%, var(--border-strong));
+  border-left: 1px dashed color-mix(in oklch, var(--accent-bronze) 48%, var(--border-strong));
 }
 
 .exlibris-notch {
@@ -572,37 +637,58 @@ function onPrint() {
   height: 18px;
   border-radius: 50%;
   background: var(--surface-canvas);
-  border: 1px solid color-mix(in oklch, var(--accent-bronze) 28%, var(--border-strong));
+  border: 1px solid color-mix(in oklch, var(--accent-bronze) 30%, var(--border-strong));
   transform: translateX(-50%);
 }
 
 .exlibris-wrap--velvet .exlibris-notch {
-  background: oklch(10% 0.008 72);
-  border-color: oklch(82% 0.05 78 / 0.16);
+  background: oklch(9.5% 0.006 238);
+  border-color: oklch(82% 0.05 78 / 0.22);
 }
 
 .exlibris-notch--top { top: -10px; }
 .exlibris-notch--bottom { bottom: -10px; }
 
-/* ── Right 43%: Letterpress Xuan-Paper Stub (Zero Grey Boxes) ── */
+/* ── Right 43%: Letterpress Xuan-Paper Stub with Debossed Inner Border ── */
 .exlibris-stub {
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: var(--space-4);
-  padding: 1.75rem 1.75rem 1.6rem 1.35rem;
+  gap: var(--space-3);
+  padding: 1.75rem 1.85rem 1.65rem 1.4rem;
   background:
-    linear-gradient(160deg, var(--surface-elevated) 0%, color-mix(in oklch, var(--surface-subtle) 65%, var(--surface-elevated)) 100%);
+    radial-gradient(ellipse 90% 60% at 100% 0%, color-mix(in oklch, var(--accent-bronze) 6%, transparent) 0%, transparent 65%),
+    linear-gradient(165deg, var(--surface-elevated) 0%, color-mix(in oklch, var(--surface-subtle) 82%, var(--surface-elevated)) 100%);
   color: var(--ink-primary);
 }
 
+/* Delicate physical letterpress debossed inner frame */
+.exlibris-stub::before {
+  content: '';
+  position: absolute;
+  inset: 10px 10px 10px 2px;
+  border: 1px solid color-mix(in oklch, var(--accent-bronze) 22%, var(--border-hairline));
+  border-left: 0;
+  pointer-events: none;
+}
+
 .exlibris-stub__head {
+  position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-3);
   padding-bottom: var(--space-3);
   border-bottom: 1px solid var(--border-hairline);
+}
+
+.exlibris-stub__kicker {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  color: var(--accent-bronze);
 }
 
 .exlibris-stub__head h3 {
@@ -615,7 +701,7 @@ function onPrint() {
 }
 
 .exlibris-stub__head p {
-  margin: 0.25rem 0 0;
+  margin: 0.22rem 0 0;
   font-size: var(--text-xs);
   color: var(--ink-muted);
 }
@@ -623,12 +709,14 @@ function onPrint() {
 /* Ink-Stamped Status Chop (Not a SaaS Pill) */
 .exlibris-stamp {
   flex-shrink: 0;
-  padding: 0.18rem 0.48rem;
-  border: 1.25px solid var(--accent-seal);
+  padding: 0.22rem 0.55rem;
+  border: 1.4px solid var(--accent-seal);
+  border-radius: 2px;
+  background: color-mix(in oklch, var(--accent-seal) 7%, transparent);
   color: var(--accent-seal);
   font-family: var(--font-display);
   font-size: var(--text-xs);
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.1em;
   line-height: 1.25;
   transform: rotate(-3deg);
@@ -637,11 +725,13 @@ function onPrint() {
 .exlibris-stamp[data-status="confirmed"],
 .exlibris-stamp[data-status="completed"] {
   border-color: var(--accent-jade);
+  background: color-mix(in oklch, var(--accent-jade) 8%, transparent);
   color: var(--accent-jade);
 }
 
 /* Monumental Architectural Date Lockup */
 .exlibris-date {
+  position: relative;
   display: flex;
   align-items: baseline;
   gap: 1rem;
@@ -651,7 +741,7 @@ function onPrint() {
 
 .exlibris-date__day {
   font-family: var(--font-display);
-  font-size: 3.25rem;
+  font-size: 3.35rem;
   font-weight: 300;
   line-height: 0.92;
   letter-spacing: -0.02em;
@@ -660,7 +750,7 @@ function onPrint() {
 
 .exlibris-date__meta {
   display: grid;
-  gap: 0.22rem;
+  gap: 0.24rem;
 }
 
 .exlibris-date__meta span {
@@ -678,6 +768,7 @@ function onPrint() {
 
 /* Clean Hairline Ledger */
 .exlibris-ledger {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-3);
@@ -702,6 +793,7 @@ function onPrint() {
 
 /* Unboxed Verification Seal & Hex Code */
 .exlibris-verify {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -751,7 +843,7 @@ function onPrint() {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding-top: 0.2rem;
+  padding-top: 0.25rem;
 }
 
 .exlibris-editions {
@@ -763,8 +855,8 @@ function onPrint() {
 
 .exlibris-edition-tab,
 .exlibris-edition-cycle {
-  min-height: 36px;
-  padding: 0 0.2rem;
+  min-height: 38px;
+  padding: 0 0.25rem;
   border: 0;
   border-bottom: 1.5px solid transparent;
   background: transparent;
@@ -806,7 +898,7 @@ function onPrint() {
   min-height: 44px;
   padding: 0 1.05rem;
   border: 1px solid var(--border-strong);
-  border-radius: 2px;
+  border-radius: 3px;
   background: transparent;
   color: var(--ink-primary);
   font-size: var(--text-xs);
@@ -827,46 +919,55 @@ function onPrint() {
 }
 
 .exlibris-action--primary:hover:not(:disabled) {
-  opacity: 0.9;
+  opacity: 0.92;
 }
 
 /* Velvet darkroom modal contrast for the external tray */
 .exlibris-wrap--velvet .exlibris-edition-tab {
-  color: oklch(78% 0.012 80);
+  color: oklch(84% 0.008 228);
 }
 
 .exlibris-wrap--velvet .exlibris-edition-tab:hover {
-  color: oklch(96% 0.01 86);
+  color: oklch(97% 0.006 86);
 }
 
 .exlibris-wrap--velvet .exlibris-edition-tab.is-active,
 .exlibris-wrap--velvet .exlibris-edition-cycle {
-  color: oklch(84% 0.075 78);
-  border-bottom-color: oklch(84% 0.075 78);
+  color: oklch(85% 0.072 78);
+  border-bottom-color: oklch(85% 0.072 78);
 }
 
 .exlibris-wrap--velvet .exlibris-action {
-  border-color: oklch(82% 0.03 80 / 0.28);
-  color: oklch(94% 0.01 86);
+  border-color: oklch(90% 0.01 232 / 0.28);
+  color: oklch(95% 0.006 86);
 }
 
 .exlibris-wrap--velvet .exlibris-action:hover:not(:disabled) {
-  border-color: oklch(84% 0.075 78);
+  border-color: oklch(85% 0.072 78);
+  background: oklch(90% 0.01 232 / 0.06);
 }
 
 .exlibris-wrap--velvet .exlibris-action--primary {
-  border-color: oklch(80% 0.075 78);
-  background: oklch(80% 0.075 78);
-  color: oklch(14% 0.01 72);
+  border-color: oklch(82% 0.056 78);
+  background: oklch(82% 0.056 78);
+  color: oklch(13% 0.006 238);
 }
 
 /* ── Compact mode (Profile drawer) ── */
 .exlibris-wrap--compact .exlibris-ticket {
-  min-height: 312px;
+  min-height: 326px;
 }
 
 .exlibris-wrap--compact .exlibris-plate {
-  min-height: 312px;
+  min-height: 326px;
+}
+
+.exlibris-wrap--compact .exlibris-plate__stage {
+  padding: 2rem 1.75rem 4.6rem 7.5rem;
+}
+
+.exlibris-wrap--compact .exlibris-plate__stage img {
+  max-height: 210px;
 }
 
 /* ── Responsive Mobile ── */
@@ -877,11 +978,26 @@ function onPrint() {
   }
 
   .exlibris-plate {
-    min-height: 280px;
+    min-height: 304px;
   }
 
-  .exlibris-plate.is-panoramic {
-    padding: 4.5rem 1.25rem 4rem;
+  .exlibris-plate::before {
+    left: 50%;
+    bottom: 24%;
+    width: 56%;
+  }
+
+  .exlibris-plate__stage,
+  .exlibris-plate.is-panoramic .exlibris-plate__stage {
+    padding: 4.5rem 1.75rem 5.2rem;
+  }
+
+  .exlibris-plate__stage img {
+    max-height: 184px;
+  }
+
+  .exlibris-plate.is-panoramic .exlibris-plate__stage img {
+    max-height: 140px;
   }
 
   .exlibris-plate__colophon {
@@ -909,10 +1025,13 @@ function onPrint() {
     margin-top: 0;
   }
 
-  .exlibris-plate__blessing {
+  .exlibris-plate__caption {
     left: 22px;
     right: 22px;
     bottom: 20px;
+  }
+
+  .exlibris-plate__blessing {
     font-size: var(--text-xs);
   }
 
@@ -925,7 +1044,7 @@ function onPrint() {
     width: calc(100% - 26px);
     height: 0;
     border-left: 0;
-    border-top: 1px dashed color-mix(in oklch, var(--accent-bronze) 45%, var(--border-strong));
+    border-top: 1px dashed color-mix(in oklch, var(--accent-bronze) 48%, var(--border-strong));
   }
 
   .exlibris-notch {
@@ -937,7 +1056,12 @@ function onPrint() {
   .exlibris-notch--bottom { left: auto; right: -10px; bottom: auto; }
 
   .exlibris-stub {
-    padding: 1.4rem 1.35rem 1.45rem;
+    padding: 1.45rem 1.4rem 1.5rem;
+  }
+
+  .exlibris-stub::before {
+    inset: 8px;
+    border-left: 1px solid color-mix(in oklch, var(--accent-bronze) 22%, var(--border-hairline));
   }
 
   .exlibris-actions {
@@ -959,7 +1083,7 @@ function onPrint() {
     display: none;
   }
 
-  .exlibris-plate img {
+  .exlibris-plate__stage img {
     transition: none;
   }
 }

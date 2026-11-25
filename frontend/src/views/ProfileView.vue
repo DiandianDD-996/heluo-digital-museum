@@ -2,9 +2,11 @@
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useCuratorialBookmarks } from '../stores/curatorialBookmarks'
 import InlineStatus from '../components/InlineStatus.vue'
 import FluidButton from '../components/FluidButton.vue'
 import { useLocale } from '../stores/locale'
+import { useTheme } from '../stores/theme'
 import { audioSystem } from '../lib/audioSystem'
 import { createGsapContext, revealSequence, shouldRunGsapReveal } from '../lib/gsap'
 
@@ -12,8 +14,36 @@ const ProfileAppointments = defineAsyncComponent(() => import('../components/Pro
 const ProfileOrders = defineAsyncComponent(() => import('../components/ProfileOrders.vue'))
 
 const auth = useAuthStore()
+const bookmarks = useCuratorialBookmarks()
 const router = useRouter()
 const { locale } = useLocale()
+const { isDark } = useTheme()
+const pavilionMedia = computed(() => (
+  isDark.value
+    ? {
+      src: '/media/editorial/login-pavilion-dark-v3.webp',
+      srcset: '/media/responsive/login-pavilion-dark-v3-640w.webp 640w, /media/editorial/login-pavilion-dark-v3.webp 896w',
+      caption: 'NOCTURNE PAVILION · 01',
+    }
+    : {
+      src: '/media/editorial/login-pavilion-light-v3.webp',
+      srcset: '/media/responsive/login-pavilion-light-v3-640w.webp 640w, /media/editorial/login-pavilion-light-v3.webp 896w',
+      caption: 'DAYLIGHT PAVILION · 01',
+    }
+))
+const exportingNotebook = ref(false)
+const notebookPreviewItems = computed(() => bookmarks.items.value.slice(0, 4))
+
+async function exportNotebookFromProfile() {
+  if (exportingNotebook.value || bookmarks.count.value === 0) return
+  exportingNotebook.value = true
+  try {
+    const { downloadCuratorialNotebookPng } = await import('../lib/curatorialNotebookExport')
+    await downloadCuratorialNotebookPng(bookmarks.items.value, locale.value)
+  } finally {
+    exportingNotebook.value = false
+  }
+}
 const copy = computed(() => locale.value === 'zh-CN' ? {
   storyAria: '个人中心导航',
   storyTitle: '你的河洛参观档案。',
@@ -144,8 +174,17 @@ async function logout() {
     <!-- Visitor Archive Sidebar / Header Card -->
     <aside class="profile-story" data-motion="profile-story" :aria-label="copy.storyAria">
       <div class="profile-story__media" aria-hidden="true">
-        <img src="/media/editorial/museum-exterior-watercolor.webp" alt="" />
-        <span class="font-mono">HELUO / 01</span>
+        <img
+          :src="pavilionMedia.src"
+          :srcset="pavilionMedia.srcset"
+          sizes="(max-width: 960px) 100vw, 340px"
+          width="896"
+          height="1200"
+          decoding="sync"
+          alt=""
+        />
+        <span class="profile-story__scrim"></span>
+        <span class="profile-story__plate font-mono">{{ pavilionMedia.caption }}</span>
       </div>
       <div class="profile-story__copy">
         <p class="eyebrow">{{ copy.storyEyebrow }}</p>
@@ -191,6 +230,64 @@ async function logout() {
         </form>
       </section>
 
+      <!-- Embedded Viewing Journal Album Summary Rail -->
+      <section class="profile-notebook-rail" data-testid="profile-notebook-rail" :aria-label="locale === 'en-US' ? 'Viewing journal summary' : '我的观展手账画册摘要轨'">
+        <header class="profile-notebook-rail__head">
+          <div>
+            <p class="eyebrow">{{ locale === 'en-US' ? 'THREAD-BOUND JOURNAL' : 'CURATORIAL JOURNAL · 线装手账' }}</p>
+            <h2>{{ locale === 'en-US' ? 'My Viewing Notebook' : '我的观展手账画册' }}</h2>
+          </div>
+          <span class="profile-notebook-rail__count font-mono">
+            {{ locale === 'en-US' ? `${bookmarks.count.value} plates` : `已收录 ${bookmarks.count.value} 件图版` }}
+          </span>
+        </header>
+
+        <div v-if="notebookPreviewItems.length" class="profile-notebook-rail__strip">
+          <RouterLink
+            v-for="item in notebookPreviewItems"
+            :key="`${item.kind}-${item.slug}`"
+            class="profile-notebook-card"
+            :to="item.path"
+          >
+            <div class="profile-notebook-card__thumb surface-vitrine">
+              <img v-if="item.imageUrl" :src="item.imageUrl" alt="" loading="lazy" decoding="async" />
+              <span v-else class="font-mono">NO.</span>
+            </div>
+            <div class="profile-notebook-card__copy">
+              <strong>{{ locale === 'en-US' ? (item.titleEn || item.title) : item.title }}</strong>
+              <small>{{ item.note || (locale === 'en-US' ? (item.subtitleEn || item.subtitle || 'Saved plate') : (item.subtitle || '已收入画册')) }}</small>
+            </div>
+          </RouterLink>
+        </div>
+        <p v-else class="profile-notebook-rail__empty">
+          {{ locale === 'en-US' ? 'Save artifacts or articles while browsing to assemble your thread-bound exhibition folio.' : '逛展时在文物或文章详情页点击「收入观展手账」，即可生成个人线装画册与长卷留念图。' }}
+        </p>
+
+        <div class="profile-notebook-rail__actions">
+          <button
+            type="button"
+            class="fluid-button fluid-button--primary fluid-button--sm"
+            data-testid="profile-open-notebook-btn"
+            @click="bookmarks.openSheet()"
+          >
+            {{ locale === 'en-US' ? 'Open Thread-Bound Journal' : '翻阅线装观展手账' }}
+          </button>
+          <button
+            v-if="bookmarks.count.value > 0"
+            type="button"
+            class="fluid-button fluid-button--secondary fluid-button--sm"
+            data-testid="profile-export-notebook-btn"
+            :disabled="exportingNotebook"
+            @click="exportNotebookFromProfile"
+          >
+            {{ exportingNotebook ? (locale === 'en-US' ? 'Exporting PNG…' : '正在导出长图…') : (locale === 'en-US' ? 'Export Long-Scroll PNG' : '导出手账长图 PNG') }}
+          </button>
+          <RouterLink v-else class="fluid-button fluid-button--secondary fluid-button--sm" to="/explore">
+            {{ locale === 'en-US' ? 'Browse collection →' : '去馆藏挑第一件 →' }}
+          </RouterLink>
+        </div>
+      </section>
+
       <div class="profile-records" data-motion="profile-records">
         <span v-if="!recordsReady" ref="recordsSentinel" class="profile-records__sentinel" aria-hidden="true"></span>
         <template v-else><ProfileAppointments :token="auth.token" /><ProfileOrders :token="auth.token" /></template>
@@ -228,26 +325,45 @@ async function logout() {
 
 .profile-story__media {
   position: relative;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 4 / 3;
   overflow: hidden;
-  background: var(--surface-plinth);
+  background: var(--surface-darkroom);
 }
 
 .profile-story__media img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center 42%;
 }
 
-.profile-story__media span {
+.profile-story__scrim {
   position: absolute;
-  top: var(--space-3);
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    transparent 38%,
+    oklch(10% 0.008 238 / 0.56) 100%
+  );
+  pointer-events: none;
+}
+
+.profile-story__plate {
+  position: absolute;
   left: var(--space-3);
-  padding: 0.2rem 0.5rem;
-  border-radius: var(--radius-xs);
-  background: oklch(12% 0.01 165 / 0.72);
-  color: var(--ink-on-dark);
+  bottom: var(--space-3);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.65rem;
+  border: 1px solid oklch(96% 0.006 86 / 0.22);
+  border-radius: var(--radius-pill);
+  background: oklch(11% 0.008 238 / 0.48);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: oklch(95% 0.006 86);
   font-size: var(--text-xs);
+  letter-spacing: 0.12em;
 }
 
 .profile-story__copy {
@@ -414,6 +530,126 @@ async function logout() {
 .profile-records__sentinel {
   display: block;
   height: 1px;
+}
+
+/* ── Embedded Viewing Journal Album Summary Rail ── */
+.profile-notebook-rail {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--surface-elevated);
+}
+
+.profile-notebook-rail__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.profile-notebook-rail__head h2 {
+  margin: 0.25rem 0 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  color: var(--ink-primary);
+}
+
+.profile-notebook-rail__count {
+  padding: 0.2rem 0.65rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle);
+  font-size: var(--text-xs);
+  color: var(--accent-bronze);
+}
+
+.profile-notebook-rail__strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(195px, 1fr));
+  gap: var(--space-3);
+}
+
+.profile-notebook-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 72px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+  color: var(--ink-primary);
+  transition: border-color var(--duration-fast) var(--ease-curatorial),
+              transform var(--duration-fast) var(--ease-curatorial);
+}
+
+.profile-notebook-card:hover {
+  border-color: var(--accent-bronze);
+  transform: translateY(-1px);
+}
+
+.profile-notebook-card__thumb {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+  padding: 3px;
+}
+
+.profile-notebook-card__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.profile-notebook-card__thumb span {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+}
+
+.profile-notebook-card__copy {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.profile-notebook-card__copy strong {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--ink-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-notebook-card__copy small {
+  font-size: var(--text-xs);
+  color: var(--ink-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-notebook-rail__empty {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  color: var(--ink-muted);
+}
+
+.profile-notebook-rail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
 }
 
 @media (max-width: 960px) {

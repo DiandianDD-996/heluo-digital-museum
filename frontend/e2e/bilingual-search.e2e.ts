@@ -111,6 +111,7 @@ for (const resource of ['artifacts', 'articles']) {
     await page.locator('.auth-panel form').getByRole('button', { name: '登录', exact: true }).click()
     await expect(page).toHaveURL(/\/admin$/)
     if (resource === 'articles') await page.getByRole('tab', { name: '文章', exact: true }).click()
+    await page.getByTestId('admin-open-create-drawer').click()
     const form = page.locator('.admin-create form')
     await form.getByLabel('标题', { exact: true }).fill(title)
     await form.getByLabel(/^URL 标识/).fill(slug)

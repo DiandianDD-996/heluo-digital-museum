@@ -187,6 +187,9 @@ describe('remediation view behavior', () => {
     const wrapper = mount(AdminContentView, { global: { stubs: { RouterLink: routerLinkStub } } })
     await flushPromises()
 
+    await wrapper.get('[data-testid="admin-open-create-drawer"]').trigger('click')
+    await flushPromises()
+
     const form = wrapper.find('.admin-create form')
     const labels = form.findAll('label')
     const titleLabel = labels.find((label) => label.text().includes('标题'))
@@ -215,6 +218,9 @@ describe('remediation view behavior', () => {
     apiRequest.mockRejectedValue(new Error('用户创建失败'))
 
     const wrapper = mount(AdminOperationsView, { global: { stubs: { RouterLink: routerLinkStub } } })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="admin-ops-open-create-drawer"]').trigger('click')
     await flushPromises()
 
     const form = wrapper.find('.admin-inline-form')

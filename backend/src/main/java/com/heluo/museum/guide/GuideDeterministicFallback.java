@@ -109,8 +109,8 @@ public class GuideDeterministicFallback {
                 "APPOINTMENT:PUBLIC_SLOTS",
                 english ? "Heluo Museum Public Appointment Slots (Live)" : "河洛数字博物馆公开预约时段（实时）",
                 "live", "/appointment", null,
-                english ? "Open window is 14 days from today; 1-30 visitors per booking."
-                        : "仅开放今天起 14 天内的公开时段，单笔预约限 1 至 30 人。"));
+                english ? "Open window is 365 days from today; 1-30 visitors per booking."
+                        : "开放今天起未来 365 天内的公开时段（周一闭馆），单笔预约限 1 至 30 人。"));
 
         Matcher pm = PEOPLE_NUM.matcher(msg);
         if (pm.find()) {
@@ -139,8 +139,8 @@ public class GuideDeterministicFallback {
 
         if (target != null && (target.isBefore(today) || target.isAfter(windowEnd))) {
             String text = english
-                    ? "Public appointments are only open for the next 14 days (" + today + " to " + windowEnd + "). " + target + " is currently outside the open booking window."
-                    : "公开预约目前仅开放今天起未来 14 天（" + today + " 至 " + windowEnd + "），" + target + " 暂未进入开放窗口。";
+                    ? "Public appointments are only open for the next 365 days (" + today + " to " + windowEnd + "). " + target + " is currently outside the open booking window."
+                    : "公开预约目前仅开放今天起未来 365 天（" + today + " 至 " + windowEnd + "），" + target + " 暂未进入开放窗口。";
             return new ChatResponse(requestId, text, citations,
                     List.of(Action.navigate("/appointment", null, english ? "View Open Dates" : "查看可约日期")),
                     List.of(), citations.get(0).boundaryNote(), "deterministic", degraded);
@@ -153,8 +153,8 @@ public class GuideDeterministicFallback {
         StringBuilder sb = new StringBuilder();
         if (slots.isEmpty()) {
             sb.append(english
-                    ? "No open appointment slots with remaining capacity were found between " + from + " and " + to + ". You can check other dates within the 14-day window on the appointment page."
-                    : from + " 至 " + to + " 暂未查到有余量的公开时段，你可以前往预约页查看未来 14 天内其他日期。");
+                    ? "No open appointment slots with remaining capacity were found between " + from + " and " + to + ". You can check other dates within the 365-day window on the appointment page."
+                    : from + " 至 " + to + " 暂未查到有余量的公开时段，你可以前往预约页查看未来 365 天内其他日期。");
         } else {
             sb.append(english ? "Here are the live open appointment slots (" + from + " to " + to + "):\n"
                     : "为你查到 " + from + " 至 " + to + " 的实时可约时段：\n");
@@ -345,7 +345,7 @@ public class GuideDeterministicFallback {
                 + " shop items. Ask me about any exhibit, 3D observation details, or upcoming appointment slots."
                 : "欢迎来到河洛数字博物馆！当前馆内公开呈现 " + catalog.artifacts().size() + " 件藏品、"
                 + catalog.articles().size() + " 篇文化专题、" + catalog.exhibits().size() + " 件 3D 展项与 "
-                + catalog.products().size() + " 件河洛文创。你可以向我询问任意展品细节、3D 观察方法或未来 14 天预约时段。";
+                + catalog.products().size() + " 件河洛文创。你可以向我询问任意展品细节、3D 观察方法或未来 365 天预约时段。";
         List<Action> actions = List.of(
                 Action.navigate("/exhibits/" + GuideKnowledgeService.DING_EXHIBIT_SLUG, null,
                         english ? "Open Bronze Ding 3D" : "进入青铜鼎 3D 展柜"),

@@ -219,4 +219,70 @@ describe('LuoshengSiteGuide v2', () => {
     expect(wrapper.text()).toContain('先看外缘与中央穿孔的留白。')
     wrapper.unmount()
   })
+
+  it('supports wide mode toggle, context ribbon, mid-chat ideas & quick intents, copy/regenerate, and error retry', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    })
+
+    const fetchMock = vi.fn()
+      // Primary SSE call + automatic JSON fallback both fail to surface the retry button
+      .mockRejectedValueOnce(new Error('network down'))
+      .mockRejectedValueOnce(new Error('network down'))
+      .mockResolvedValueOnce(makeSseResponse([
+        'event:done\ndata:{"requestId":"r6","text":"首版回答：**河洛青铜鼎**铸于商代风格。","citations":[],"actions":[],"followUps":[],"boundaryNote":"","mode":"ai","degraded":false}\n\n',
+      ]))
+      .mockResolvedValueOnce(makeSseResponse([
+        'event:done\ndata:{"requestId":"r7","text":"新版回答：已为你重新整理三步看点。","citations":[],"actions":[],"followUps":[],"boundaryNote":"","mode":"ai","degraded":false}\n\n',
+      ]))
+      .mockResolvedValueOnce(makeSseResponse([
+        'event:done\ndata:{"requestId":"r8","text":"这是十五分钟高光路线。","citations":[],"actions":[],"followUps":[],"boundaryNote":"","mode":"ai","degraded":false}\n\n',
+      ]))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const wrapper = mount(LuoshengSiteGuide, { global: { plugins: [router] } })
+    const store = useLuoshengStore()
+    await wrapper.get('[data-testid="luosheng-fab"]').trigger('click')
+
+    // Wide mode toggle
+    const drawer = wrapper.get('[data-testid="luosheng-drawer"]')
+    expect(drawer.classes()).not.toContain('is-wide')
+    await wrapper.get('[data-testid="luosheng-expand"]').trigger('click')
+    expect(drawer.classes()).toContain('is-wide')
+
+    // Context ribbon reflects route
+    expect(wrapper.get('[data-testid="luosheng-context-bar"]').text()).toContain('博物馆首页')
+
+    // Network error + retry
+    await wrapper.get('[data-testid="luosheng-input"]').setValue('介绍青铜鼎')
+    await wrapper.get('form.luosheng-composer').trigger('submit')
+    await flushPromises()
+    const retryBtn = wrapper.get('[data-testid="luosheng-retry"]')
+    await retryBtn.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('首版回答：')
+
+    // Copy message strips bold markers
+    await wrapper.get('[data-testid="luosheng-copy-msg"]').trigger('click')
+    expect(writeText).toHaveBeenCalledWith('首版回答：河洛青铜鼎铸于商代风格。')
+
+    // Regenerate replaces latest assistant turn without duplicating user turn
+    await wrapper.get('[data-testid="luosheng-regenerate"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('新版回答：已为你重新整理三步看点。')
+    expect(store.messages.filter(m => m.role === 'user')).toHaveLength(1)
+
+    // Mid-conversation Ideas toggle + Quick-Intent dock
+    await wrapper.get('[data-testid="luosheng-ideas-toggle"]').trigger('click')
+    expect(wrapper.find('[data-testid="luosheng-ideas-drawer"]').exists()).toBe(true)
+    const intentButtons = wrapper.findAll('[data-testid="luosheng-quick-intents"] button')
+    expect(intentButtons.length).toBeGreaterThanOrEqual(3)
+    await intentButtons[0]!.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('这是十五分钟高光路线。')
+
+    wrapper.unmount()
+  })
 })

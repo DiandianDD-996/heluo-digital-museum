@@ -6,13 +6,15 @@ import { describe, expect, it } from 'vitest'
 
 const root = process.cwd()
 const source = readFileSync(resolve(root, 'src/views/AppointmentView.vue'), 'utf8')
-const media = (name: string) => resolve(root, 'public/media/editorial', name)
+const editorialMedia = (name: string) => resolve(root, 'public/media/editorial', name)
+const responsiveMedia = (name: string) => resolve(root, 'public/media/responsive', name)
 
 describe('appointment mobile media contract', () => {
   it('serves versioned responsive candidates without promoting the below-fold image', () => {
-    expect(source).toContain('museum-exterior-watercolor-480w-v1.webp 480w')
-    expect(source).toContain('museum-exterior-watercolor-960w-v1.webp 960w')
-    expect(source).toContain('museum-exterior-watercolor-1280w-v1.webp 1280w')
+    expect(source).toContain('login-pavilion-light-v3-640w.webp 640w')
+    expect(source).toContain('login-pavilion-light-v3-960w.webp 960w')
+    expect(source).toContain('login-pavilion-dark-v3-640w.webp 640w')
+    expect(source).toContain('login-pavilion-dark-v3-960w.webp 960w')
     expect(source).toContain('sizes="(max-width: 760px) calc(100vw - 2rem), 360px"')
     expect(source).toContain('loading="lazy"')
     expect(source).toContain('decoding="async"')
@@ -20,11 +22,13 @@ describe('appointment mobile media contract', () => {
   })
 
   it('keeps every generated candidate smaller than the original asset', () => {
-    const originalBytes = statSync(media('museum-exterior-watercolor.webp')).size
-    for (const width of [480, 960, 1280]) {
-      const candidateBytes = statSync(media(`museum-exterior-watercolor-${width}w-v1.webp`)).size
-      expect(candidateBytes).toBeGreaterThan(0)
-      expect(candidateBytes).toBeLessThan(originalBytes)
+    for (const variant of ['light', 'dark']) {
+      const originalBytes = statSync(editorialMedia(`login-pavilion-${variant}-v3.webp`)).size
+      for (const width of [640, 960]) {
+        const candidateBytes = statSync(responsiveMedia(`login-pavilion-${variant}-v3-${width}w.webp`)).size
+        expect(candidateBytes).toBeGreaterThan(0)
+        expect(candidateBytes).toBeLessThan(originalBytes)
+      }
     }
   })
 

@@ -56,8 +56,8 @@ describe('home hero high-density media contract', () => {
   })
 
   it('selects density-aware light and dark hero media without desktop over-scaling', () => {
-    expect(homeView).toContain('home-corridor-light-user-v2.webp 1672w')
-    expect(homeView).toContain('home-corridor-dark-user-v2.webp 1672w')
+    expect(homeView).toContain('home-hero-light-v3.webp 1672w')
+    expect(homeView).toContain('home-hero-dark-v3.webp 1672w')
     expect(homeView).toContain('<source media="(max-width: 760px)"')
     expect(homeView).toContain('fetchpriority="high"')
     expect(homeView).toMatch(/\.corridor-home__hero-media\s*\{[^}]*object-fit:\s*cover/s)
@@ -67,8 +67,8 @@ describe('home hero high-density media contract', () => {
 
   it('ships portrait mobile candidates and responsive card thumbnails', () => {
     for (const [file, width, height] of [
-      ['home-corridor-light-user-v2-portrait.webp', 483, 941],
-      ['home-corridor-dark-user-v2-portrait.webp', 483, 941],
+      ['home-hero-light-v3-portrait.webp', 483, 941],
+      ['home-hero-dark-v3-portrait.webp', 483, 941],
     ] as const) {
       const dimensions = readLossyWebpDimensions(resolve(mediaDir, file))
       expect(dimensions).toEqual({ width, height })

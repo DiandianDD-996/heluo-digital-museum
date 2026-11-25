@@ -22,27 +22,26 @@ export interface PointCloudCapabilities {
   memoryGiB?: number
 }
 
-// Refined museum-metallurgy palettes:
-// Light mode: Burnished antique bronze-gold + subtle celadon patina + luminous 22K champagne highlights (paired with architectural gallery dimming).
-// Dark mode: Smoked obsidian bronze + muted antique celadon patina + brushed champagne gold.
+// Heluo Editorial 3.0 Cyber-Archaeology Metallurgy Palettes:
+// Malachite bronze patina × 22K inlaid gold inscription × silver-white highlight cores.
 const LIGHT_DESKTOP_POINT_CLOUD_PALETTE: PointCloudPalette = {
-  jade: [.34, .52, .45],
-  copper: [.97, .81, .49],
-  copperBase: .50,
+  jade: [.28, .56, .48],
+  copper: [.96, .80, .47],
+  copperBase: .48,
   copperRange: .34,
   opacity: 1,
 }
 
 const DARK_DESKTOP_POINT_CLOUD_PALETTE: PointCloudPalette = {
-  jade: [.46, .62, .55],
-  copper: [.96, .82, .56],
-  copperBase: .42,
-  copperRange: .34,
-  opacity: .97,
+  jade: [.38, .72, .62],
+  copper: [.98, .83, .50],
+  copperBase: .44,
+  copperRange: .36,
+  opacity: .98,
 }
 
 const MOBILE_JADE_POINT_CLOUD_PALETTE: PointCloudPalette = {
-  jade: [.30, .47, .41],
+  jade: [.26, .52, .44],
   copper: [.94, .78, .46],
   copperBase: .48,
   copperRange: .32,
@@ -50,11 +49,11 @@ const MOBILE_JADE_POINT_CLOUD_PALETTE: PointCloudPalette = {
 }
 
 const MOBILE_DARK_POINT_CLOUD_PALETTE: PointCloudPalette = {
-  jade: [.42, .58, .51],
-  copper: [.94, .79, .52],
-  copperBase: .40,
-  copperRange: .30,
-  opacity: .95,
+  jade: [.36, .68, .58],
+  copper: [.96, .81, .49],
+  copperBase: .42,
+  copperRange: .32,
+  opacity: .96,
 }
 
 export function selectPointCloudQuality(capabilities: PointCloudCapabilities): PointCloudQuality {

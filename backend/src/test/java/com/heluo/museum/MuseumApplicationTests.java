@@ -318,11 +318,11 @@ class MuseumApplicationTests {
     }
 
     @Test
-    void publicAppointmentWindowRejectsTheFifteenthDayInBothReadAndWritePaths() {
+    void publicAppointmentWindowRejectsBeyondOpenWindowInBothReadAndWritePaths() {
         String suffix = String.valueOf(System.nanoTime());
         String token = registerAndLogin("window_" + suffix);
         long userId = jdbc.queryForObject("select id from users where username=?", Long.class, "window_" + suffix);
-        java.time.LocalDate farDate = java.time.LocalDate.now().plusDays(14);
+        java.time.LocalDate farDate = java.time.LocalDate.now().plusDays(365);
         jdbc.update("insert into appointment_slots(visit_date,start_time,end_time,capacity,status,created_by,updated_by) values(?,?,?,?, 'OPEN',?,?)",
                 farDate, java.sql.Time.valueOf("13:00:00"), java.sql.Time.valueOf("14:30:00"), 5, userId, userId);
         long slotId = jdbc.queryForObject("select id from appointment_slots where visit_date=? and start_time=?", Long.class,
@@ -331,7 +331,7 @@ class MuseumApplicationTests {
         var listing = restTemplate.getForEntity("http://localhost:" + port + "/api/v1/appointment-slots?dateFrom=" + farDate + "&dateTo=" + farDate,
                 String.class);
         assertThat(listing.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
-        assertThat(listing.getBody()).contains("未来 14 天");
+        assertThat(listing.getBody()).contains("未来 365 天");
 
         var create = restTemplate.postForEntity("http://localhost:" + port + "/api/v1/appointments",
                 new HttpEntity<>("{\"slotId\":" + slotId + ",\"visitorCount\":1,\"contactName\":\"窗口测试\",\"contactPhone\":\"13800138000\",\"contactEmail\":\"window@example.test\"}",

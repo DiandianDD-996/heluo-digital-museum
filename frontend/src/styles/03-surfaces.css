@@ -44,6 +44,26 @@
     overflow: hidden;
   }
 
+  /* Seamless darkroom plinth floor with elliptical contact shadow for alpha-matted artifacts */
+  .vitrine-contact-stage::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 7%;
+    width: 62%;
+    height: 14%;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+    background: radial-gradient(
+      ellipse at center,
+      var(--plinth-contact-shadow) 0%,
+      color-mix(in oklch, var(--plinth-contact-shadow) 42%, transparent) 48%,
+      transparent 76%
+    );
+  }
+
   .surface-spotlight {
     background-image: var(--surface-spotlight);
   }

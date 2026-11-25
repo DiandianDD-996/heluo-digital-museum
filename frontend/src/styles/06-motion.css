@@ -6,11 +6,25 @@
     --pointer-perspective: 1100px;
   }
 
-  /* Clean subtle View Transitions (no blurry heavy flash) */
+  /* Clean subtle View Transitions + Shared-Element Artifact Plate Flight */
   ::view-transition-old(root),
   ::view-transition-new(root) {
     animation-duration: 280ms;
     animation-timing-function: var(--ease-curatorial);
+    mix-blend-mode: normal;
+  }
+
+  ::view-transition-group(active-artifact-plate) {
+    animation-duration: 340ms;
+    animation-timing-function: var(--ease-curatorial);
+    z-index: 40;
+  }
+
+  ::view-transition-old(active-artifact-plate),
+  ::view-transition-new(active-artifact-plate) {
+    animation-duration: 340ms;
+    animation-timing-function: var(--ease-curatorial);
+    object-fit: contain;
     mix-blend-mode: normal;
   }
 
@@ -610,7 +624,10 @@
     }
 
     ::view-transition-old(root),
-    ::view-transition-new(root) {
+    ::view-transition-new(root),
+    ::view-transition-group(active-artifact-plate),
+    ::view-transition-old(active-artifact-plate),
+    ::view-transition-new(active-artifact-plate) {
       animation: none;
     }
 

@@ -2,15 +2,21 @@
 
 > 本文件只记录**当下状态、风险与下一步**（硬上限 150 行）。完整历史记录已归档至 [docs/archive/status-2026.md](docs/archive/status-2026.md)。
 
-## 当前总览（2026-11-24）
+## 当前总览（2026-11-25）
 
 | 模块 | 当前状态 | 说明 |
 | --- | --- | --- |
-| 数字博物馆主体（前后端 + 3D + 预约 + 商城模拟支付 + 后台） | **已完成并已部署演练** | F-01～F-14、A-01～A-02、N-01～N-06 均已达成；PocketBay 演示站已跑通 |
-| 前端视觉与 CSS 架构升级（Heluo Editorial 2.0） | **全站策展美学与多模态交互全面升级已完成** | 计划见 [2026-11-24-curatorial-experience-upgrade.md](docs/plans/2026-11-24-curatorial-experience-upgrade.md)、[2026-11-23-curatorial-fine-polish.md](docs/plans/2026-11-23-curatorial-fine-polish.md)，规范见 [design.md](design.md) |
-| 洛笙 AI 向导 v2（可选扩展） | **v2.2 前后端全链路已在隔离环境验收；生产默认关闭** | [洛笙说明](docs/luosheng/README.md)、[v2.2 双路径评测](docs/luosheng/eval/v2.2-eval.md)、[ADR-010](docs/decisions/ADR-010-luosheng-v2-museum-agent.md) |
+| 数字博物馆主体（前后端 + 3D + 预约 + 商城模拟支付 + 后台） | **已完成并开放未来 365 天全年可约时段** | F-01～F-14、A-01～A-02、N-01～N-06 均已达成；开放未来 365 天（周二至周日每日 4 场，周一闭馆） |
+| 前端审美跃迁与多模态策展体验 3.0（Heluo Editorial 3.0） | **已完成全量门禁与本地提交** | 基线已封存至 `codex/backup-2026-11-24-baseline`，当前工作分支 `codex/feat-curatorial-masterpiece-v3`；计划见 [2026-11-25-curatorial-masterpiece-v3-upgrade.md](docs/plans/2026-11-25-curatorial-masterpiece-v3-upgrade.md)，规范见 [design.md](design.md) |
+| 洛笙 AI 向导 v2（可选扩展） | **v2.3 聊天抽屉便捷度与 365 天工具窗口已升级** | 支持 `Alt+L` / `Ctrl+/`、`420px ↔ 560px` 宽屏切换、上下文条与随时灵感提问、快捷意图芯片坞、复制/重生成/错误重试；[洛笙说明](docs/luosheng/README.md)、[ADR-010](docs/decisions/ADR-010-luosheng-v2-museum-agent.md) |
 
-## 最近完成（2026-11-24）
+## 最近完成（2026-11-25）
+
+- **浅色首页 1:1 顶光主视觉与浅色瓷白导航栏精修（Round 6，2026-11-25）**：彻底移除 [HomeView.vue](frontend/src/views/HomeView.vue) 中的假 CSS 射灯组件，以 `home-hero-dark-v3.webp` 为 1:1 构图与顶光参考重新生成微暖石灰石展墙照片级主视觉并导出 4 档 lossy WebP，使柔光锥形顶光束自然融于画面且保持冷银灰「水银沁」青铜质感（不发绿、不发棕）；在 [05-shell.css](frontend/src/styles/05-shell.css) 中将浅色顶部导航栏重构为通透瓷白毛玻璃 + 朱砂印章 + 古铜副标 + 墨玉黑登录胶囊（14 份旧 `-backup.webp` 备份图已无损迁至 `artifacts/media-v2-backups/`，不污染构建与版本库）。
+
+- **全站馆舍实景图统一、未来 365 天全年预约开放与洛笙 AI 向导聊天框升级（Round 5，2026-11-25）**：① **全站遗留旧图统一**：将 [ProfileView.vue](frontend/src/views/ProfileView.vue) 个人档案封面、[AppointmentView.vue](frontend/src/views/AppointmentView.vue) 场馆概念图、[ExploreView.vue](frontend/src/views/ExploreView.vue) 导览专题图全面切换为登录页同款双主题高清馆舍实景 `login-pavilion-{light|dark}-v3`（含 `640w`/`960w` 响应式候选、光学暗角压暗与磨砂玻璃角标），并将 [musicCatalog.ts](frontend/src/lib/musicCatalog.ts) `bronze` 曲目封面同步为 `explore-bronze-ding-user-v2.webp`；② **未来一年（365 天）全量可预约日历**：后端 `AppointmentController`、`AppointmentSlotController`、`GuideToolExecutor`、`GuideDeterministicFallback` 及 `BootstrapDataInitializer` 统一切换至 `365` 天滚动窗口，单次批量写入周二至周日每日 4 个无冲突标准时段（`09:00` / `10:30` / `13:30` / `15:15`，跳过周一），前台 [publicSlotDate.ts](frontend/src/lib/publicSlotDate.ts) 与 `AppointmentView.vue` 升级为全年 12 个月 7 列日历（支持上下翻月、月份下拉跳转、回本月与周一闭馆标识）；③ **洛笙聊天框体验升级**：[guidePresets.ts](frontend/src/lib/guidePresets.ts) 与 [LuoshengSiteGuide.vue](frontend/src/components/LuoshengSiteGuide.vue) 新增 `Alt+L`/`Ctrl+/` 快捷键、`420px ↔ 560px` 宽屏记忆、实时上下文条与对话中途可开关「灵感提问」抽屉、输入框上方分路由「快捷意图芯片坞」、自适应多行输入框 + 字数/快捷键提示、回答「复制 / 重新生成」工具条、非重复气泡「重试发送」与上滑阅读「回到底部 ↓」胶囊。
+
+- **前端审美跃迁与多模态策展体验 3.0 升级（Heluo Editorial 3.0，Phase 0–7 + 4 轮实机精修闭环）**：见计划 [2026-11-25-curatorial-masterpiece-v3-upgrade.md](docs/plans/2026-11-25-curatorial-masterpiece-v3-upgrade.md)。后端与数据库零改动，工作树基线先无损封存至 `codex/backup-2026-11-24-baseline`（`5945464`）。① **色彩重调与动态环境背景**：深色基底重构为冷夜玄青（`oklch(12.2% 0.006 238)`）衬暖香槟金与青铜粉绿锈，浅色提纯为清透美术馆宣白（`oklch(97.4% 0.008 84)`），管理后台剥离古宣黄独立使用 Archivist Neutral 极净白灰/冷石板令牌；异步挂载 `AmbientGalleryBackdrop.vue`（极慢洛水天光漫反射 + 0.5px 几何浑天细环，后台/3D/减动效静默）；② **去 AI 味主视觉与 6 馆藏暗房融合**：实拍质感重绘浅/深双主题首页 Hero（`home-hero-*-v3` 多档响应式 WebP）及商城 3 件文创主图 + 微距材质悬停副图（旧图基线留存于 `codex/backup-2026-11-24-baseline`）；编写可复现脚本 [curatorial-artifact-matte.py](scripts/curatorial-artifact-matte.py) 对 6 件馆藏执行 2.4px 羽化去底，根治“黑框套灰底”；③ **赛博考古三高光**：3D 点云升级青铜粉绿锈 × 22K 错金光谱、静置微呼吸、柔光 Shader 微尘与鼎足落尘光池，`EXHIBIT 01 ↔ EXHIBIT 02` 暗房直切，`RakingLightViewer` 与 `/exhibits` 同步冷夜玄青暗房展柜并修正石板透明通道边角；全馆补齐 6 件文物单列对齐 OKLCH 矿物色谱 + 工艺线索铭牌（零截断）；首页「礼·玉·河·洛」章节眉题 + Section 2「一鼎之间」图文微距推镜联动 `?focus=`；④ **跨路由共享过渡与 68ch 图录**：接入 View Transitions `active-artifact-plate` + 120ms LRU 预取、异步 `ArtifactLoupeStage.vue`（2.5× 游标放大镜 + 全屏暗房缩放）、68ch 宋刻沉降首字、朱砂「留给观众的问题」批注笺及关联器物悬停铭牌；⑤ **任务页仪式感与双语清零**：预约页升级「待钤印宣纸活字副券母版」+ 朱砂钤印动效 + 周一闭馆/余量刻度条，商城支付态渲染「模拟出库笺」并修复 `InlineStatus` 暗色图标反色缺陷，个人档案嵌入「我的观展手账画册摘要轨」，404 重构为「编号未录 · 待考残简」；`contentLocale.ts` 与展品档案补全中英译文（实测英文探索/展厅/详情 `cjk=[]`）；⑥ **Linear 级后台与 375px 移动端零碰撞收口**：重构 `AdminContentView` / `AdminOperationsView` 为满宽 6 列表格 + `EN 已译/缺译文` 微徽标 + 右侧宽幅滑出抽屉 +「表单编辑 ↔ 前台 68ch 画册实时预览」（保留 `useUnsavedChanges`）；4 轮苛刻实机视觉复检同步修复浅色文创溯源暗房展柜、暗色登录建筑过渡、洛笙移动端 48px 圆形篆印触发器及 375px 暗房顶栏/斜射光 HUD 避让。验证：`vue-tsc -b` 0 错、`test:e2e:types` 0 错、`vitest run` `80` 文件/`447/447` 全绿、`vite build` + 双预算门禁（首屏 JS `73,017 / 81,638 B`、CSS `14,393 / 80,000 B`、`woff2=0`、R4 `5,001,307 / 6,000,000 B`）全绿、`impeccable detect --json --changed` 0 违规（`[]`）、官方 Playwright E2E `18/18`（`bilingual-search.e2e.ts` 11/11 + `business.e2e.ts` 7/7）全绿，4 轮共 60+ 帧 1440×900 / 390×844 / 375×812 双主题+英文+3D+斜射光+洛笙+后台实机截图逐张自审全通过。
 
 - **前端策展美学与多模态交互全面升级 + 高标准实体画册级重构（2026-11-24）**：见计划 [2026-11-24-curatorial-experience-upgrade.md](docs/plans/2026-11-24-curatorial-experience-upgrade.md)。① 首屏包体清障：按需拆分 `soundSynthesis.ts` 并替换根壳冗余图标，首屏 JS gzip 从 `79,614 B` 降至 **`72,751 B / 81,638 B`**（`-6,863 B`）；② 打通 `V28` 双语/溯源 SSOT 与探索页四类范围切换、洛笙跨页即问胶囊与流式加粗防抖；③ `EXHIBIT 01` 青铜鼎新增 3D 空间锚点、`245 × 200 mm` 实体线框标尺与可手势接管 3 步微导览；④ `EXHIBIT 02`《河洛图纹石板》（`V30` + WebGL GLSL）落地冷灰影棚背景软剥离、降噪门控法线、DoG 乌金墨拓、ACES 电影色调映射与 1:1 零延迟黄铜游标放大镜，并同步修复 `/exhibits` 数字展厅石板封面全景无裁切、无徽标遮挡展示；⑤ 电子票根彻底去除 SaaS 卡片与内嵌按钮，重构为**「无框实体印制品式藏书票」**（左 57% 全出血暗房版画 + 竖排宋体题签 + 朱砂「河洛珍藏」篆印、中模切半圆齿孔、右 43% 活字宣纸副券 + 倾斜印章 + 9×9 核验印纹；6 款藏品版画选择器与 `1600×740` 高清 `.png` 导出、`.ics`、打印外置于暗房托盘），预约成功后自动浮现于玄墨丝绒展台弹窗；⑥ 观展手账彻底重构为**「四眼线装画册」**（左侧线装书脊、无胶囊目录索引、大画幅无裁切图版编号 `图版 壹/贰`、朱丝栏随笔批注及一键导出 `1080px` 竖卷手账长图 `.png`）。验证：前端 `79` 文件/`441/441`、`vue-tsc` 0 错、双预算门禁全绿、`business.e2e.ts` `7/7` 及全套双主题/移动实机截图复检全通过（后端 `106/106` 未改动）。
 
@@ -50,5 +56,5 @@
 
 ## 下一步
 
-1. 等待用户审查前后端工作树变更（后端 Gate 0–2 + 前端策展体验升级），明确是否执行 `git commit` 以及宿主机旧容器 `deploy-mailpit-1` 的运维关停窗口；未经确认不提交、不推送、不发版。
+1. 已于工作分支 `codex/feat-curatorial-masterpiece-v3` 完成前后端全量门禁校验与本地提交（未推送远程）；后续可按需合并并确认宿主机旧容器 `deploy-mailpit-1` 的运维关停窗口。
 2. 正式公网发布前，在目标部署环境完成外层 HTTPS/反向代理下的真实 SMTP、SSE 首包流式表现与文件热暂停最终核验。

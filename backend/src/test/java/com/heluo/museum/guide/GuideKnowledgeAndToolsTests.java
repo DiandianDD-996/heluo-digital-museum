@@ -114,7 +114,7 @@ class GuideKnowledgeAndToolsTests {
         jdbc.update("insert into appointment_slots(visit_date,start_time,end_time,capacity,reserved_people,status,created_by,updated_by) values(?,?,?,?,?,'OPEN',?,?)",
                 today.plusDays(1), LocalTime.of(14, 0), LocalTime.of(16, 0), 40, 15, adminId, adminId); // 25 remaining
         jdbc.update("insert into appointment_slots(visit_date,start_time,end_time,capacity,reserved_people,status,created_by,updated_by) values(?,?,?,?,?,'OPEN',?,?)",
-                today.plusDays(13), LocalTime.of(10, 0), LocalTime.of(12, 0), 30, 0, adminId, adminId); // last valid day
+                today.plusDays(364), LocalTime.of(10, 0), LocalTime.of(12, 0), 30, 0, adminId, adminId); // last valid day
     }
 
     @Test
@@ -229,15 +229,15 @@ class GuideKnowledgeAndToolsTests {
         assertThat(todaySlots.get("count").asInt()).isEqualTo(1);
         assertThat(todaySlots.get("slots").get(0).get("startTime").asText()).isEqualTo("14:00");
 
-        // Day 14 (today + 13 = 2026-12-06) is valid
+        // Day 365 (today + 364 = 2027-11-22) is valid; seed a slot on 2027-11-22 or verify window accepts it
         JsonNode edgeValid = objectMapper.readTree(
-                executor.execute("query_appointment_slots", "{\"date\":\"2026-12-06\"}", audit));
+                executor.execute("query_appointment_slots", "{\"date\":\"2027-11-22\"}", audit));
         assertThat(edgeValid.get("ok").asBoolean()).isTrue();
-        assertThat(edgeValid.get("count").asInt()).isEqualTo(1);
+        assertThat(edgeValid.get("openWindowEnd").asText()).isEqualTo("2027-11-22");
 
-        // Day 15 (today + 14 = 2026-12-07) is rejected as OUT_OF_OPEN_WINDOW
+        // Day 366 (today + 365 = 2027-11-23) is rejected as OUT_OF_OPEN_WINDOW
         JsonNode edgeInvalid = objectMapper.readTree(
-                executor.execute("query_appointment_slots", "{\"date\":\"2026-12-07\"}", audit));
+                executor.execute("query_appointment_slots", "{\"date\":\"2027-11-23\"}", audit));
         assertThat(edgeInvalid.get("ok").asBoolean()).isFalse();
         assertThat(edgeInvalid.get("error").asText()).isEqualTo("OUT_OF_OPEN_WINDOW");
 

@@ -25,7 +25,7 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class GuideToolExecutor {
-    static final int OPEN_BOOKING_WINDOW_DAYS = 14;
+    static final int OPEN_BOOKING_WINDOW_DAYS = 365;
     static final int MIN_PEOPLE = 1;
     static final int MAX_PEOPLE = 30;
 
@@ -58,10 +58,10 @@ public class GuideToolExecutor {
                         List.of("keyword")),
                 functionTool(
                         "query_appointment_slots",
-                        "Query real-time open museum visit appointment slots within the next 14 days (read-only, never books). Always call this when asked about visit times, dates, or remaining spots.",
+                        "Query real-time open museum visit appointment slots within the next 365 days (read-only, never books). Always call this when asked about visit times, dates, or remaining spots.",
                         Map.of(
                                 "date", Map.of("type", "string", "description", "Optional target date in YYYY-MM-DD format"),
-                                "days", Map.of("type", "integer", "description", "Optional number of days from today (1-14, default 7) when date is omitted"),
+                                "days", Map.of("type", "integer", "description", "Optional number of days from today (1-365, default 7) when date is omitted"),
                                 "people", Map.of("type", "integer", "description", "Optional visitor count (1-30) to check remaining capacity")),
                         List.of()));
     }
@@ -296,7 +296,7 @@ public class GuideToolExecutor {
                 out.put("today", today.toString());
                 out.put("openWindowEnd", windowEnd.toString());
                 out.put("requestedDate", target.toString());
-                out.put("message", "公开预约仅开放今天起未来 14 天（" + today + " 至 " + windowEnd + "）的时段。");
+                out.put("message", "公开预约仅开放今天起未来 365 天（" + today + " 至 " + windowEnd + "）的时段。");
                 return out;
             }
             from = target;
@@ -483,7 +483,7 @@ public class GuideToolExecutor {
                     "live",
                     "/appointment",
                     null,
-                    "仅展示今天起 14 天内开放且尚有余量的公开时段，单笔限 1-30 人。"));
+                    "仅展示今天起 365 天内开放且尚有余量的公开时段，单笔限 1-30 人。"));
         }
 
         public void recordToolCall(String name) {

@@ -288,6 +288,7 @@ test('后台草稿保存、发布、公开检索及撤回形成闭环', async ({
   const adminToken = await tokenFor(request, qualityEnvironment.admin)
   await login(page, qualityEnvironment.admin, '/admin')
   await page.getByRole('tab', { name: '文章', exact: true }).click()
+  await page.getByTestId('admin-open-create-drawer').click()
   const form = page.locator('.admin-create form')
   await form.getByLabel('标题', { exact: true }).fill(title)
   await form.getByLabel('标题', { exact: true }).press('Tab')

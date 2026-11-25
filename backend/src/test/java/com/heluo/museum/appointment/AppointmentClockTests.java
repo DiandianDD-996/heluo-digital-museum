@@ -39,7 +39,7 @@ class AppointmentClockTests {
     @Autowired private ObjectMapper mapper;
 
     @Test
-    void shanghaiMidnightControlsAvailabilityAndFourteenDayBookingWindow() throws Exception {
+    void shanghaiMidnightControlsAvailabilityAndOpenBookingWindow() throws Exception {
         var account = account(false);
         long started = slot(account.id(), TODAY, LocalTime.MIDNIGHT);
         long next = slot(account.id(), TODAY, LocalTime.of(0, 1));
@@ -50,8 +50,8 @@ class AppointmentClockTests {
         assertThat(client.getForEntity("/api/v1/appointment-slots?dateFrom=2030-01-01", String.class).getStatusCode())
                 .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
 
-        long lastDay = slot(account.id(), TODAY.plusDays(13), LocalTime.of(9, 0));
-        long outside = slot(account.id(), TODAY.plusDays(14), LocalTime.of(9, 0));
+        long lastDay = slot(account.id(), TODAY.plusDays(364), LocalTime.of(9, 0));
+        long outside = slot(account.id(), TODAY.plusDays(365), LocalTime.of(9, 0));
         assertThat(book(account, lastDay).getStatusCode()).isEqualTo(HttpStatus.OK);
         var denied = book(account, outside);
         assertThat(denied.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);

@@ -107,11 +107,11 @@ function computeSpatialWeight(u: number, v: number): number {
   const dCopy = Math.hypot(dxCopy, dyCopy)
   const copyMask = dCopy < 1 ? 0.20 + 0.80 * (dCopy * dCopy * (3 - 2 * dCopy)) : 1
 
-  // 2) Central bronze ding silhouette inside the vitrine (keep artifact unoccluded)
-  const dxDing = (u - 0.50) / 0.082
-  const dyDing = (v - 0.50) / 0.155
+  // 2) Right-of-center bronze ding silhouette on monolithic plinth (keep artifact unoccluded)
+  const dxDing = (u - 0.68) / 0.125
+  const dyDing = (v - 0.52) / 0.24
   const dDing = Math.hypot(dxDing, dyDing)
-  const dingMask = dDing < 1 ? 0.16 + 0.84 * (dDing * dDing * (3 - 2 * dDing)) : 1
+  const dingMask = dDing < 1 ? 0.14 + 0.86 * (dDing * dDing * (3 - 2 * dDing)) : 1
 
   return Math.min(copyMask, dingMask)
 }

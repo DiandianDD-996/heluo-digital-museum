@@ -4,8 +4,10 @@ import { ArrowLeft, ArrowRight, Picture, Right, TopRight } from '@element-plus/i
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { gsap } from 'gsap'
 import { apiGet, type ContentPage } from '../lib/api'
+import { artifactPlateTransitionStyle, markActiveArtifactPlate } from '../lib/inkTransitions'
+import { schedulePrefetch } from '../lib/prefetch'
 import { mediaSrcset, mediaSizes } from '../lib/responsiveMedia'
-import { localizedContent } from '../lib/contentLocale'
+import { localizedContent, localizeCategoryName } from '../lib/contentLocale'
 import type { ArticleCard, ArtifactCard, Category, SearchResult } from '../lib/content'
 import { useLocale } from '../stores/locale'
 import { createGsapContext, revealBatch, revealFigures, revealSequence, shouldRunGsapReveal } from '../lib/gsap'
@@ -16,6 +18,7 @@ import MuseumSearchField from '../components/MuseumSearchField.vue'
 const categories = ref<Category[]>([])
 const route = useRoute()
 const router = useRouter()
+const pavilionCover = '/media/editorial/login-pavilion-light-v3.webp'
 const artifacts = ref<ArtifactCard[]>([])
 const articles = ref<ArticleCard[]>([])
 const searchResults = ref<SearchResult[]>([])
@@ -132,20 +135,6 @@ const copy = computed(() => locale.value === 'en-US' ? {
   searchFailed: '搜索未能完成，请重试。',
 })
 
-const categoryEnglish: Record<string, string> = { BRONZE: 'Bronze Rituals', JADE: 'Jade Imagery', RIVER: 'Heluo Stories', POTTERY: 'Pottery & Life', STONE: 'Stone Inscriptions' }
-const artifactEnglish: Record<string, { period: string; material: string; category: string }> = {
-  'heluo-bronze-ding': { period: 'Bronze Age ritual concept', material: 'Bronze', category: 'Bronze Rituals' },
-  'water-bird-bronze': { period: 'Animal motif concept', material: 'Bronze', category: 'Bronze Rituals' },
-  'heluo-bronze-jue': { period: 'Bronze Age concept', material: 'Bronze', category: 'Bronze Rituals' },
-  'river-map-jade-bi': { period: 'Traditional jade ritual concept', material: 'Jade', category: 'Jade Imagery' },
-  'painted-pottery-water-jar': { period: 'Prehistoric life concept', material: 'Pottery', category: 'Heluo Stories' },
-  'river-map-pattern-stone': { period: 'Heluo symbol concept', material: 'Stone', category: 'Heluo Stories' },
-}
-const articleEnglish: Record<string, { category: string }> = {
-  'why-negative-space-matters': { category: 'Jade Imagery' },
-  'river-as-timeline': { category: 'Heluo Stories' },
-  'how-to-read-bronze': { category: 'Bronze Rituals' },
-}
 const themeDescriptions = computed<Record<string, string>>(() => locale.value === 'en-US' ? {
   BRONZE: 'Form and pattern, cast into ritual.', JADE: 'A circle of stone, a world of meaning.', RIVER: 'Water, settlements and shared memory.',
 } : {
@@ -155,7 +144,7 @@ const themeDescriptions = computed<Record<string, string>>(() => locale.value ==
 const conceptSuffix = /\s*(?:（概念展品）|\(Concept\))$/
 const objectTitle = (artifact: ArtifactCard) => artifactCopy(artifact).title.replace(conceptSuffix, '')
 const isConcept = (artifact: ArtifactCard) => conceptSuffix.test(artifactCopy(artifact).title)
-const categoryName = (category: Pick<Category, 'code' | 'name' | 'nameEn'>) => locale.value === 'en-US' ? (category.nameEn?.trim() || categoryEnglish[category.code] || category.name) : category.name
+const categoryName = (category: Pick<Category, 'code' | 'name' | 'nameEn'>) => localizeCategoryName(category, locale.value)
 const categoryDescription = (category: Category) => {
   if (locale.value === 'en-US') return category.descriptionEn?.trim() || themeDescriptions.value[category.code] || category.description || ''
   return category.descriptionZh?.trim() || themeDescriptions.value[category.code] || category.description || ''
@@ -164,22 +153,14 @@ const artifactCopy = (artifact: ArtifactCard) => {
   const localized = localizedContent(artifact, locale.value)
   if (locale.value !== 'en-US') return localized
   const matchedCat = categories.value.find(c => c.code === artifact.categoryCode)
-  const fallback = artifactEnglish[artifact.slug]
   return {
     ...localized,
-    period: artifact.periodEn?.trim() || fallback?.period || localized.period,
-    material: artifact.materialEn?.trim() || fallback?.material || localized.material,
-    categoryName: matchedCat?.nameEn?.trim() || categoryEnglish[artifact.categoryCode] || fallback?.category || artifact.categoryName,
+    categoryName: matchedCat ? localizeCategoryName(matchedCat, locale.value) : localized.categoryName,
   }
 }
 const artifactMaterial = (artifact: ArtifactCard): 'bronze' | 'jade' | 'ink' => (artifact.categoryCode === 'BRONZE' ? 'bronze' : artifact.categoryCode === 'JADE' ? 'jade' : 'ink')
-const articleCopy = (article: ArticleCard) => ({ ...localizedContent(article, locale.value), ...(locale.value === 'en-US' && articleEnglish[article.slug] ? { categoryName: articleEnglish[article.slug].category, authorDisplay: 'Heluo Digital Museum' } : {}) })
-const searchCopy = (item: SearchResult) => {
-  const localized = localizedContent(item, locale.value)
-  if (locale.value !== 'en-US') return localized
-  const category = item.type === 'artifact' ? artifactEnglish[item.slug]?.category : articleEnglish[item.slug]?.category
-  return { ...localized, categoryName: category ?? item.categoryName }
-}
+const articleCopy = (article: ArticleCard) => localizedContent(article, locale.value)
+const searchCopy = (item: SearchResult) => localizedContent(item, locale.value)
 
 const hasSubmittedSearch = computed(() => submittedQuery.value.length > 0)
 const preferredOrder = ['heluo-bronze-ding', 'water-bird-bronze', 'heluo-bronze-jue', 'river-map-jade-bi', 'painted-pottery-water-jar', 'river-map-pattern-stone']
@@ -199,9 +180,10 @@ const articleCountLabel = (count: number) => locale.value === 'en-US'
   ? `${count} ${count === 1 ? 'article' : 'articles'}`
   : `${count} ${copy.value.articles}`
 const editorialArticleMedia: Record<string, string> = {
-  'why-negative-space-matters': editorialArtifactMedia['river-map-jade-bi'],
-  'river-as-timeline': editorialArtifactMedia['river-map-pattern-stone'],
-  'how-to-read-bronze': editorialArtifactMedia['heluo-bronze-jue'],
+  'visit-and-digital-guide': pavilionCover,
+  'why-negative-space-matters': editorialArtifactMedia['river-map-jade-bi']!,
+  'river-as-timeline': editorialArtifactMedia['river-map-pattern-stone']!,
+  'how-to-read-bronze': editorialArtifactMedia['heluo-bronze-jue']!,
 }
 const themeMedia: Record<string, string> = {
   BRONZE: editorialArtifactMedia['heluo-bronze-jue']!,
@@ -226,11 +208,11 @@ function artifactMediaSizes() {
   return `(max-width: 520px) ${mobileWidth}, (max-width: 760px) calc(50vw - 28px), (max-width: 1100px) calc(50vw - 48px), (max-width: 1296px) calc((100vw - 160px) / 3), 379px`
 }
 function articleVisual(article: ArticleCard) {
-  return editorialArticleMedia[article.slug] ?? article.coverImageUrl
+  return editorialArticleMedia[article.slug] || article.coverImageUrl || pavilionCover
 }
 function searchVisual(item: SearchResult) {
-  if (item.type === 'artifact') return editorialArtifactMedia[item.slug] ?? item.coverImageUrl
-  return editorialArticleMedia[item.slug] ?? item.coverImageUrl
+  if (item.type === 'artifact') return editorialArtifactMedia[item.slug] || item.coverImageUrl
+  return editorialArticleMedia[item.slug] || item.coverImageUrl || pavilionCover
 }
 
 let contentRequestId = 0
@@ -399,8 +381,20 @@ function syncQuery() {
   else void loadContent()
 }
 
+let cancelHoverPrefetch: (() => void) | undefined
+function beginDetailPrefetch(kind: 'artifact' | 'article', slug: string, imageUrl?: string | null) {
+  cancelHoverPrefetch?.()
+  const path = `/${kind === 'artifact' ? 'artifacts' : 'articles'}/${encodeURIComponent(slug)}`
+  cancelHoverPrefetch = schedulePrefetch(path, () => apiGet(path), { delayMs: 120, imageUrl })
+}
+function stopDetailPrefetch() {
+  cancelHoverPrefetch?.()
+  cancelHoverPrefetch = undefined
+}
+
 watch(() => route.query, syncQuery, { immediate: true })
 onBeforeUnmount(() => {
+  stopDetailPrefetch()
   contentRequestId += 1
   searchRequestId += 1
   gsapContext?.revert()
@@ -560,8 +554,12 @@ onBeforeUnmount(() => {
               :class="{ 'gallery-object--featured': isFeaturedArtifact(index) }"
               :to="`/artifacts/${artifact.slug}`"
               :aria-label="`${copy.view}：${artifactCopy(artifact).title}`"
+              @pointerenter="beginDetailPrefetch('artifact', artifact.slug, artifactVisual(artifact))"
+              @pointerleave="stopDetailPrefetch"
+              @focus="beginDetailPrefetch('artifact', artifact.slug, artifactVisual(artifact))"
+              @click="markActiveArtifactPlate(artifact.slug)"
             >
-              <div class="gallery-object__media">
+              <div class="gallery-object__media" :style="artifactPlateTransitionStyle(artifact.slug)">
                 <img
                   v-if="artifactVisual(artifact) && !failedImages.has(artifactVisual(artifact))"
                   :src="artifactVisual(artifact)"
@@ -656,6 +654,9 @@ onBeforeUnmount(() => {
               class="gallery-story"
               data-motion="explore-story"
               :to="`/articles/${article.slug}`"
+              @pointerenter="beginDetailPrefetch('article', article.slug, articleVisual(article))"
+              @pointerleave="stopDetailPrefetch"
+              @focus="beginDetailPrefetch('article', article.slug, articleVisual(article))"
             >
               <div class="gallery-story__media">
                 <img
@@ -902,7 +903,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-3);
+  padding: var(--space-4);
   background-color: var(--surface-vitrine);
   background-image: var(--surface-vitrine-spotlight);
   background-repeat: no-repeat;
@@ -910,20 +911,42 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
+.gallery-object__media::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 8%;
+  width: 58%;
+  height: 15%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(
+    ellipse at center,
+    var(--plinth-contact-shadow) 0%,
+    color-mix(in oklch, var(--plinth-contact-shadow) 38%, transparent) 48%,
+    transparent 76%
+  );
+}
+
 .gallery-object__media::after {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
-  box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.08), inset 0 -14px 28px oklch(8% 0.002 75 / 0.28);
+  z-index: 2;
+  box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.08), inset 0 -18px 34px oklch(6% 0.005 238 / 0.34);
 }
 
 .gallery-object__media img {
   position: absolute;
-  inset: var(--space-3);
-  width: calc(100% - var(--space-3) * 2);
-  height: calc(100% - var(--space-3) * 2);
+  inset: var(--space-4);
+  z-index: 1;
+  width: calc(100% - var(--space-4) * 2);
+  height: calc(100% - var(--space-4) * 2);
   object-fit: contain;
+  filter: drop-shadow(0 14px 20px var(--plinth-contact-shadow));
   transition: transform 460ms var(--ease-curatorial);
 }
 

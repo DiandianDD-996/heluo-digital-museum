@@ -4,16 +4,17 @@ import { describe, expect, it } from 'vitest'
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8')
 
-describe('Heluo Editorial 2.0 Daylight Paper light-theme material contract', () => {
+describe('Heluo Editorial 3.0 Crisp Museum Paper light-theme material contract', () => {
   const tokens = read('src/styles/01-tokens.css')
   const base = read('src/styles/02-reset-base.css')
   const surfaces = read('src/styles/03-surfaces.css')
   const components = read('src/styles/04-components.css')
 
-  it('uses warm daylight paper tones, hairline edges and restrained bronze accents', () => {
-    expect(tokens).toContain('--surface-canvas: oklch(96.6% 0.015 86)')
-    expect(tokens).toContain('--surface-subtle: oklch(94.6% 0.018 85)')
-    expect(tokens).toContain('--surface-elevated: oklch(99.2% 0.006 86)')
+  it('uses crisp contemporary museum paper tones, hairline edges and restrained bronze accents', () => {
+    expect(tokens).toContain('--surface-canvas: oklch(97.4% 0.008 84)')
+    expect(tokens).toContain('--surface-subtle: oklch(95.4% 0.010 84)')
+    expect(tokens).toContain('--surface-elevated: oklch(99.5% 0.003 85)')
+    expect(tokens).toContain('--accent-patina:')
     expect(tokens).toContain('--pattern-yunlei:')
     expect(tokens).toContain('--pattern-brocade:')
     expect(tokens).toContain('--pattern-plinth-lattice:')

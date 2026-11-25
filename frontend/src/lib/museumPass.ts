@@ -37,7 +37,7 @@ export const KEEPSAKE_PLATES: KeepsakePlate[] = [
     eraEn: 'Shang Anyang · Digital Reconstruction',
     blessingZh: '以三足承千载之重，愿你在此慢读半日山河。',
     blessingEn: 'Three legs carry three millennia — may your afternoon unfold unhurried.',
-    imageUrl: '/media/editorial/exhibit-ding-moonlight.webp',
+    imageUrl: '/media/editorial/explore-bronze-ding-user-v2.webp',
   },
   {
     id: 'stone',
@@ -258,98 +258,143 @@ export async function downloadMuseumPassPng(
   const displayFont = '"Source Han Serif CN", "Noto Serif CJK SC", "Songti SC", "STSong", Georgia, serif'
   const monoFont = 'ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace'
 
-  // ── Left 58%: Obsidian Darkroom Photogravure Plate ──
-  ctx.fillStyle = '#141210'
+  // ── Left 58%: Cold-Obsidian Darkroom Photogravure Plate ──
+  ctx.fillStyle = '#111418'
   ctx.fillRect(0, 0, SPLIT_X, H)
+
+  // Overhead museum gallery spotlight cone centered right-of-axis (clears left calligraphy colophon)
+  const spotGrad = ctx.createRadialGradient(SPLIT_X * 0.62, H * 0.38, 24, SPLIT_X * 0.62, H * 0.42, 460)
+  spotGrad.addColorStop(0, 'rgba(206, 182, 140, 0.17)')
+  spotGrad.addColorStop(0.5, 'rgba(72, 86, 102, 0.11)')
+  spotGrad.addColorStop(1, 'rgba(17, 20, 24, 0)')
+  ctx.fillStyle = spotGrad
+  ctx.fillRect(0, 0, SPLIT_X, H)
+
+  // Subtle elliptical plinth contact shadow under the artifact
+  ctx.save()
+  ctx.translate(SPLIT_X * 0.61, H * 0.77)
+  ctx.scale(1, 0.24)
+  const shadowGrad = ctx.createRadialGradient(0, 0, 12, 0, 0, 210)
+  shadowGrad.addColorStop(0, 'rgba(5, 7, 10, 0.84)')
+  shadowGrad.addColorStop(0.55, 'rgba(5, 7, 10, 0.32)')
+  shadowGrad.addColorStop(1, 'rgba(5, 7, 10, 0)')
+  ctx.fillStyle = shadowGrad
+  ctx.beginPath()
+  ctx.arc(0, 0, 210, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.restore()
 
   const img = await loadExportImage(plate.imageUrl)
   if (img && img.naturalWidth > 0 && img.naturalHeight > 0) {
-    const isWide = img.naturalWidth / img.naturalHeight > 1.8
+    const stageLeft = 250
+    const stageRight = SPLIT_X - 64
+    const stageTop = 76
+    const stageBottom = H - 156
+    const boxW = stageRight - stageLeft
+    const boxH = stageBottom - stageTop
+    const scale = Math.min(boxW / img.naturalWidth, boxH / img.naturalHeight)
+    const dw = img.naturalWidth * scale
+    const dh = img.naturalHeight * scale
+    const dx = stageLeft + (boxW - dw) / 2
+    const dy = stageTop + (boxH - dh) / 2
     ctx.save()
-    ctx.beginPath()
-    ctx.rect(0, 0, SPLIT_X, H)
-    ctx.clip()
-    if (isWide) {
-      const targetW = SPLIT_X - 96
-      const drawH = targetW * (img.naturalHeight / img.naturalWidth)
-      ctx.drawImage(img, 48, (H - drawH) * 0.52, targetW, drawH)
-    } else {
-      const scale = Math.max(SPLIT_X / img.naturalWidth, H / img.naturalHeight)
-      const dw = img.naturalWidth * scale
-      const dh = img.naturalHeight * scale
-      ctx.drawImage(img, (SPLIT_X - dw) / 2, (H - dh) * 0.44, dw, dh)
-    }
+    ctx.shadowColor = 'rgba(4, 6, 10, 0.72)'
+    ctx.shadowBlur = 34
+    ctx.shadowOffsetY = 22
+    ctx.drawImage(img, dx, dy, dw, dh)
     ctx.restore()
   }
 
-  // Left & bottom darkroom chiaroscuro veil for luminous calligraphy legibility
-  const leftVeil = ctx.createLinearGradient(0, 0, 340, 0)
-  leftVeil.addColorStop(0, 'rgba(14, 12, 10, 0.88)')
-  leftVeil.addColorStop(0.65, 'rgba(14, 12, 10, 0.34)')
-  leftVeil.addColorStop(1, 'rgba(14, 12, 10, 0)')
+  // Left & bottom cold-obsidian chiaroscuro veil for luminous calligraphy legibility
+  const leftVeil = ctx.createLinearGradient(0, 0, 290, 0)
+  leftVeil.addColorStop(0, 'rgba(14, 17, 21, 0.76)')
+  leftVeil.addColorStop(0.65, 'rgba(14, 17, 21, 0.22)')
+  leftVeil.addColorStop(1, 'rgba(14, 17, 21, 0)')
   ctx.fillStyle = leftVeil
   ctx.fillRect(0, 0, SPLIT_X, H)
 
-  const bottomVeil = ctx.createLinearGradient(0, H - 220, 0, H)
-  bottomVeil.addColorStop(0, 'rgba(14, 12, 10, 0)')
-  bottomVeil.addColorStop(1, 'rgba(14, 12, 10, 0.90)')
+  const bottomVeil = ctx.createLinearGradient(0, H - 200, 0, H)
+  bottomVeil.addColorStop(0, 'rgba(13, 16, 20, 0)')
+  bottomVeil.addColorStop(1, 'rgba(13, 16, 20, 0.90)')
   ctx.fillStyle = bottomVeil
-  ctx.fillRect(0, H - 220, SPLIT_X, 220)
+  ctx.fillRect(0, H - 200, SPLIT_X, 200)
 
-  // Inner gold hairline plate frame
-  ctx.strokeStyle = 'rgba(204, 174, 122, 0.42)'
+  // Inner antique-gold hairline plate frame + gilded corner ticks
+  const fx = 24
+  const fy = 24
+  const fw = SPLIT_X - 48
+  const fh = H - 48
+  ctx.strokeStyle = 'rgba(208, 180, 128, 0.34)'
   ctx.lineWidth = 1.25
-  ctx.strokeRect(24, 24, SPLIT_X - 48, H - 48)
+  ctx.strokeRect(fx, fy, fw, fh)
+
+  ctx.strokeStyle = 'rgba(218, 190, 138, 0.78)'
+  ctx.lineWidth = 2.2
+  const tick = 16
+  ctx.beginPath()
+  ctx.moveTo(fx, fy + tick); ctx.lineTo(fx, fy); ctx.lineTo(fx + tick, fy)
+  ctx.moveTo(fx + fw - tick, fy); ctx.lineTo(fx + fw, fy); ctx.lineTo(fx + fw, fy + tick)
+  ctx.moveTo(fx, fy + fh - tick); ctx.lineTo(fx, fy + fh); ctx.lineTo(fx + tick, fy + fh)
+  ctx.moveTo(fx + fw - tick, fy + fh); ctx.lineTo(fx + fw, fy + fh); ctx.lineTo(fx + fw, fy + fh - tick)
+  ctx.stroke()
 
   // Vertical title slip (竖排题签)
   if (!en) {
-    ctx.fillStyle = '#F3ECE0'
+    ctx.fillStyle = '#F4EFE6'
     ctx.font = `600 34px ${displayFont}`
     const chars = [...plate.titleZh]
     chars.forEach((ch, idx) => {
       ctx.fillText(ch, 62, 102 + idx * 44)
     })
-    ctx.fillStyle = 'rgba(208, 178, 126, 0.88)'
+    ctx.fillStyle = 'rgba(212, 184, 132, 0.90)'
     ctx.font = `400 18px ${displayFont}`
     const subChars = [...plate.editionZh.replace(/\s+/g, '')]
     subChars.forEach((ch, idx) => {
-      ctx.fillText(ch, 114, 104 + idx * 26)
+      ctx.fillText(ch, 118, 104 + idx * 26)
     })
   } else {
-    ctx.fillStyle = 'rgba(208, 178, 126, 0.9)'
+    ctx.fillStyle = 'rgba(212, 184, 132, 0.92)'
     ctx.font = `600 16px ${monoFont}`
     ctx.fillText(plate.editionEn, 56, 84)
-    ctx.fillStyle = '#F3ECE0'
+    ctx.fillStyle = '#F4EFE6'
     ctx.font = `600 36px ${displayFont}`
     ctx.fillText(plate.titleEn, 56, 130)
   }
 
-  // Carved Vermilion Collector's Chop (河洛)
+  // Carved Vermilion Collector's Chop (河洛珍藏)
   const sealX = 56
-  const sealY = en ? 156 : 102 + plate.titleZh.length * 44 + 22
+  const sealY = en ? 156 : 102 + plate.titleZh.length * 44 + 24
   ctx.strokeStyle = '#B83B2A'
   ctx.lineWidth = 2.6
   ctx.strokeRect(sealX, sealY, 44, 44)
-  ctx.fillStyle = 'rgba(184, 59, 42, 0.16)'
+  ctx.fillStyle = 'rgba(184, 59, 42, 0.18)'
   ctx.fillRect(sealX, sealY, 44, 44)
-  ctx.fillStyle = '#D9533F'
+  ctx.fillStyle = '#DF5844'
   ctx.font = `700 16px ${displayFont}`
   ctx.fillText('河', sealX + 5, sealY + 20)
   ctx.fillText('洛', sealX + 23, sealY + 20)
   ctx.fillText('珍', sealX + 5, sealY + 38)
   ctx.fillText('藏', sealX + 23, sealY + 38)
 
-  // Bottom poetic colophon
-  ctx.fillStyle = 'rgba(243, 236, 224, 0.92)'
+  // Bottom era tag & poetic colophon
+  ctx.fillStyle = 'rgba(210, 184, 136, 0.88)'
+  ctx.font = `500 15px ${monoFont}`
+  ctx.fillText(en ? plate.eraEn : plate.eraZh, 56, H - 92)
+  ctx.fillStyle = 'rgba(244, 239, 230, 0.94)'
   ctx.font = `400 22px ${displayFont}`
-  ctx.fillText(en ? `“${plate.blessingEn}”` : `“${plate.blessingZh}”`, 56, H - 56)
+  ctx.fillText(en ? `“${plate.blessingEn}”` : `“${plate.blessingZh}”`, 56, H - 54)
 
-  // ── Right 42%: Warm Xuan-Paper Letterpress Admission Stub ──
+  // ── Right 42%: Crisp Museum Xuan-Paper Letterpress Admission Stub ──
   const stubGrad = ctx.createLinearGradient(SPLIT_X, 0, W, H)
-  stubGrad.addColorStop(0, '#FAF5EA')
-  stubGrad.addColorStop(1, '#F0E6D3')
+  stubGrad.addColorStop(0, '#FAF8F4')
+  stubGrad.addColorStop(1, '#F2EEE6')
   ctx.fillStyle = stubGrad
   ctx.fillRect(SPLIT_X, 0, W - SPLIT_X, H)
+
+  // Delicate debossed letterpress inner frame on stub
+  ctx.strokeStyle = 'rgba(146, 118, 76, 0.24)'
+  ctx.lineWidth = 1
+  ctx.strokeRect(SPLIT_X + 18, 18, W - SPLIT_X - 36, H - 36)
 
   // Die-cut perforation line & semicircular cutouts
   ctx.save()
@@ -362,7 +407,7 @@ export async function downloadMuseumPassPng(
   ctx.stroke()
   ctx.restore()
 
-  ctx.fillStyle = '#0D0C0A'
+  ctx.fillStyle = '#0D1014'
   ctx.beginPath()
   ctx.arc(SPLIT_X, 0, 18, 0, Math.PI * 2)
   ctx.arc(SPLIT_X, H, 18, 0, Math.PI * 2)
@@ -371,13 +416,16 @@ export async function downloadMuseumPassPng(
   const sx = SPLIT_X + 58
   const sr = W - 58
 
-  // Nameplate + rotated ink stamp
-  ctx.fillStyle = '#1E1A15'
+  // Admission tag, Nameplate + rotated ink stamp
+  ctx.fillStyle = '#8F7347'
+  ctx.font = `600 13px ${monoFont}`
+  ctx.fillText(en ? 'ADMISSION · FREE ENTRY' : 'ADMISSION · 预约免费入馆', sx, 68)
+  ctx.fillStyle = '#1D2026'
   ctx.font = `600 26px ${displayFont}`
-  ctx.fillText(en ? 'HELUO DIGITAL MUSEUM' : '河 洛 数 字 博 物 馆', sx, 94)
-  ctx.fillStyle = '#7A6751'
+  ctx.fillText(en ? 'HELUO DIGITAL MUSEUM' : '河 洛 数 字 博 物 馆', sx, 104)
+  ctx.fillStyle = '#6D737C'
   ctx.font = `500 15px ${monoFont}`
-  ctx.fillText(en ? 'LUOYANG · ADMISSION KEEPSAKE' : '河南洛阳 · 龙门大道与开元大道', sx, 124)
+  ctx.fillText(en ? 'Luoyang · Kaiyuan Ave' : '洛阳 · 开元大道与学府街', sx, 134)
 
   // Ink-stamped status mark
   ctx.save()

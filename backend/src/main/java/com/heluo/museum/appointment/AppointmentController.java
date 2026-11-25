@@ -33,7 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/appointments")
 public class AppointmentController {
-    static final int OPEN_BOOKING_WINDOW_DAYS = 14;
+    static final int OPEN_BOOKING_WINDOW_DAYS = 365;
     private final JdbcTemplate jdbc;
     private final OperationLogService operationLogService;
     private final Clock clock;
@@ -65,7 +65,7 @@ public class AppointmentController {
             throw new ConflictException("参观日期不能早于今天");
         }
         if (slot.visitDate().isAfter(openWindowEnd(today))) {
-            throw new ConflictException("APPOINTMENT_OUTSIDE_OPEN_WINDOW", "预约仅开放未来 14 天内的时段");
+            throw new ConflictException("APPOINTMENT_OUTSIDE_OPEN_WINDOW", "预约仅开放未来 365 天内的时段");
         }
         if (!"OPEN".equals(slot.status()) || !slot.startAt().isAfter(now)) {
             throw new ConflictException("预约时段不可用");

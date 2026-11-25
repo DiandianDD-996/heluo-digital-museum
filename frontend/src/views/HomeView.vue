@@ -16,6 +16,33 @@ const root = ref<HTMLElement | null>(null)
 const heluoPattern = ref<InstanceType<typeof HeluoPattern> | null>(null)
 const showPattern = ref(false)
 const activeObservation = ref(0)
+const closeupZoomed = ref(true)
+const observationParts = ['ear', 'motif', 'feet'] as const
+type ObservationPart = (typeof observationParts)[number]
+const activeObservationPart = computed<ObservationPart>(() => observationParts[activeObservation.value] ?? 'motif')
+const closeupCameraMap: Record<ObservationPart, { origin: string; scale: number; spotX: string; spotY: string; labelZh: string; labelEn: string }> = {
+  ear: { origin: '50% 18%', scale: 1.44, spotX: '50%', spotY: '20%', labelZh: '局部推镜 · 立耳轮廓', labelEn: 'Macro Focus · Upright Handles' },
+  motif: { origin: '50% 48%', scale: 1.52, spotX: '50%', spotY: '48%', labelZh: '局部推镜 · 器腹饕餮纹', labelEn: 'Macro Focus · Taotie Relief' },
+  feet: { origin: '50% 84%', scale: 1.48, spotX: '50%', spotY: '82%', labelZh: '局部推镜 · 三足合范', labelEn: 'Macro Focus · Tripod Legs' },
+}
+const activeCloseupCamera = computed(() => closeupCameraMap[activeObservationPart.value])
+function selectObservation(index: number) {
+  if (activeObservation.value === index) {
+    closeupZoomed.value = !closeupZoomed.value
+    return
+  }
+  activeObservation.value = index
+  closeupZoomed.value = true
+}
+const closeupStageStyle = computed(() => {
+  const cam = activeCloseupCamera.value
+  return {
+    '--closeup-origin': cam.origin,
+    '--closeup-scale': closeupZoomed.value ? String(cam.scale) : '1',
+    '--closeup-spot-x': cam.spotX,
+    '--closeup-spot-y': cam.spotY,
+  }
+})
 let gsapContext: { revert: () => void } | undefined
 let unmounted = false
 
@@ -89,14 +116,14 @@ const titleLines = computed(() => copy.value.title.split('\n'))
 
 const heroMedia = computed(() => isDark.value
   ? {
-      src: '/media/editorial/home-corridor-dark-user-v2.webp',
-      srcset: '/media/editorial/home-corridor-dark-user-v2-640w.webp 640w, /media/editorial/home-corridor-dark-user-v2-1280w.webp 1280w, /media/editorial/home-corridor-dark-user-v2.webp 1672w',
-      mobileSrcset: '/media/editorial/home-corridor-dark-user-v2-portrait.webp 483w',
+      src: '/media/editorial/home-hero-dark-v3.webp',
+      srcset: '/media/editorial/home-hero-dark-v3-640w.webp 640w, /media/editorial/home-hero-dark-v3-1280w.webp 1280w, /media/editorial/home-hero-dark-v3.webp 1672w',
+      mobileSrcset: '/media/editorial/home-hero-dark-v3-portrait.webp 483w',
     }
   : {
-      src: '/media/editorial/home-corridor-light-user-v2.webp',
-      srcset: '/media/editorial/home-corridor-light-user-v2-640w.webp 640w, /media/editorial/home-corridor-light-user-v2-1280w.webp 1280w, /media/editorial/home-corridor-light-user-v2.webp 1672w',
-      mobileSrcset: '/media/editorial/home-corridor-light-user-v2-portrait.webp 483w',
+      src: '/media/editorial/home-hero-light-v3.webp',
+      srcset: '/media/editorial/home-hero-light-v3-640w.webp 640w, /media/editorial/home-hero-light-v3-1280w.webp 1280w, /media/editorial/home-hero-light-v3.webp 1672w',
+      mobileSrcset: '/media/editorial/home-hero-light-v3-portrait.webp 483w',
     })
 
 const featureCards = computed(() => locale.value === 'zh-CN'
@@ -258,8 +285,34 @@ onBeforeUnmount(() => {
         />
       </picture>
       <div class="home-cover__veil" data-motion="hero-veil" aria-hidden="true"></div>
+      <svg class="home-cover__armillary" viewBox="0 0 640 640" fill="none" aria-hidden="true">
+        <g class="home-cover__armillary-outer" stroke="currentColor" stroke-width="0.65">
+          <circle cx="320" cy="320" r="292" stroke-dasharray="5 9" />
+          <circle cx="320" cy="320" r="244" />
+          <line x1="320" y1="12" x2="320" y2="48" />
+          <line x1="320" y1="592" x2="320" y2="628" />
+          <line x1="12" y1="320" x2="48" y2="320" />
+          <line x1="592" y1="320" x2="628" y2="320" />
+        </g>
+        <g class="home-cover__armillary-inner" stroke="currentColor" stroke-width="0.55">
+          <circle cx="320" cy="320" r="184" stroke-dasharray="2 10" />
+          <ellipse cx="320" cy="320" rx="244" ry="86" transform="rotate(-18 320 320)" />
+        </g>
+      </svg>
       <HeluoPattern v-if="showPattern" ref="heluoPattern" />
       <PointerDotField variant="image" />
+
+      <div class="home-cover__masthead" data-motion="intro-eyebrow" aria-hidden="true">
+        <div class="home-cover__masthead-left">
+          <span class="home-cover__masthead-no font-mono">{{ locale === 'zh-CN' ? 'NO.01 · 河洛常设展厅' : 'NO.01 · PERMANENT BRONZE HALL' }}</span>
+          <i class="home-cover__masthead-rule"></i>
+        </div>
+        <div class="home-cover__masthead-meta font-mono">
+          <span>34°37′N · 112°27′E</span>
+          <span class="home-cover__masthead-sep">/</span>
+          <span>{{ locale === 'zh-CN' ? '商代兽面纹青铜鼎 · 数字重制展陈' : 'SHANG RITUAL BRONZE DING · DIGITAL RECONSTRUCTION' }}</span>
+        </div>
+      </div>
 
       <div class="home-cover__inner">
         <div class="home-cover__copy">
@@ -305,17 +358,29 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <!-- Section 2: 5:7 Asymmetric Object Close-up -->
+    <!-- Chapter Cadence I: 礼 · 玉 · 河 · 洛 -->
+    <div class="home-chapter-folio home-content" aria-hidden="true">
+      <span class="home-chapter-folio__glyphs">{{ locale === 'zh-CN' ? '礼 · 玉 · 河 · 洛' : 'RITUAL · JADE · RIVER · HELUO' }}</span>
+      <i class="home-chapter-folio__rule"></i>
+      <span class="home-chapter-folio__index font-mono">{{ locale === 'zh-CN' ? '卷壹 · 礼器精读' : 'CHAPTER I · BRONZE CLOSE-UP' }}</span>
+    </div>
+
+    <!-- Section 2: 5:7 Asymmetric Object Close-up with Synchronized Macro Push-In -->
     <section class="home-closeup home-content" aria-labelledby="closeup-title">
       <figure
         class="home-closeup__figure surface-plinth"
         @pointermove="trackAmbientSurface"
         @pointerleave="clearAmbientSurface"
       >
-        <div class="home-closeup__stage">
+        <div
+          class="home-closeup__stage vitrine-contact-stage"
+          :class="{ 'is-focused': closeupZoomed }"
+          :data-focus-part="activeObservationPart"
+          :style="closeupStageStyle"
+        >
           <img
-            src="/media/editorial/hero-bronze-ding-home-640w-v1.webp"
-            srcset="/media/editorial/hero-bronze-ding-home-384w-v1.webp 384w, /media/editorial/hero-bronze-ding-home-640w-v1.webp 640w"
+            src="/media/editorial/explore-bronze-ding-user-v2.webp"
+            srcset="/media/responsive/explore-bronze-ding-user-v2-320w.webp 320w, /media/responsive/explore-bronze-ding-user-v2-640w.webp 640w, /media/responsive/explore-bronze-ding-user-v2-960w.webp 960w"
             sizes="(max-width: 760px) calc(100vw - 40px), 480px"
             width="640"
             height="640"
@@ -323,6 +388,16 @@ onBeforeUnmount(() => {
             loading="lazy"
             decoding="async"
           />
+          <div class="home-closeup__focus-beam" aria-hidden="true"></div>
+          <button
+            type="button"
+            class="home-closeup__zoom-pill font-mono"
+            data-glass="dark"
+            :aria-pressed="closeupZoomed"
+            @click="closeupZoomed = !closeupZoomed"
+          >
+            {{ closeupZoomed ? (locale === 'zh-CN' ? activeCloseupCamera.labelZh : activeCloseupCamera.labelEn) : (locale === 'zh-CN' ? '全器总览 · 点击推镜' : 'Full Vessel · Click to Zoom') }}
+          </button>
         </div>
         <figcaption class="home-closeup__plaque">
           <span class="home-closeup__plaque-type">{{ copy.closePlaqueType }}</span>
@@ -343,7 +418,7 @@ onBeforeUnmount(() => {
             :aria-selected="activeObservation === idx"
             class="home-closeup__chip"
             :class="{ 'is-active': activeObservation === idx }"
-            @click="activeObservation = idx"
+            @click="selectObservation(idx)"
           >
             <span>{{ item.label }}</span>
           </button>
@@ -358,13 +433,23 @@ onBeforeUnmount(() => {
             <span>{{ copy.closeAction }}</span>
             <ArrowRight aria-hidden="true" />
           </RouterLink>
-          <RouterLink class="home-inline-link" to="/exhibits/heluo-bronze-ding-3d">
+          <RouterLink
+            class="home-inline-link"
+            :to="{ path: '/exhibits/heluo-bronze-ding-3d', query: { focus: activeObservationPart } }"
+          >
             <span>{{ copy.close3dAction }}</span>
             <ArrowRight aria-hidden="true" />
           </RouterLink>
         </div>
       </div>
     </section>
+
+    <!-- Chapter Cadence II -->
+    <div class="home-chapter-folio home-content" aria-hidden="true">
+      <span class="home-chapter-folio__glyphs">{{ locale === 'zh-CN' ? '玉 · 河 · 洛' : 'JADE · RIVER · HELUO' }}</span>
+      <i class="home-chapter-folio__rule"></i>
+      <span class="home-chapter-folio__index font-mono">{{ locale === 'zh-CN' ? '卷贰 · 三脉馆藏' : 'CHAPTER II · THREE THREADS' }}</span>
+    </div>
 
     <!-- Section 3: 1.35fr : 1fr : 1fr Golden Three-Column Theme Gallery -->
     <section
@@ -385,7 +470,7 @@ onBeforeUnmount(() => {
           class="home-theme"
         >
           <div
-            class="home-theme__media surface-plinth"
+            class="home-theme__media surface-plinth vitrine-contact-stage"
             :class="{ 'home-theme__media--panoramic': card.category === 'RIVER' }"
           >
             <img
@@ -432,7 +517,7 @@ onBeforeUnmount(() => {
   overflow-x: clip;
 }
 
-.museum-home svg {
+.museum-home svg:not(.home-cover__armillary) {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
@@ -465,15 +550,85 @@ onBeforeUnmount(() => {
   object-position: center;
 }
 
-/* Natural dual-layer editorial vignette — preserves corridor clarity while guaranteeing text contrast */
+/* Natural dual-layer editorial vignette — preserves architectural skylight & right-of-center plinth clarity while guaranteeing text contrast */
 .home-cover__veil {
   position: absolute;
   inset: 0;
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 62% 76% at 18% 44%, color-mix(in oklch, var(--surface-canvas) 90%, transparent) 0%, color-mix(in oklch, var(--surface-canvas) 54%, transparent) 56%, transparent 84%),
-    linear-gradient(180deg, transparent 68%, color-mix(in oklch, var(--surface-canvas) 94%, transparent) 100%);
+    linear-gradient(96deg, color-mix(in oklch, var(--surface-canvas) 62%, transparent) 0%, color-mix(in oklch, var(--surface-canvas) 22%, transparent) 36%, transparent 56%),
+    linear-gradient(180deg, transparent 78%, color-mix(in oklch, var(--surface-canvas) 94%, transparent) 100%);
+}
+
+.home-cover__armillary {
+  position: absolute;
+  right: clamp(3%, 7vw, 10%);
+  top: 47%;
+  width: clamp(340px, 39vw, 560px);
+  height: clamp(340px, 39vw, 560px);
+  transform: translateY(-50%);
+  z-index: 0;
+  pointer-events: none;
+  color: var(--accent-bronze);
+  opacity: 0.14;
+}
+
+.home-cover__armillary-outer {
+  transform-origin: 320px 320px;
+  animation: home-armillary-cw 130s linear infinite;
+}
+
+.home-cover__armillary-inner {
+  transform-origin: 320px 320px;
+  animation: home-armillary-ccw 190s linear infinite;
+}
+
+@keyframes home-armillary-cw {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes home-armillary-ccw {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-cover__armillary-outer,
+  .home-cover__armillary-inner {
+    animation: none;
+  }
+}
+
+.home-chapter-folio {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding-top: clamp(2.25rem, 4.5vw, 3.5rem);
+  color: var(--ink-muted);
+}
+
+.home-chapter-folio__glyphs {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  color: var(--accent-bronze);
+  white-space: nowrap;
+}
+
+.home-chapter-folio__rule {
+  flex: 1 1 auto;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border-strong) 0%, transparent 100%);
+}
+
+.home-chapter-folio__index {
+  font-size: var(--text-xs);
+  letter-spacing: 0.14em;
+  color: var(--ink-muted);
+  white-space: nowrap;
 }
 
 .home-cover :deep(.pointer-dot-field) {
@@ -481,13 +636,59 @@ onBeforeUnmount(() => {
   mask-image: linear-gradient(to bottom, oklch(0% 0 0) 76%, transparent 100%);
 }
 
+.home-cover__masthead {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  width: min(calc(100% - 4rem), var(--container-max));
+  margin: clamp(1.75rem, 3.2vh, 2.4rem) auto 0;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid color-mix(in oklch, var(--border-hairline) 85%, transparent);
+  font-size: var(--text-xs);
+  color: var(--ink-secondary);
+}
+
+.home-cover__masthead-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.home-cover__masthead-no {
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--accent-bronze);
+  white-space: nowrap;
+}
+
+.home-cover__masthead-rule {
+  width: 28px;
+  height: 1px;
+  background: color-mix(in oklch, var(--accent-bronze) 65%, transparent);
+}
+
+.home-cover__masthead-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  letter-spacing: 0.08em;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.home-cover__masthead-sep {
+  opacity: 0.45;
+}
+
 .home-cover__inner {
   position: relative;
   z-index: 2;
   width: min(calc(100% - 4rem), var(--container-max));
-  margin: auto auto 0;
-  padding-top: clamp(3.5rem, 8vh, 6rem);
-  padding-bottom: clamp(2.5rem, 5vh, 4rem);
+  margin: auto auto;
+  padding-block: clamp(1.25rem, 3.2vh, 2.5rem);
 }
 
 .home-cover__copy {
@@ -613,7 +814,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: var(--space-4);
   width: min(calc(100% - 4rem), var(--container-max));
-  margin: auto auto 4.75rem;
+  margin: 0 auto 4.6rem;
   padding: var(--space-4) 0 var(--space-3);
   border-top: 1px solid var(--border-hairline);
   font-size: var(--text-xs);
@@ -712,14 +913,16 @@ onBeforeUnmount(() => {
   background-image: var(--surface-vitrine-spotlight);
   background-repeat: no-repeat;
   background-size: 100% 100%;
+  overflow: hidden;
 }
 
 .home-closeup__stage::after {
   content: '';
   position: absolute;
   inset: 0;
+  z-index: 2;
   pointer-events: none;
-  box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.08), inset 0 -18px 36px oklch(8% 0.002 75 / 0.34);
+  box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.08), inset 0 -18px 36px oklch(6% 0.005 238 / 0.38);
 }
 
 .home-closeup__stage img {
@@ -732,7 +935,50 @@ onBeforeUnmount(() => {
   max-width: 100%;
   max-height: 420px;
   object-fit: contain;
-  filter: drop-shadow(0 24px 32px oklch(6% 0.004 75 / 0.56));
+  transform-origin: var(--closeup-origin, 50% 50%);
+  transform: scale(var(--closeup-scale, 1));
+  filter: drop-shadow(0 24px 32px var(--plinth-contact-shadow));
+  transition: transform 620ms var(--ease-curatorial), transform-origin 620ms var(--ease-curatorial);
+}
+
+.home-closeup__focus-beam {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    circle 36% at var(--closeup-spot-x, 50%) var(--closeup-spot-y, 50%),
+    oklch(86% 0.056 78 / 0.14) 0%,
+    transparent 56%,
+    oklch(8% 0.006 238 / 0.44) 100%
+  );
+  transition: opacity 420ms var(--ease-curatorial);
+}
+
+.home-closeup__stage.is-focused .home-closeup__focus-beam {
+  opacity: 1;
+}
+
+.home-closeup__zoom-pill {
+  position: absolute;
+  left: var(--space-3);
+  bottom: var(--space-3);
+  z-index: 3;
+  min-height: 36px;
+  padding: 0 0.75rem;
+  border-radius: var(--radius-pill);
+  color: var(--ink-on-dark);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-closeup__stage img {
+    transform: none;
+    transition: none;
+  }
 }
 
 .home-closeup__plaque {
@@ -742,20 +988,10 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   align-items: baseline;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-5) var(--space-3) calc(var(--space-5) + 2px);
+  padding: var(--space-3) var(--space-5);
   border-top: 1px solid var(--border-hairline);
   background-color: var(--surface-elevated);
   box-shadow: var(--card-frame-sheen);
-}
-
-.home-closeup__plaque::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--accent-seal);
 }
 
 .home-closeup__plaque-type {
@@ -969,10 +1205,11 @@ onBeforeUnmount(() => {
   aspect-ratio: 1 / 1;
   display: grid;
   place-items: center;
-  padding: 0;
+  padding: var(--space-5);
   border-radius: var(--radius-md);
   border: 1px solid var(--border-strong);
   background-color: var(--surface-vitrine);
+  background-image: var(--surface-vitrine-spotlight);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
   transition: border-color var(--duration-ui) var(--ease-curatorial),
@@ -980,13 +1217,7 @@ onBeforeUnmount(() => {
 }
 
 .home-theme__media--panoramic {
-  background: linear-gradient(
-    180deg,
-    oklch(34% 0.003 75) 0%,
-    oklch(50% 0.003 75) 50%,
-    oklch(68% 0.003 75) 100%
-  );
-  padding: 0 var(--space-3);
+  padding: var(--space-4) var(--space-4);
 }
 
 .home-theme__media::after {
@@ -1112,6 +1343,7 @@ onBeforeUnmount(() => {
 /* ── Responsive ── */
 @media (max-width: 1100px) {
   .home-content,
+  .home-cover__masthead,
   .home-cover__inner,
   .home-cover__foot {
     width: calc(100% - 3rem);
@@ -1131,6 +1363,10 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr auto;
   }
 
+  .home-cover__masthead-meta {
+    display: none;
+  }
+
   .home-cover__scroll {
     display: none;
   }
@@ -1142,6 +1378,7 @@ onBeforeUnmount(() => {
 
 @media (max-width: 760px) {
   .home-content,
+  .home-cover__masthead,
   .home-cover__inner,
   .home-cover__foot {
     width: calc(100% - 2rem);
@@ -1149,6 +1386,19 @@ onBeforeUnmount(() => {
 
   .home-cover {
     min-height: 0;
+  }
+
+  .home-cover__masthead {
+    margin-top: var(--space-6);
+    padding-bottom: var(--space-2);
+  }
+
+  .home-cover__armillary {
+    width: 280px;
+    height: 280px;
+    top: 38%;
+    right: -12%;
+    opacity: 0.12;
   }
 
   .corridor-home__hero-media {
@@ -1202,7 +1452,7 @@ onBeforeUnmount(() => {
   .home-cover__ruler {
     width: calc(100% - 2rem);
     bottom: 10px;
-    padding-right: 0;
+    padding-right: 60px;
   }
 
   .home-closeup__prompts {
@@ -1363,9 +1613,13 @@ onBeforeUnmount(() => {
 </style>
 
 <style>
+html[data-theme="dark"] .museum-home .home-cover__armillary {
+  opacity: 0.24;
+}
+
 html[data-theme="dark"] .museum-home .home-cover__veil {
   background:
-    radial-gradient(ellipse 56% 72% at 18% 46%, oklch(11% 0.005 74 / 0.80) 0%, oklch(11% 0.005 74 / 0.36) 56%, transparent 84%),
+    radial-gradient(ellipse 56% 72% at 18% 46%, oklch(11.6% 0.006 238 / 0.80) 0%, oklch(11.6% 0.006 238 / 0.36) 56%, transparent 84%),
     linear-gradient(180deg, transparent 72%, var(--surface-canvas) 100%);
 }
 
@@ -1373,8 +1627,8 @@ html[data-theme="dark"] .museum-home .home-cover__veil {
   html[data-theme="dark"] .museum-home .home-cover__veil {
     background: linear-gradient(
       180deg,
-      oklch(11% 0.005 74 / 0.90) 0%,
-      oklch(11% 0.005 74 / 0.72) 32%,
+      oklch(11.6% 0.006 238 / 0.90) 0%,
+      oklch(11.6% 0.006 238 / 0.72) 32%,
       transparent 58%,
       var(--surface-canvas) 96%
     );

@@ -4,6 +4,7 @@ import { Delete, Lock, Minus, Plus } from '@element-plus/icons-vue'
 import { RouterLink } from 'vue-router'
 import FluidButton from './FluidButton.vue'
 import InlineStatus from './InlineStatus.vue'
+import { localizeProductName, productArchiveCode } from '../lib/contentLocale'
 import { fallbackProductCover, resolveProductPresentation } from '../lib/productPresentation'
 import { mediaSrcset } from '../lib/responsiveMedia'
 import { useLocale } from '../stores/locale'
@@ -19,6 +20,13 @@ interface CartItem {
   coverImageUrl: string
 }
 
+export interface CompletedOrderReceipt {
+  orderNo: string
+  total: string
+  issuedAt: string
+  items: Array<{ name: string; slug?: string; quantity: number; price: string }>
+}
+
 const props = defineProps<{
   loggedIn: boolean
   items: CartItem[]
@@ -27,6 +35,7 @@ const props = defineProps<{
   email: string
   checkoutState: 'idle' | 'loading' | 'success' | 'error'
   pendingOrder?: { id: number; orderNo: string } | null
+  completedReceipt?: CompletedOrderReceipt | null
   pendingCheckout?: boolean
   message?: string
   error?: string
@@ -101,9 +110,9 @@ const copy = computed(() => locale.value === 'en-US' ? {
   paymentNote: '演示结算不会产生真实扣款或物流。',
 })
 
-const cartName = (name: string) => locale.value === 'en-US'
-  ? ({ '河流纹茶杯套装': 'River-pattern Teacup Set', '河洛水系丝巾': 'Heluo River-system Scarf', '河图纹笔记本': 'River-map Pattern Notebook' }[name] ?? name)
-  : name
+const cartName = (item: Pick<CartItem, 'name' | 'slug'> | string) => typeof item === 'string'
+  ? localizeProductName({ name: item }, locale.value)
+  : localizeProductName(item, locale.value)
 
 const loadingCopy = computed(() => locale.value === 'en-US' ? {
   loading: 'Loading your shopping bag',
@@ -131,6 +140,7 @@ const emit = defineEmits<{
   (event: 'checkout'): void
   (event: 'reload'): void
   (event: 'browse'): void
+  (event: 'view-orders'): void
 }>()
 
 function updateEmail(event: Event) {
@@ -169,8 +179,8 @@ function updateEmail(event: Event) {
     </div>
 
     <!-- Empty or Pending Order Recovery State -->
-    <div v-else-if="!items.length" class="cart-empty-state">
-      <svg class="cart-empty-state__art" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+    <div v-else-if="!items.length" class="cart-empty-state" :class="{ 'cart-empty-state--receipt': checkoutState === 'success' }">
+      <svg v-if="checkoutState !== 'success'" class="cart-empty-state__art" viewBox="0 0 64 64" fill="none" aria-hidden="true">
         <path d="M16 22h32l-3 30H19L16 22Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
         <path d="M24 22v-4a8 8 0 0 1 16 0v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
         <circle cx="32" cy="36" r="3" stroke="var(--accent-bronze)" stroke-width="1.5" />
@@ -183,9 +193,48 @@ function updateEmail(event: Event) {
           {{ copy.retry }}
         </FluidButton>
       </template>
+      <template v-else-if="checkoutState === 'success'">
+        <article class="dispatch-slip" data-testid="mock-collection-dispatch-slip">
+          <header class="dispatch-slip__head">
+            <div>
+              <p class="dispatch-slip__kicker font-mono">{{ locale === 'en-US' ? 'HELUO STORE · DISPATCH SLIP' : '河洛文创 · 模拟出库笺' }}</p>
+              <h3>{{ copy.completed }}</h3>
+            </div>
+            <span class="dispatch-slip__seal" aria-hidden="true">{{ locale === 'en-US' ? 'MOCK\nSEAL' : '河洛\n出库' }}</span>
+          </header>
+          <dl class="dispatch-slip__meta">
+            <div v-if="completedReceipt?.orderNo">
+              <dt>{{ copy.order }}</dt>
+              <dd class="font-mono">{{ completedReceipt.orderNo }}</dd>
+            </div>
+            <div v-if="completedReceipt?.total">
+              <dt>{{ copy.total }}</dt>
+              <dd class="font-mono">¥ {{ completedReceipt.total }}</dd>
+            </div>
+          </dl>
+          <ul v-if="completedReceipt?.items.length" class="dispatch-slip__items">
+            <li v-for="(line, idx) in completedReceipt.items" :key="`${line.name}-${idx}`">
+              <div class="dispatch-slip__item-copy">
+                <strong>{{ cartName(line) }} × {{ line.quantity }}</strong>
+                <small class="font-mono">{{ productArchiveCode(line) }}</small>
+              </div>
+              <span class="font-mono">¥ {{ line.price }}</span>
+            </li>
+          </ul>
+          <p class="dispatch-slip__note">{{ copy.completedText }}</p>
+          <div class="dispatch-slip__actions">
+            <a class="fluid-button fluid-button--primary fluid-button--sm fluid-button--block" href="/profile" @click.prevent="emit('view-orders')">
+              {{ locale === 'en-US' ? 'View order ledger →' : '前往个人文创账簿 →' }}
+            </a>
+            <a class="fluid-button fluid-button--secondary fluid-button--sm fluid-button--block" href="#shop-products" @click="emit('browse')">
+              {{ copy.browse }}
+            </a>
+          </div>
+        </article>
+      </template>
       <template v-else>
-        <h3>{{ checkoutState === 'success' ? copy.completed : copy.empty }}</h3>
-        <p>{{ checkoutState === 'success' ? copy.completedText : copy.emptyText }}</p>
+        <h3>{{ copy.empty }}</h3>
+        <p>{{ copy.emptyText }}</p>
         <a class="fluid-button fluid-button--secondary fluid-button--block" href="#shop-products" @click="emit('browse')">
           {{ copy.browse }}
         </a>
@@ -200,15 +249,15 @@ function updateEmail(event: Event) {
             :src="cartImage(item)"
             :srcset="mediaSrcset(cartImage(item))"
             sizes="56px"
-            :alt="item.name"
+            :alt="cartName(item)"
             loading="lazy"
             decoding="async"
             @error="useFallbackImage($event, item)"
           />
           <div class="cart-item__body">
-            <span class="cart-item__name">{{ cartName(item.name) }}</span>
+            <span class="cart-item__name">{{ cartName(item) }}</span>
             <strong class="cart-item__price font-mono">¥ {{ item.price }}</strong>
-            <div class="quantity" role="group" :aria-label="`${cartName(item.name)} ${copy.quantity}`">
+            <div class="quantity" role="group" :aria-label="`${cartName(item)} ${copy.quantity}`">
               <button type="button" :disabled="item.quantity <= 1 || controlsLocked" :aria-label="copy.decrease" @click="emit('change', item, item.quantity - 1)">
                 <Minus aria-hidden="true" />
               </button>
@@ -283,6 +332,10 @@ function updateEmail(event: Event) {
   gap: var(--space-3);
   padding: var(--space-6) var(--space-4);
   text-align: center;
+}
+
+.cart-empty-state--receipt {
+  padding: var(--space-2) 0 0;
 }
 
 .cart-empty-state__art {
@@ -474,5 +527,132 @@ function updateEmail(event: Event) {
 .cart-row-leave-to {
   opacity: 0;
   transform: translateY(6px);
+}
+
+/* ── Simulated Collection Dispatch Slip (模拟收藏出库笺) ── */
+.dispatch-slip {
+  width: 100%;
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid color-mix(in oklch, var(--accent-bronze) 42%, var(--border-strong));
+  border-radius: var(--radius-md);
+  background:
+    radial-gradient(circle at 92% 8%, color-mix(in oklch, var(--accent-seal) 8%, transparent), transparent 46%),
+    var(--surface-canvas);
+  text-align: left;
+  box-shadow: var(--shadow-xs);
+}
+
+.dispatch-slip__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px dashed var(--border-strong);
+}
+
+.dispatch-slip__kicker {
+  margin: 0 0 0.25rem;
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  color: var(--accent-bronze);
+}
+
+.dispatch-slip__head h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  color: var(--ink-primary);
+}
+
+.dispatch-slip__seal {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--accent-seal);
+  border-radius: 4px;
+  background: color-mix(in oklch, var(--accent-seal) 10%, transparent);
+  color: var(--accent-seal);
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: pre-line;
+  text-align: center;
+  transform: rotate(-6deg);
+}
+
+.dispatch-slip__meta {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+}
+
+.dispatch-slip__meta > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--text-xs);
+}
+
+.dispatch-slip__meta dt {
+  color: var(--ink-muted);
+}
+
+.dispatch-slip__meta dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--ink-primary);
+}
+
+.dispatch-slip__items {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: var(--space-3) 0;
+  list-style: none;
+  border-block: 1px solid var(--border-hairline);
+}
+
+.dispatch-slip__items li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--text-xs);
+}
+
+.dispatch-slip__item-copy {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.dispatch-slip__item-copy strong {
+  color: var(--ink-primary);
+  font-weight: 600;
+}
+
+.dispatch-slip__item-copy small {
+  color: var(--accent-bronze);
+  letter-spacing: 0.06em;
+}
+
+.dispatch-slip__note {
+  margin: 0;
+  max-width: none;
+  font-size: var(--text-xs);
+  line-height: 1.65;
+  color: var(--ink-muted);
+}
+
+.dispatch-slip__actions {
+  display: grid;
+  gap: var(--space-2);
 }
 </style>

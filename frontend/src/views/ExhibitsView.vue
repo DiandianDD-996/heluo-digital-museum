@@ -79,11 +79,17 @@ const englishExhibit = {
   summary: 'A digital exhibit preserving the ritual silhouette and taotie motifs with a recrafted aged-bronze PBR material.',
 }
 
+const englishArtifactTitles: Record<string, string> = {
+  'heluo-bronze-ding': 'Heluo Bronze Ding (Digital Reconstruction)',
+  'river-map-pattern-stone': 'River-Map Pattern Stone (Concept Exhibit)',
+}
+
 const displayItem = (item: ExhibitCard) => {
   if (locale.value === 'en-US') {
     const title = item.titleEn?.trim() || (item.slug === 'heluo-bronze-ding-3d' ? englishExhibit.title : item.title)
     const summary = item.summaryEn?.trim() || (item.slug === 'heluo-bronze-ding-3d' ? englishExhibit.summary : item.summary)
-    return { ...item, title, summary }
+    const artifactTitle = englishArtifactTitles[item.artifactSlug] || item.artifactTitle
+    return { ...item, title, summary, artifactTitle }
   }
   if (item.slug === 'heluo-bronze-ding-3d' && item.summary.includes('GLB')) {
     return {
@@ -99,12 +105,17 @@ const formatSourceCredit = (credit: string | undefined) => {
   if (locale.value === 'zh-CN' && credit.includes('Cleveland Museum of Art')) {
     return '克利夫兰艺术博物馆 · 1962.281 CC0 公开馆藏参考'
   }
+  if (locale.value === 'en-US' && /河洛数字博物馆/.test(credit)) {
+    return 'Heluo Digital Museum · Original Concept Optical Exhibit'
+  }
   return credit
 }
 
-const coverFor = (item: ExhibitCard) => item.slug.includes('bronze-ding')
-  ? '/media/editorial/exhibit-ding-moonlight.webp'
-  : item.coverImageUrl
+const coverFor = (item: ExhibitCard) => {
+  if (item.slug.includes('bronze-ding')) return '/media/editorial/explore-bronze-ding-user-v2.webp'
+  if (item.slug === 'river-map-stone-raking') return '/media/editorial/explore-river-map-stone-user-v2.webp'
+  return item.coverImageUrl
+}
 
 const isFeatureShowcase = computed(() => items.value.length > 0 && items.value.length <= 2)
 
@@ -346,9 +357,13 @@ onBeforeUnmount(() => {
 
 .exhibit-showcase__media {
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   min-width: 0;
   min-height: 440px;
+  padding: clamp(2rem, 3.8vw, 3.25rem);
   background-color: var(--surface-vitrine);
   background-image: var(--surface-vitrine-spotlight);
   background-size: 100% 100%;
@@ -356,13 +371,28 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
-.exhibit-showcase__media img {
+.exhibit-showcase__media::after {
+  content: '';
   position: absolute;
-  inset: 0;
+  left: 50%;
+  bottom: 10%;
+  width: 56%;
+  height: 14%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, var(--plinth-contact-shadow) 0%, transparent 72%);
+  pointer-events: none;
+}
+
+.exhibit-showcase__media img {
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  object-position: center 45%;
+  max-height: 360px;
+  object-fit: contain;
+  object-position: center;
+  filter: drop-shadow(0 16px 32px oklch(5% 0.006 238 / 0.55));
   transition: transform 520ms var(--ease-curatorial);
 }
 
@@ -371,34 +401,21 @@ onBeforeUnmount(() => {
 }
 
 .exhibit-showcase__media--panoramic {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2.5rem 0 0;
-  background-color: oklch(54% 0.002 75);
-  background-image: linear-gradient(
-    180deg,
-    oklch(35% 0.002 75) 0%,
-    oklch(39% 0.002 75) 28%,
-    oklch(74.5% 0.002 75) 72%,
-    oklch(75.5% 0.002 75) 100%
-  );
+  padding: clamp(2.25rem, 4vw, 3.25rem) clamp(1.5rem, 3vw, 2.5rem);
+}
+
+.exhibit-showcase__media--panoramic::after {
+  bottom: 18%;
+  width: 74%;
+  height: 10%;
 }
 
 .exhibit-showcase__media--panoramic img {
-  position: static;
-  inset: auto;
-  width: 100%;
-  height: auto;
-  max-height: 100%;
-  object-fit: contain;
-  object-position: center;
-  -webkit-mask-image: linear-gradient(180deg, transparent 0%, oklch(0% 0 0) 12%, oklch(0% 0 0) 88%, transparent 100%);
-  mask-image: linear-gradient(180deg, transparent 0%, oklch(0% 0 0) 12%, oklch(0% 0 0) 88%, transparent 100%);
+  max-height: 310px;
 }
 
 .exhibit-showcase:hover .exhibit-showcase__media--panoramic img {
-  transform: scale(1.02);
+  transform: scale(1.025);
 }
 
 .exhibit-showcase__badge {

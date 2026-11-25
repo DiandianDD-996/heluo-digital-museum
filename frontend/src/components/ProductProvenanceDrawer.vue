@@ -41,7 +41,7 @@ interface ArtifactOriginDto {
 }
 
 const ARTIFACT_EDITORIAL_COVERS: Record<string, string> = {
-  'heluo-bronze-ding': '/media/exhibits/heluo-bronze-ding-v5.4-cover.webp',
+  'heluo-bronze-ding': '/media/editorial/explore-bronze-ding-user-v2.webp',
   'water-bird-bronze': '/media/editorial/explore-water-bird-bronze-user-v2.webp',
   'heluo-bronze-jue': '/media/editorial/explore-bronze-jue-user-v2.webp',
   'river-map-jade-bi': '/media/editorial/explore-jade-bi-user-v2.webp',
@@ -258,7 +258,7 @@ onBeforeUnmount(() => {
           <div class="provenance-drawer__body">
             <!-- 1:1 Side-by-Side Motif Provenance Diptych -->
             <section class="provenance-diptych" :aria-label="copy.bridgeTag">
-              <article v-if="displayOrigin" class="provenance-frame">
+              <article v-if="displayOrigin" class="provenance-frame provenance-frame--source">
                 <span class="provenance-frame__tag font-mono">{{ copy.objectFrame }}</span>
                 <div class="provenance-frame__media">
                   <img :src="displayOrigin.imageUrl" :alt="displayOrigin.title" loading="lazy" decoding="async" />
@@ -346,7 +346,7 @@ onBeforeUnmount(() => {
   z-index: 95;
   display: flex;
   justify-content: flex-end;
-  background: oklch(12% 0.006 76 / 0.52);
+  background: oklch(11% 0.006 238 / 0.56);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
@@ -444,6 +444,20 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.provenance-frame--source .provenance-frame__media {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  background-color: var(--surface-vitrine);
+  background-image: var(--surface-vitrine-spotlight);
+}
+
+.provenance-frame--source .provenance-frame__media img {
+  object-fit: contain;
+  filter: drop-shadow(0 8px 16px oklch(5% 0.006 238 / 0.55));
 }
 
 .provenance-frame__caption {

@@ -1,8 +1,13 @@
 package com.heluo.museum.config;
 
 import java.time.Clock;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -182,15 +187,42 @@ public class BootstrapDataInitializer implements CommandLineRunner {
     }
 
     private void createAppointmentSlots(long adminId) {
-        insertSlot(adminId, LocalDate.now(clock).plusDays(2), LocalTime.of(10, 0), LocalTime.of(11, 30), 30);
-        insertSlot(adminId, LocalDate.now(clock).plusDays(2), LocalTime.of(14, 0), LocalTime.of(15, 30), 30);
-        insertSlot(adminId, LocalDate.now(clock).plusDays(5), LocalTime.of(10, 0), LocalTime.of(11, 30), 40);
-    }
+        LocalDate today = LocalDate.now(clock);
+        LocalDate end = today.plusDays(364L);
+        Set<String> existingKeys = new HashSet<>(jdbc.query(
+                "select visit_date,start_time,end_time from appointment_slots where visit_date between ? and ?",
+                (rs, rowNum) -> rs.getDate(1).toLocalDate() + "|"
+                        + rs.getTime(2).toLocalTime() + "|"
+                        + rs.getTime(3).toLocalTime(),
+                today, end));
 
-    private void insertSlot(long adminId, LocalDate date, LocalTime start, LocalTime end, int capacity) {
-        if (count("select count(*) from appointment_slots where visit_date=? and start_time=? and end_time=?", date, start, end) == 0) {
-            jdbc.update("insert into appointment_slots(visit_date,start_time,end_time,capacity,status,created_by,updated_by) values(?,?,?,?, 'OPEN',?,?)",
-                    date, start, end, capacity, adminId, adminId);
+        record SessionWindow(LocalTime start, LocalTime end, int capacity) {}
+        List<SessionWindow> sessions = List.of(
+                new SessionWindow(LocalTime.of(9, 0), LocalTime.of(10, 30), 40),
+                new SessionWindow(LocalTime.of(10, 30), LocalTime.of(12, 0), 40),
+                new SessionWindow(LocalTime.of(13, 30), LocalTime.of(15, 0), 40),
+                new SessionWindow(LocalTime.of(15, 15), LocalTime.of(16, 45), 40));
+
+        List<Object[]> batchRows = new ArrayList<>(1260);
+        for (int offset = 0; offset < 365; offset++) {
+            LocalDate date = today.plusDays(offset);
+            if (date.getDayOfWeek() == DayOfWeek.MONDAY) {
+                continue;
+            }
+            for (SessionWindow session : sessions) {
+                String key = date + "|" + session.start() + "|" + session.end();
+                if (!existingKeys.contains(key)) {
+                    batchRows.add(new Object[] {
+                            date, session.start(), session.end(), session.capacity(), adminId, adminId
+                    });
+                }
+            }
+        }
+        if (!batchRows.isEmpty()) {
+            jdbc.batchUpdate(
+                    "insert into appointment_slots(visit_date,start_time,end_time,capacity,status,created_by,updated_by) "
+                            + "values(?,?,?,?, 'OPEN',?,?)",
+                    batchRows);
         }
     }
 

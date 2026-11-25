@@ -3,6 +3,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ArrowLeft, ArrowRight, RefreshLeft } from '@element-plus/icons-vue'
 import { apiGet, apiRequest, type ContentPage } from '../lib/api'
+import { localizeProductName } from '../lib/contentLocale'
 import { fallbackProductCover } from '../lib/productPresentation'
 import InlineStatus from './InlineStatus.vue'
 import FluidButton from './FluidButton.vue'
@@ -134,7 +135,7 @@ function formatDeadline(value: string) {
           <div class="profile-record-card__body">
             <span class="profile-record-kicker font-mono">{{ item.orderNo }}</span>
             <h3 class="font-mono"><span class="order-amount-label">{{ locale === 'en-US' ? 'Total' : '订单金额' }}</span> ¥ {{ item.payableAmount }}</h3>
-            <p class="profile-order-items">{{ item.items.map((line) => `${line.name} × ${line.quantity}`).join(locale === 'en-US' ? ', ' : '、') }}</p>
+            <p class="profile-order-items">{{ item.items.map((line) => `${localizeProductName({ name: line.name }, locale)} × ${line.quantity}`).join(locale === 'en-US' ? ', ' : '、') }}</p>
           </div>
         </div>
         <div class="profile-record-actions">

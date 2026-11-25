@@ -15,25 +15,27 @@ const exhibits = read('src/views/ExhibitsView.vue')
 const shop = read('src/views/ShopView.vue')
 
 describe('dark theme cohesion contract (Heluo Editorial 2.0 Nocturne Gallery)', () => {
-  it('uses a dedicated Image 2 night scene instead of dimming the light hero', () => {
-    expect(existsSync(resolve(process.cwd(), 'public/media/editorial/home-corridor-dark-user-v2.webp'))).toBe(true)
-    expect(existsSync(resolve(process.cwd(), 'public/media/editorial/home-corridor-dark-user-v2-1280w.webp'))).toBe(true)
-    expect(homeView).toContain("src: '/media/editorial/home-corridor-dark-user-v2.webp'")
-    expect(homeView).toContain('home-corridor-dark-user-v2-portrait.webp 483w')
+  it('uses a dedicated architectural cold-obsidian v3 night scene instead of dimming the light hero', () => {
+    expect(existsSync(resolve(process.cwd(), 'public/media/editorial/home-hero-dark-v3.webp'))).toBe(true)
+    expect(existsSync(resolve(process.cwd(), 'public/media/editorial/home-hero-dark-v3-1280w.webp'))).toBe(true)
+    expect(homeView).toContain("src: '/media/editorial/home-hero-dark-v3.webp'")
+    expect(homeView).toContain('home-hero-dark-v3-portrait.webp 483w')
   })
 
-  it('defines Obsidian Silk OKLCH dark surface hierarchy and champagne-gold actions without muddy green or pure black', () => {
+  it('defines Cold Obsidian Gallery OKLCH dark surface hierarchy and champagne-gold/patina actions without muddy brown', () => {
     const darkBlock = tokens.slice(tokens.indexOf('html[data-theme="dark"]'))
-    expect(darkBlock).toContain('--surface-canvas: oklch(15.5% 0.002 75)')
-    expect(darkBlock).toContain('--surface-subtle: oklch(18.2% 0.002 75)')
-    expect(darkBlock).toContain('--surface-elevated: oklch(20.8% 0.003 75)')
+    expect(darkBlock).toContain('--surface-canvas: oklch(12.2% 0.006 238)')
+    expect(darkBlock).toContain('--surface-subtle: oklch(14.8% 0.007 238)')
+    expect(darkBlock).toContain('--surface-elevated: oklch(17.6% 0.008 238)')
+    expect(darkBlock).toContain('--surface-plinth: oklch(14.2% 0.007 238)')
     expect(darkBlock).toContain('--pattern-yunlei:')
     expect(darkBlock).toContain('--pattern-brocade:')
     expect(darkBlock).toContain('--pattern-plinth-lattice:')
     expect(darkBlock).toContain('--surface-spotlight:')
-    expect(darkBlock).toContain('--ink-primary: oklch(94.2% 0.004 82)')
-    expect(darkBlock).toContain('--accent-jade: oklch(81% 0.048 78)')
-    expect(darkBlock).toContain('--accent-jade-ink: oklch(16% 0.009 72)')
+    expect(darkBlock).toContain('--ink-primary: oklch(95.0% 0.004 86)')
+    expect(darkBlock).toContain('--accent-jade: oklch(82% 0.054 78)')
+    expect(darkBlock).toContain('--accent-patina: oklch(68% 0.072 168)')
+    expect(darkBlock).toContain('--accent-jade-ink: oklch(13% 0.007 238)')
   })
 
   it('keeps the shared search single-layer and controls touch-sized across themes', () => {

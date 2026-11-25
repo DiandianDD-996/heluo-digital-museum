@@ -4,6 +4,9 @@ import { RouterLink, useRoute } from 'vue-router'
 import { gsap } from 'gsap'
 import { Box, Connection, InfoFilled, VideoPlay } from '@element-plus/icons-vue'
 import { qualityLabel, type PointCloudQuality } from '../lib/pointCloudQuality'
+import { getCuratorialMaterialProfile } from '../lib/curatorialSwatches'
+import { artifactPlateTransitionStyle } from '../lib/inkTransitions'
+import { readPrefetchCache } from '../lib/prefetch'
 import { apiGet } from '../lib/api'
 import BottomSheet from '../components/BottomSheet.vue'
 import AcousticRuler from '../components/AcousticRuler.vue'
@@ -144,6 +147,29 @@ const RakingLightViewer = defineAsyncComponent({
 
 const isBronzeDingExhibit = computed(() => exhibit.value?.slug === GUIDE_EXHIBIT_SLUG)
 const isStoneRakingExhibit = computed(() => exhibit.value?.slug === STONE_EXHIBIT_SLUG)
+const materialProfile = computed(() => getCuratorialMaterialProfile(exhibit.value?.slug ?? exhibit.value?.artifact?.slug))
+const siblingExhibit = computed(() => {
+  if (!exhibit.value) return null
+  if (isBronzeDingExhibit.value) {
+    return {
+      slug: STONE_EXHIBIT_SLUG,
+      badge: 'EXHIBIT 02',
+      labelZh: '切换展柜 · 河洛图纹石板',
+      labelEn: 'Switch to EXHIBIT 02 · River Map Stone',
+    }
+  }
+  if (isStoneRakingExhibit.value) {
+    return {
+      slug: GUIDE_EXHIBIT_SLUG,
+      badge: 'EXHIBIT 01',
+      labelZh: '切换展柜 · 河洛青铜鼎 3D',
+      labelEn: 'Switch to EXHIBIT 01 · Bronze Ding 3D',
+    }
+  }
+  return null
+})
+const consumedQueryFocus = ref<string | null>(null)
+const validFocusParts: readonly GuidePartName[] = ['ear', 'motif', 'feet']
 
 const copy = computed(() => locale.value === 'zh-CN' ? {
   viewerOffline: '网络已断开，请恢复连接后重试启动。',
@@ -306,9 +332,18 @@ const localizedSourceCredit = computed(() => {
   }
   return raw
 })
+const localizedLicenseLabel = computed(() => {
+  const raw = exhibit.value?.licenseLabel
+  if (!raw) return copy.value.material
+  if (locale.value === 'zh-CN') {
+    if (raw.includes('CC0 reference')) return 'CC0 公开馆藏参考 · 项目数字重制'
+    if (raw.toLowerCase().includes('concept')) return '原创概念光学展项'
+  }
+  return raw
+})
 const exhibitFacts = computed(() => [
   { label: copy.value.factLabels[0], value: localizedSourceCredit.value },
-  { label: copy.value.factLabels[1], value: exhibit.value?.licenseLabel || copy.value.material },
+  { label: copy.value.factLabels[1], value: localizedLicenseLabel.value },
   { label: copy.value.factLabels[2], value: exhibit.value?.collectionLocation || exhibit.value?.summary || copy.value.noDescription },
 ])
 const views = computed<Array<{ key: ViewName; label: string; thumbnail: string }>>(() => [
@@ -471,11 +506,21 @@ function handlePointCloudState(state: 'idle' | 'loading' | 'ready' | 'error') {
 async function load() {
   const requestId = ++detailRequestId
   resetViewerRuntime()
+  const path = `/exhibits/${encodeURIComponent(String(route.params.slug))}`
+  const prefetched = readPrefetchCache<Exhibit>(path)
+  if (prefetched) {
+    exhibit.value = prefetched
+    error.value = ''
+    loading.value = false
+    await nextTick()
+    revealExhibitShell()
+    return
+  }
   loading.value = true
   error.value = ''
   exhibit.value = null
   try {
-    const result = await apiGet<Exhibit>(`/exhibits/${encodeURIComponent(String(route.params.slug))}`)
+    const result = await apiGet<Exhibit>(path)
     if (requestId === detailRequestId) exhibit.value = result
   } catch (reason) {
     if (requestId === detailRequestId) error.value = reason instanceof Error ? reason.message : copy.value.loadFailed
@@ -646,6 +691,25 @@ function closeGuidedTour() {
   tourActive.value = false
 }
 
+// Consume deep-link ?focus=ear|motif|feet from HomeView Section 2 once 3D viewer is ready
+watch(
+  [() => route.query?.focus, viewerRuntimeState, viewer, exhibit],
+  ([rawFocus, state, ctrl, currentExhibit]) => {
+    const focus = typeof rawFocus === 'string' ? rawFocus.trim() : ''
+    if (!focus || !validFocusParts.includes(focus as GuidePartName)) return
+    if (!currentExhibit || currentExhibit.slug !== GUIDE_EXHIBIT_SLUG) return
+    const key = `${currentExhibit.slug}:${focus}`
+    if (consumedQueryFocus.value === key) return
+    if (state === 'ready' && ctrl) {
+      consumedQueryFocus.value = key
+      spatialGuideOpen.value = true
+      focusedPart.value = focus as GuidePartName
+      ctrl.focusPart(focus as GuidePartName, { animated: true })
+    }
+  },
+  { immediate: true },
+)
+
 // Consume queued 3D actions from Luosheng (same-page or cross-page navigation)
 watch(
   [() => guideStore?.pendingViewerAction, viewerRuntimeState, viewer, exhibit],
@@ -770,7 +834,18 @@ onBeforeUnmount(() => {
     <section class="exhibit-scene" :data-display-mode="displayMode">
       <!-- Module 1: Frameless Top Floating Bar -->
       <header class="darkroom-topbar" data-motion="scene-label">
-        <RouterLink class="darkroom-back" :to="backDestination">← {{ backLabel }}</RouterLink>
+        <div class="darkroom-topbar__left">
+          <RouterLink class="darkroom-back" :to="backDestination">← {{ backLabel }}</RouterLink>
+          <RouterLink
+            v-if="siblingExhibit"
+            class="darkroom-exhibit-switch"
+            data-testid="darkroom-sibling-switch"
+            :to="`/exhibits/${siblingExhibit.slug}`"
+          >
+            <span class="font-mono">{{ siblingExhibit.badge }}</span>
+            <span>⇄ {{ locale === 'en-US' ? (isBronzeDingExhibit ? 'Stone Relief' : 'Bronze Ding') : (isBronzeDingExhibit ? '图纹石板' : '青铜鼎 3D') }}</span>
+          </RouterLink>
+        </div>
         <div class="darkroom-title">
           <span class="font-mono">{{ headerBadge }}</span>
           <i aria-hidden="true">·</i>
@@ -897,7 +972,13 @@ onBeforeUnmount(() => {
           class="three-viewer three-viewer--poster"
         >
           <div class="three-fallback three-fallback--activation" role="status" aria-live="polite">
-            <img :src="exhibit.coverImageUrl" :alt="displayTitle" decoding="async" fetchpriority="high" />
+            <img
+              :src="exhibit.coverImageUrl"
+              :alt="displayTitle"
+              :style="artifactPlateTransitionStyle(exhibit.artifact.slug)"
+              decoding="async"
+              fetchpriority="high"
+            />
             <div class="viewer-poster-copy">
               <span class="viewer-poster-badge font-mono">{{ headerBadge }}</span>
               <p>
@@ -1006,6 +1087,32 @@ onBeforeUnmount(() => {
           </div>
         </dl>
 
+        <section
+          v-if="materialProfile"
+          class="curatorial-material-block curatorial-material-block--darkroom"
+          data-testid="exhibit-mineral-swatches"
+          :aria-label="locale === 'en-US' ? 'Mineral palette and craft clues' : '器物矿物色谱与工艺线索'"
+        >
+          <div class="curatorial-material-block__head">
+            <span>{{ locale === 'en-US' ? 'MINERAL PALETTE' : '器物矿物色谱' }}</span>
+            <span class="font-mono">OKLCH</span>
+          </div>
+          <ul class="mineral-swatch-row">
+            <li v-for="swatch in materialProfile.swatches" :key="swatch.nameEn" class="mineral-swatch-item">
+              <span class="mineral-swatch-dot" :style="{ background: swatch.oklch }" aria-hidden="true"></span>
+              <span class="mineral-swatch-meta">
+                <strong>{{ locale === 'en-US' ? swatch.nameEn : swatch.nameZh }}</strong>
+                <code>{{ swatch.oklch }}</code>
+              </span>
+            </li>
+          </ul>
+          <ul class="craft-clue-list">
+            <li v-for="clue in materialProfile.craftClues" :key="clue.en" class="craft-clue-tag">
+              {{ locale === 'en-US' ? clue.en : clue.zh }}
+            </li>
+          </ul>
+        </section>
+
         <p class="render-quality" aria-live="polite">
           <i aria-hidden="true"></i>
           <span>{{ pointCloudLoading ? copy.pointCloudLoading : pointCloudFailed ? copy.pointCloudFailed : `${renderedQuality} · ${displayMode === 'points' ? copy.particles : copy.pbr}` }}</span>
@@ -1038,6 +1145,9 @@ onBeforeUnmount(() => {
 
         <div class="exhibit-panel-actions">
           <RouterLink class="panel-cta-primary" data-motion="panel-action" :to="`/artifacts/${exhibit.artifact.slug}`">{{ copy.artifact }} →</RouterLink>
+          <RouterLink v-if="siblingExhibit" class="panel-cta-secondary" data-motion="panel-action" :to="`/exhibits/${siblingExhibit.slug}`">
+            {{ locale === 'en-US' ? siblingExhibit.labelEn : siblingExhibit.labelZh }}
+          </RouterLink>
           <RouterLink class="panel-cta-secondary" data-motion="panel-action" to="/appointment">{{ copy.booking }}</RouterLink>
         </div>
       </aside>
@@ -1137,6 +1247,26 @@ onBeforeUnmount(() => {
             <dd>{{ fact.value }}</dd>
           </div>
         </dl>
+        <section v-if="materialProfile" class="curatorial-material-block">
+          <div class="curatorial-material-block__head">
+            <span>{{ locale === 'en-US' ? 'MINERAL PALETTE' : '器物矿物色谱' }}</span>
+            <span class="font-mono">OKLCH</span>
+          </div>
+          <ul class="mineral-swatch-row">
+            <li v-for="swatch in materialProfile.swatches" :key="swatch.nameEn" class="mineral-swatch-item">
+              <span class="mineral-swatch-dot" :style="{ background: swatch.oklch }" aria-hidden="true"></span>
+              <span class="mineral-swatch-meta">
+                <strong>{{ locale === 'en-US' ? swatch.nameEn : swatch.nameZh }}</strong>
+                <code>{{ swatch.oklch }}</code>
+              </span>
+            </li>
+          </ul>
+          <ul class="craft-clue-list">
+            <li v-for="clue in materialProfile.craftClues" :key="clue.en" class="craft-clue-tag">
+              {{ locale === 'en-US' ? clue.en : clue.zh }}
+            </li>
+          </ul>
+        </section>
         <div class="mobile-mode-switch" role="group" :aria-label="copy.renderMode">
           <button type="button" :class="{ active: displayMode === 'solid' }" :aria-pressed="displayMode === 'solid'" :disabled="!viewerInteractive" @click="selectMode('solid')">{{ copy.solid }}</button>
           <button type="button" :class="{ active: displayMode === 'points' }" :aria-pressed="displayMode === 'points'" :aria-busy="pointCloudLoading" :disabled="!viewerInteractive || pointCloudLoading || (!isStoneRakingExhibit && renderQuality === 'fallback')" @click="selectMode('points')">{{ pointCloudLoading ? copy.pointCloudBusy : copy.points }}</button>
@@ -1144,6 +1274,9 @@ onBeforeUnmount(() => {
         <p v-if="pointCloudFailed" class="point-cloud-error" role="status">{{ copy.pointCloudFailed }}</p>
         <div class="exhibit-panel-actions">
           <RouterLink class="fluid-button fluid-button--primary fluid-button--block" :to="`/artifacts/${exhibit.artifact.slug}`">{{ copy.artifact }} →</RouterLink>
+          <RouterLink v-if="siblingExhibit" class="fluid-button fluid-button--secondary fluid-button--block" :to="`/exhibits/${siblingExhibit.slug}`">
+            {{ locale === 'en-US' ? siblingExhibit.labelEn : siblingExhibit.labelZh }}
+          </RouterLink>
           <RouterLink class="fluid-button fluid-button--secondary fluid-button--block" to="/appointment">{{ copy.booking }}</RouterLink>
         </div>
       </div>
@@ -1164,7 +1297,7 @@ onBeforeUnmount(() => {
   color: var(--ink-primary);
 }
 
-/* ── Museum Exhibition Stage: Sunlit Architectural Hall (Light) & Obsidian Silk Warm Gallery (Dark) ── */
+/* ── Museum Exhibition Stage: Sunlit Architectural Hall (Light) & Cold Obsidian Gallery (Dark) ── */
 .exhibit-scene {
   position: relative;
   width: 100%;
@@ -1178,9 +1311,7 @@ onBeforeUnmount(() => {
   background-repeat: no-repeat;
 }
 
-/* Architectural curatorial dimming veil in Light Mode Point Cloud:
-   softly dims the sunlit hall with an overhead spotlight pool so burnished gold
-   and antique bronze points gleam crisply while the header & UI stay Light Mode. */
+/* Architectural curatorial dimming veil in Light Mode Point Cloud */
 .exhibit-scene::after {
   content: '';
   position: absolute;
@@ -1190,8 +1321,8 @@ onBeforeUnmount(() => {
   opacity: 0;
   background:
     radial-gradient(ellipse 52% 24% at 50% 6%, oklch(92% 0.032 80 / 0.16) 0%, transparent 72%),
-    radial-gradient(ellipse 54% 68% at 50% 48%, oklch(12% 0.010 78 / 0.86) 0%, oklch(16% 0.010 80 / 0.78) 48%, oklch(22% 0.008 82 / 0.62) 78%, oklch(26% 0.008 84 / 0.48) 100%),
-    linear-gradient(180deg, oklch(20% 0.008 82 / 0.24) 0%, oklch(15% 0.010 80 / 0.14) 48%, oklch(14% 0.010 78 / 0.34) 100%);
+    radial-gradient(ellipse 58% 72% at 50% 48%, oklch(10% 0.008 238 / 0.90) 0%, oklch(13% 0.009 238 / 0.82) 48%, oklch(18% 0.009 238 / 0.68) 78%, oklch(22% 0.008 238 / 0.54) 100%),
+    linear-gradient(180deg, oklch(16% 0.008 238 / 0.30) 0%, oklch(12% 0.008 238 / 0.18) 48%, oklch(10% 0.008 238 / 0.42) 100%);
   transition: opacity 560ms var(--ease-curatorial);
 }
 
@@ -1219,7 +1350,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: var(--space-4);
   padding: var(--space-4) clamp(1rem, 3vw, 2rem);
-  background: linear-gradient(180deg, oklch(97% 0.006 95 / 0.52) 0%, transparent 100%);
+  background: linear-gradient(180deg, oklch(97% 0.006 84 / 0.52) 0%, transparent 100%);
   pointer-events: none;
 }
 
@@ -1227,10 +1358,19 @@ onBeforeUnmount(() => {
   pointer-events: auto;
 }
 
-.darkroom-back {
+.darkroom-topbar__left {
   justify-self: start;
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.darkroom-back,
+.darkroom-exhibit-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   min-height: var(--control-min);
   padding: 0 0.875rem;
   border: 1px solid var(--border-strong);
@@ -1244,7 +1384,13 @@ onBeforeUnmount(() => {
   transition: border-color var(--duration-fast) var(--ease-curatorial);
 }
 
-.darkroom-back:hover {
+.darkroom-exhibit-switch .font-mono {
+  color: var(--accent-bronze);
+  letter-spacing: 0.06em;
+}
+
+.darkroom-back:hover,
+.darkroom-exhibit-switch:hover {
   border-color: var(--accent-bronze);
 }
 
@@ -1428,7 +1574,7 @@ onBeforeUnmount(() => {
   padding: 3px;
   border: 1px solid var(--glass-dark-border);
   border-radius: var(--radius-pill);
-  background: oklch(11% 0.005 74 / 0.68);
+  background: oklch(11.6% 0.006 238 / 0.72);
 }
 
 .dock-mode-switch button {
@@ -1546,7 +1692,7 @@ onBeforeUnmount(() => {
   z-index: 19;
   display: grid;
   gap: var(--space-4);
-  width: 332px;
+  width: 356px;
   max-height: calc(100% - 168px);
   overflow-y: auto;
   padding: var(--space-5);
@@ -1770,7 +1916,7 @@ onBeforeUnmount(() => {
   padding: var(--space-6);
   border: 1px solid var(--glass-dark-border);
   border-radius: var(--radius-lg);
-  background: oklch(13% 0.005 74 / 0.86);
+  background: oklch(13% 0.006 238 / 0.88);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   text-align: center;
@@ -1920,6 +2066,10 @@ onBeforeUnmount(() => {
     padding: var(--space-3) var(--space-3);
   }
 
+  .darkroom-exhibit-switch {
+    display: none;
+  }
+
   .darkroom-back,
   .mobile-exhibit-info-trigger {
     white-space: nowrap;
@@ -1945,7 +2095,7 @@ onBeforeUnmount(() => {
   }
 
   .darkroom-invite {
-    top: 74px;
+    top: 66px;
     max-width: calc(100% - 1.5rem);
   }
 
@@ -2203,17 +2353,18 @@ html[data-theme="dark"] .immersive-exhibit .exhibit-scene[data-display-mode="poi
 }
 
 html[data-theme="dark"] .immersive-exhibit .darkroom-topbar {
-  background: linear-gradient(180deg, oklch(12% 0.005 74 / 0.68) 0%, transparent 100%);
+  background: linear-gradient(180deg, oklch(11.6% 0.006 238 / 0.72) 0%, transparent 100%);
 }
 
-html[data-theme="dark"] .immersive-exhibit .darkroom-back {
+html[data-theme="dark"] .immersive-exhibit .darkroom-back,
+html[data-theme="dark"] .immersive-exhibit .darkroom-exhibit-switch {
   border-color: var(--glass-dark-border);
   background: var(--glass-dark-bg);
   color: var(--ink-on-dark);
 }
 
 html[data-theme="dark"] .immersive-exhibit .darkroom-title {
-  background: oklch(18% 0.006 74 / 0.66);
+  background: oklch(16% 0.007 238 / 0.72);
   border-color: var(--glass-dark-border);
   color: var(--ink-on-dark);
 }

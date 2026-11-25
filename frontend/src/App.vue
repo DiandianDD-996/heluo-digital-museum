@@ -97,8 +97,10 @@ const showSiteFooter = computed(() => !isAdminRoute.value && route.name !== 'exh
 const SiteGuide = guideEnabled
   ? defineAsyncComponent(() => import('./components/LuoshengSiteGuide.vue'))
   : null
+const AmbientGalleryBackdrop = defineAsyncComponent(() => import('./components/AmbientGalleryBackdrop.vue'))
 const PointerCursor = defineAsyncComponent(() => import('./components/PointerCursor.vue'))
 const LightPresetSwitcher = defineAsyncComponent(() => import('./components/LightPresetSwitcher.vue'))
+const showAmbientBackdrop = computed(() => !isAdminRoute.value && route.name !== 'exhibit-detail')
 const siteGuideRoutes = ['home', 'explore', 'artifact-detail', 'article-detail', 'exhibits', 'exhibit-detail', 'appointment', 'shop']
 const lightSwitcherRoutes = ['explore', 'exhibits', 'appointment', 'shop']
 const showLightDebugDock = computed(() => (
@@ -175,6 +177,7 @@ watchEffect(() => {
 
 <template>
   <div class="app-shell" :class="shellRouteClass">
+    <AmbientGalleryBackdrop v-if="showAmbientBackdrop" />
     <div v-if="!isAdminRoute" class="app-ambient-veil" aria-hidden="true"></div>
     <a class="skip-link" href="#main-content">{{ shellCopy.skip }}</a>
 

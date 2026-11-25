@@ -51,7 +51,15 @@ async function dialogChoice(label: string) {
   const button = [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(item => item.textContent === label)
   expect(button).toBeTruthy(); button!.click(); await flushPromises()
 }
+async function openCreateDrawer(wrapper: VueWrapper, testId = 'admin-open-create-drawer') {
+  const trigger = wrapper.get(`[data-testid="${testId}"]`)
+  await trigger.trigger('click')
+  await flushPromises()
+}
 async function fillContent(wrapper: VueWrapper) {
+  if (!wrapper.find('.admin-create form').exists()) {
+    await openCreateDrawer(wrapper, 'admin-open-create-drawer')
+  }
   const form = wrapper.get('.admin-create form')
   const label = (text: string) => form.findAll('label').find(item => item.text().startsWith(text))!
   await label('标题').get('input').setValue('Unsaved content')
@@ -67,6 +75,7 @@ describe('admin quality workflows', () => {
   it('requires an artifact selection and keeps the exhibit draft on a failed save', async () => {
     const { wrapper } = await view(AdminOperationsView)
     await selectTab(wrapper, '3D 展项')
+    await openCreateDrawer(wrapper, 'admin-ops-open-create-drawer')
     const form = wrapper.get('.admin-inline-form')
     const label = (text: string) => wrapper.get('.admin-inline-form').findAll('label').find(item => item.text().startsWith(text))!
     await label('展项名称').get('input').setValue('New exhibit')
@@ -87,6 +96,8 @@ describe('admin quality workflows', () => {
     expect((label('关联文物').get('select').element as HTMLSelectElement).value).toBe('7')
     expect(wrapper.text()).toContain('Save unavailable')
     await form.trigger('submit'); await flushPromises()
+    expect(wrapper.find('[data-testid="admin-operations-drawer"]').exists()).toBe(false)
+    await openCreateDrawer(wrapper, 'admin-ops-open-create-drawer')
     expect((label('展项名称').get('input').element as HTMLInputElement).value).toBe('')
     expect((label('关联文物').get('select').element as HTMLSelectElement).value).toBe('')
   })
@@ -161,6 +172,7 @@ describe('admin quality workflows', () => {
     expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Visitor Name（@visitor）将无法登录')
     expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain('/admin/users/')
     await dialogChoice('取消')
+    await openCreateDrawer(wrapper, 'admin-ops-open-create-drawer')
     const inputs = wrapper.findAll('.admin-inline-form input')
     await inputs[0]!.setValue('new_user'); await inputs[1]!.setValue('NewPassword123'); await inputs[2]!.setValue('New visitor')
     apiRequest.mockRejectedValueOnce(new Error('Create unavailable'))
@@ -182,7 +194,41 @@ describe('admin quality workflows', () => {
     await wrapper.findAll('.admin-toolbar > button').find(item => item.text() === '查看回收站')!.trigger('click'); await flushPromises()
     await dialogChoice('放弃修改')
     expect(apiGet.mock.calls.filter(call => String(call[0]).startsWith('/admin/artifacts?')).at(-1)?.[0]).toContain('deleted=true')
+    expect(wrapper.find('[data-testid="admin-content-drawer"]').exists()).toBe(false)
+    await openCreateDrawer(wrapper, 'admin-open-create-drawer')
     expect((wrapper.get('.admin-create input[maxlength="200"]').element as HTMLInputElement).value).toBe('')
+  })
+
+  it('renders bilingual completeness badges and switches slide-over drawer to 68ch live preview while protecting close', async () => {
+    apiGet.mockImplementation((path: string) => {
+      if (path.startsWith('/admin/artifacts?')) {
+        return Promise.resolve(page([
+          { ...content, id: 7, title: '未译文物', titleEn: '', summaryEn: '' },
+          { ...content, id: 11, title: '已译文物', slug: 'heluo-bronze-ding', titleEn: 'Heluo Bronze Ding', summaryEn: 'Translated summary' },
+        ]))
+      }
+      return defaultGet(path)
+    })
+    const { wrapper } = await view(AdminContentView)
+    expect(wrapper.find('[data-testid="admin-content-drawer"]').exists()).toBe(false)
+    const badges = wrapper.findAll('[data-testid="bilingual-status-badge"]').map(el => el.text())
+    expect(badges).toEqual(['缺译文', 'EN 已译'])
+
+    await fillContent(wrapper)
+    const modeButtons = wrapper.findAll('[data-testid="admin-drawer-mode-switch"] button')
+    await modeButtons[1]!.trigger('click')
+    await flushPromises()
+    const preview = wrapper.get('[data-testid="admin-drawer-preview"]')
+    expect(preview.isVisible()).toBe(true)
+    expect(preview.text()).toContain('Unsaved content')
+    expect(preview.text()).toContain('Summary')
+
+    // Closing drawer with unsaved edits must trigger unsaved-changes guard
+    await wrapper.get('.admin-drawer__close').trigger('click')
+    await flushPromises()
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('还有未保存的内容')
+    await dialogChoice('放弃修改')
+    expect(wrapper.find('[data-testid="admin-content-drawer"]').exists()).toBe(false)
   })
 
   it('saves an edited product before leaving its module', async () => {

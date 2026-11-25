@@ -232,15 +232,18 @@ float sampleLum(vec2 uv) {
   return dot(col, vec3(0.30, 0.59, 0.11));
 }
 
-// Soft isolation mask separating the warm carved sandstone/slate slab from the cool neutral studio grey backdrop
-float computeSlabMask(vec2 uv, vec3 col) {
+// Soft isolation mask honoring true WebP alpha channel with fallback chroma guard for non-alpha plates
+float computeSlabMask(vec2 uv, vec4 tex) {
   vec2 b = abs(uv - 0.5);
-  float outerBounds = smoothstep(0.492, 0.468, b.x) * smoothstep(0.492, 0.465, b.y);
-  // Warm stone has R > B warmth, while the studio grey background is cool/neutral (R - B <= 0.02)
+  float outerBounds = smoothstep(0.496, 0.478, b.x) * smoothstep(0.496, 0.478, b.y);
+  // Honor embedded alpha channel when the plate is alpha-matted (eliminates broken-corner notch artifacts)
+  if (tex.a < 0.995) {
+    return outerBounds * smoothstep(0.06, 0.92, tex.a);
+  }
+  vec3 col = tex.rgb;
   float warmth = col.r - col.b;
   float sat = max(col.r, max(col.g, col.b)) - min(col.r, min(col.g, col.b));
   float stoneChroma = smoothstep(0.018, 0.068, warmth) * smoothstep(0.025, 0.075, sat);
-  // Protect interior carved dark crevices inside the central slab band so dark incised lines never get masked out
   float coreBand = smoothstep(0.455, 0.415, b.x) * smoothstep(0.355, 0.275, b.y);
   return outerBounds * max(stoneChroma, coreBand);
 }
@@ -292,8 +295,9 @@ void sampleStoneOptics(
 }
 
 vec3 shadeStone(vec2 uv, vec2 screenUv, float detailBoost, out float slabMaskOut) {
-  vec3 photo = texture2D(uDiffuseTex, clamp(uv, 0.002, 0.998)).rgb;
-  slabMaskOut = computeSlabMask(uv, photo);
+  vec4 tex = texture2D(uDiffuseTex, clamp(uv, 0.002, 0.998));
+  vec3 photo = tex.rgb;
+  slabMaskOut = computeSlabMask(uv, tex);
   if (slabMaskOut <= 0.002) {
     return vec3(0.0);
   }
@@ -376,10 +380,11 @@ void main() {
   vec2 bgMetric = vec2((uv.x - uSpotCenter.x) * aspect, uv.y - uSpotCenter.y);
   float bgPool = exp(-dot(bgMetric, bgMetric) * 2.2);
 
-  // Pure obsidian silk museum darkroom backdrop (harmonized with EXHIBIT 01 Bronze Ding)
+  // Cold Obsidian darkroom backdrop (Heluo Editorial 3.0 — harmonized with navbar & EXHIBIT 01)
   float vignette = 1.0 - smoothstep(0.18, 0.96, length(vUv - 0.5));
-  vec3 stageBg = vec3(0.040, 0.039, 0.037) * (0.72 + 0.28 * vignette)
-    + vec3(0.068, 0.055, 0.038) * bgPool;
+  vec3 stageBg = vec3(0.032, 0.038, 0.045) * (0.76 + 0.24 * vignette)
+    + vec3(0.036, 0.042, 0.050) * bgPool
+    + vec3(0.022, 0.017, 0.010) * bgPool * 0.55;
 
   // Subtle floating dust motes strictly inside the darkroom spotlight cone
   vec2 dustGrid = vec2(uv.x * aspect, uv.y) * 26.0 + vec2(uTime * 0.08, -uTime * 0.11);
@@ -1014,7 +1019,7 @@ onBeforeUnmount(() => {
   touch-action: none;
   user-select: none;
   cursor: grab;
-  background: oklch(11% 0.005 76);
+  background: oklch(11.6% 0.006 238);
 }
 
 .raking-stage:active {
@@ -1073,7 +1078,7 @@ onBeforeUnmount(() => {
     circle at var(--raking-lx, 65%) var(--raking-ly, 35%),
     oklch(86% 0.075 78 / 0.24) 0%,
     transparent 48%,
-    oklch(10% 0.006 76 / var(--raking-shadow, 0.55)) 100%
+    oklch(10% 0.006 238 / var(--raking-shadow, 0.55)) 100%
   );
 }
 
@@ -1085,7 +1090,7 @@ onBeforeUnmount(() => {
   padding: 0.25rem 0.75rem;
   border-radius: var(--radius-pill);
   border: 1px solid var(--glass-dark-border);
-  background: oklch(14% 0.006 74 / 0.82);
+  background: oklch(14% 0.006 238 / 0.82);
   color: var(--ink-on-dark-muted);
   font-size: var(--text-xs);
 }
@@ -1114,7 +1119,7 @@ onBeforeUnmount(() => {
   padding: 0;
   border: 1px solid oklch(78% 0.068 76 / 0.52);
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 50%, oklch(20% 0.010 76) 0%, oklch(12% 0.006 74) 100%);
+  background: radial-gradient(circle at 50% 50%, oklch(20% 0.008 238) 0%, oklch(12% 0.006 238) 100%);
   cursor: pointer;
   touch-action: none;
 }
@@ -1208,7 +1213,7 @@ onBeforeUnmount(() => {
   padding: 0 0.9rem;
   border: 1px solid var(--glass-dark-border);
   border-radius: var(--radius-pill);
-  background: oklch(16% 0.006 74 / 0.78);
+  background: oklch(16% 0.007 238 / 0.82);
   color: var(--ink-on-dark);
   font-size: var(--text-xs);
   font-weight: 600;
@@ -1227,17 +1232,28 @@ onBeforeUnmount(() => {
 .raking-loupe-btn.is-active {
   border-color: oklch(81% 0.048 78);
   background: oklch(81% 0.048 78);
-  color: oklch(14% 0.006 74);
+  color: oklch(14% 0.006 238);
 }
 
 @media (max-width: 760px) {
   .raking-hud {
     left: var(--space-3);
     right: var(--space-3);
-    bottom: 146px;
+    bottom: 196px;
     transform: none;
     max-width: none;
+    padding: 0.35rem 0.55rem 0.35rem 0.45rem;
     justify-content: space-between;
+  }
+
+  .raking-compass {
+    width: 38px;
+    height: 38px;
+  }
+
+  .raking-loupe-btn {
+    min-height: 38px;
+    padding: 0 0.72rem;
   }
 
   .raking-telemetry__hint {
