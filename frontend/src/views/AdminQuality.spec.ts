@@ -51,7 +51,15 @@ async function dialogChoice(label: string) {
   const button = [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(item => item.textContent === label)
   expect(button).toBeTruthy(); button!.click(); await flushPromises()
 }
+async function openCreateDrawer(wrapper: VueWrapper, testId = 'admin-open-create-drawer') {
+  const trigger = wrapper.get(`[data-testid="${testId}"]`)
+  await trigger.trigger('click')
+  await flushPromises()
+}
 async function fillContent(wrapper: VueWrapper) {
+  if (!wrapper.find('.admin-create form').exists()) {
+    await openCreateDrawer(wrapper, 'admin-open-create-drawer')
+  }
   const form = wrapper.get('.admin-create form')
   const label = (text: string) => form.findAll('label').find(item => item.text().startsWith(text))!
   await label('标题').get('input').setValue('Unsaved content')
@@ -67,6 +75,7 @@ describe('admin quality workflows', () => {
   it('requires an artifact selection and keeps the exhibit draft on a failed save', async () => {
     const { wrapper } = await view(AdminOperationsView)
     await selectTab(wrapper, '3D 展项')
+    await openCreateDrawer(wrapper, 'admin-ops-open-create-drawer')
     const form = wrapper.get('.admin-inline-form')
     const label = (text: string) => wrapper.get('.admin-inline-form').findAll('label').find(item => item.text().startsWith(text))!
     await label('展项名称').get('input').setValue('New exhibit')
@@ -87,6 +96,8 @@ describe('admin quality workflows', () => {
     expect((label('关联文物').get('select').element as HTMLSelectElement).value).toBe('7')
     expect(wrapper.text()).toContain('Save unavailable')
     await form.trigger('submit'); await flushPromises()
+    expect(wrapper.find('[data-testid="admin-operations-drawer"]').exists()).toBe(false)
+    await openCreateDrawer(wrapper, 'admin-ops-open-create-drawer')
     expect((label('展项名称').get('input').element as HTMLInputElement).value).toBe('')
     expect((label('关联文物').get('select').element as HTMLSelectElement).value).toBe('')
   })
@@ -161,6 +172,7 @@ describe('admin quality workflows', () => {
     expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Visitor Name（@visitor）将无法登录')
     expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain('/admin/users/')
     await dialogChoice('取消')
+    await openCreateDrawer(wrapper, 'admin-ops-open-create-drawer')
     const inputs = wrapper.findAll('.admin-inline-form input')
     await inputs[0]!.setValue('new_user'); await inputs[1]!.setValue('NewPassword123'); await inputs[2]!.setValue('New visitor')
     apiRequest.mockRejectedValueOnce(new Error('Create unavailable'))
@@ -182,7 +194,41 @@ describe('admin quality workflows', () => {
     await wrapper.findAll('.admin-toolbar > button').find(item => item.text() === '查看回收站')!.trigger('click'); await flushPromises()
     await dialogChoice('放弃修改')
     expect(apiGet.mock.calls.filter(call => String(call[0]).startsWith('/admin/artifacts?')).at(-1)?.[0]).toContain('deleted=true')
+    expect(wrapper.find('[data-testid="admin-content-drawer"]').exists()).toBe(false)
+    await openCreateDrawer(wrapper, 'admin-open-create-drawer')
     expect((wrapper.get('.admin-create input[maxlength="200"]').element as HTMLInputElement).value).toBe('')
+  })
+
+  it('renders bilingual completeness badges and switches slide-over drawer to 68ch live preview while protecting close', async () => {
+    apiGet.mockImplementation((path: string) => {
+      if (path.startsWith('/admin/artifacts?')) {
+        return Promise.resolve(page([
+          { ...content, id: 7, title: '未译文物', titleEn: '', summaryEn: '' },
+          { ...content, id: 11, title: '已译文物', slug: 'heluo-bronze-ding', titleEn: 'Heluo Bronze Ding', summaryEn: 'Translated summary' },
+        ]))
+      }
+      return defaultGet(path)
+    })
+    const { wrapper } = await view(AdminContentView)
+    expect(wrapper.find('[data-testid="admin-content-drawer"]').exists()).toBe(false)
+    const badges = wrapper.findAll('[data-testid="bilingual-status-badge"]').map(el => el.text())
+    expect(badges).toEqual(['缺译文', 'EN 已译'])
+
+    await fillContent(wrapper)
+    const modeButtons = wrapper.findAll('[data-testid="admin-drawer-mode-switch"] button')
+    await modeButtons[1]!.trigger('click')
+    await flushPromises()
+    const preview = wrapper.get('[data-testid="admin-drawer-preview"]')
+    expect(preview.isVisible()).toBe(true)
+    expect(preview.text()).toContain('Unsaved content')
+    expect(preview.text()).toContain('Summary')
+
+    // Closing drawer with unsaved edits must trigger unsaved-changes guard
+    await wrapper.get('.admin-drawer__close').trigger('click')
+    await flushPromises()
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('还有未保存的内容')
+    await dialogChoice('放弃修改')
+    expect(wrapper.find('[data-testid="admin-content-drawer"]').exists()).toBe(false)
   })
 
   it('saves an edited product before leaving its module', async () => {
@@ -197,5 +243,70 @@ describe('admin quality workflows', () => {
     expect(document.querySelector('[role="dialog"]')).toBeNull()
     await selectTab(wrapper, '商品')
     expect(wrapper.find('.admin-product-edit').exists()).toBe(false)
+  })
+
+  it('renders observability metrics, governs Luosheng runtime mode, and checks in confirmed appointments', async () => {
+    apiGet.mockImplementation((path: string) => {
+      if (path === '/admin/dashboard/summary') {
+        return Promise.resolve({
+          userCount: 12,
+          appointmentCount: 5,
+          orderCount: 4,
+          salesAmount: '258.00',
+          pendingAppointmentCount: 2,
+          checkedInTodayCount: 1,
+          lowStockProducts: [{ id: 8, sku: 'HL-CUP-01', slug: 'river-line-teacup-set', name: '河流纹茶杯套装', stockQuantity: 3, availableStock: 3 }],
+          upcoming7dSlots: [{ visitDate: '2026-11-25', capacity: 30, reservedPeople: 18 }],
+          orderStatusCounts: { PENDING_PAYMENT: 0, PAID: 2, CANCELLED: 0, COMPLETED: 2 },
+        })
+      }
+      if (path === '/admin/guide/overview') {
+        return Promise.resolve({
+          enabled: true,
+          modelEnabled: true,
+          usedToday: 14,
+          dailyLimit: 200,
+          inFlight: 1,
+          degradationCount: 1,
+          redlineBlockCount: 0,
+          runtimeMode: 'NORMAL',
+          paused: false,
+          filePaused: false,
+        })
+      }
+      if (path.startsWith('/admin/appointments?')) {
+        return Promise.resolve(page([{
+          id: 31,
+          appointmentNo: 'AP20261124TEST01',
+          verificationCode: 'A1B2C3D4E5',
+          status: 'CONFIRMED',
+          contactName: '周景行',
+          contactPhone: '13900001111',
+          visitDate: '2026-11-25',
+          startTime: '10:00:00',
+          endTime: '11:30:00',
+          visitorCount: 2,
+        }]))
+      }
+      return defaultGet(path)
+    })
+
+    const { wrapper } = await view(AdminOperationsView)
+    expect(wrapper.get('[data-testid="admin-guide-governance"]').text()).toContain('14 / 200')
+    expect(wrapper.get('[data-testid="admin-upcoming-slots"]').text()).toContain('18/30')
+    expect(wrapper.get('[data-testid="admin-low-stock"]').text()).toContain('河流纹茶杯套装')
+
+    await wrapper.get('[data-testid="guide-mode-deterministic"]').trigger('click')
+    await flushPromises()
+    expect(apiRequest).toHaveBeenCalledWith('/admin/guide/runtime-mode', 'POST', { mode: 'DETERMINISTIC' }, 'admin-token')
+
+    await wrapper.get('[data-testid="guide-cache-invalidate"]').trigger('click')
+    await flushPromises()
+    expect(apiRequest).toHaveBeenCalledWith('/admin/guide/cache/invalidate', 'POST', undefined, 'admin-token')
+
+    await selectTab(wrapper, '预约')
+    await wrapper.get('[data-testid="admin-checkin-btn"]').trigger('click')
+    await flushPromises()
+    expect(apiRequest).toHaveBeenCalledWith('/admin/appointments/31/check-in', 'POST', { verificationCode: 'A1B2C3D4E5' }, 'admin-token')
   })
 })

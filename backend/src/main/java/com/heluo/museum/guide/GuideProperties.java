@@ -20,6 +20,8 @@ public class GuideProperties {
     private int maxConcurrentGenerations = 4;
     private int rateLimitPerMinute = 12;
     private int requestTimeoutSeconds = 30;
+    private double temperature = 0.65;
+    private int maxTokens = 1600;
     private String pausePath = "";
 
     public boolean isEnabled() {
@@ -124,6 +126,22 @@ public class GuideProperties {
 
     public void setRequestTimeoutSeconds(int requestTimeoutSeconds) {
         this.requestTimeoutSeconds = requestTimeoutSeconds;
+    }
+
+    public double getTemperature() {
+        return temperature;
+    }
+
+    public void setTemperature(double temperature) {
+        this.temperature = temperature;
+    }
+
+    public int getMaxTokens() {
+        return maxTokens;
+    }
+
+    public void setMaxTokens(int maxTokens) {
+        this.maxTokens = maxTokens;
     }
 
     public String getPausePath() {

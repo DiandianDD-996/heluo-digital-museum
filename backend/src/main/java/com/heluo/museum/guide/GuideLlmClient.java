@@ -30,7 +30,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class GuideLlmClient {
     private static final Logger LOG = LoggerFactory.getLogger(GuideLlmClient.class);
-    static final int MAX_TOOL_ROUNDS = 2;
+    static final int MAX_TOOL_ROUNDS = 4;
 
     private final GuideProperties properties;
     private final GuideToolExecutor toolExecutor;
@@ -137,12 +137,14 @@ public class GuideLlmClient {
             Duration timeout,
             Consumer<String> onContentChunk) throws IOException, InterruptedException {
 
+        double temp = Math.max(0.0, Math.min(1.2, properties.getTemperature()));
+        int maxTokens = Math.max(256, Math.min(4096, properties.getMaxTokens()));
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("model", properties.getModelName());
         payload.put("messages", messages);
         payload.put("stream", true);
-        payload.put("temperature", 0.35);
-        payload.put("max_tokens", 900);
+        payload.put("temperature", temp);
+        payload.put("max_tokens", maxTokens);
         if (!tools.isEmpty()) {
             payload.put("tools", tools);
             payload.put("tool_choice", "auto");
@@ -161,8 +163,7 @@ public class GuideLlmClient {
         int status = response.statusCode();
         if (status < 200 || status >= 300) {
             try (InputStream body = response.body()) {
-                byte[] errBytes = body.readNBytes(1024);
-                LOG.warn("Guide LLM upstream HTTP status={} body={}", status, new String(errBytes, StandardCharsets.UTF_8));
+                LOG.warn("Guide LLM upstream HTTP status={}", status);
             }
             throw new IOException("LLM upstream returned HTTP " + status);
         }

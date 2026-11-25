@@ -3,21 +3,26 @@ import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, r
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { gsap } from 'gsap'
 import { apiGet } from '../lib/api'
+import { artifactPlateTransitionStyle, markActiveArtifactPlate } from '../lib/inkTransitions'
+import { readPrefetchCache, schedulePrefetch } from '../lib/prefetch'
 import { mediaSrcset } from '../lib/responsiveMedia'
 import { createGsapContext, ensureScrollTrigger, isConstrainedGsapReveal, shouldRunGsapReveal } from '../lib/gsap'
 import { audioSystem } from '../lib/audioSystem'
 import { localizedContent } from '../lib/contentLocale'
+import { getCuratorialMaterialProfile } from '../lib/curatorialSwatches'
 import type { ArticleDetail, ArtifactDetail } from '../lib/content'
 import InlineStatus from '../components/InlineStatus.vue'
 import LoadingSkeleton from '../components/LoadingSkeleton.vue'
 import PlainTextLinks from '../components/PlainTextLinks.vue'
 import { GUIDE_ARTIFACT_SLUG, GUIDE_EXHIBIT_SLUG } from '../lib/guideTypes'
 import { useLocale } from '../stores/locale'
+import { useCuratorialBookmarks } from '../stores/curatorialBookmarks'
 import { guideEnabled, useLuoshengStore } from '../stores/luoshengStore'
 
 const route = useRoute()
 const LuoshengPreset = guideEnabled
   ? defineAsyncComponent(() => import('../components/LuoshengPreset.vue')) : null
+const ArtifactLoupeStage = defineAsyncComponent(() => import('../components/ArtifactLoupeStage.vue'))
 const router = useRouter()
 const { locale } = useLocale()
 const imageFailed = ref(false)
@@ -114,6 +119,7 @@ const detail = computed(() => {
   const source = artifact.value ?? article.value
   return source ? localizedContent(source, locale.value) : null
 })
+const materialProfile = computed(() => getCuratorialMaterialProfile(artifact.value?.slug))
 
 const editorialCoverOverrides: Record<string, string> = {
   'heluo-bronze-ding': '/media/editorial/explore-bronze-ding-user-v2.webp',
@@ -144,11 +150,80 @@ function scrollToLookpoints() {
 
 const contentBlocks = computed(() => (detail.value?.content.split(/\n\s*\n/).filter(Boolean) ?? []).map((text) => ({
   text,
-  heading: text.length <= 30 && (text.includes('｜') || text === '留给观众的问题'),
+  heading: text.length <= 72 && (text.includes('｜') || text.includes(' | ') || text === '留给观众的问题' || text === 'A Question for the Viewer'),
 })))
+
+const questionSplitIndex = computed(() => contentBlocks.value.findIndex((block) => (
+  block.heading && (block.text === '留给观众的问题' || block.text === 'A Question for the Viewer')
+)))
+
+const essayBlocks = computed(() => {
+  const idx = questionSplitIndex.value
+  return idx >= 0 ? contentBlocks.value.slice(0, idx) : contentBlocks.value
+})
+
+const firstProseBlockIndex = computed(() => essayBlocks.value.findIndex((block) => !block.heading))
+
+const viewerQuestion = computed(() => {
+  const idx = questionSplitIndex.value
+  if (idx < 0) return null
+  const heading = contentBlocks.value[idx]!.text
+  const paragraphs = contentBlocks.value.slice(idx + 1).map((b) => b.text).filter(Boolean)
+  if (!paragraphs.length) return null
+  return {
+    id: `reading-section-${idx}`,
+    heading,
+    paragraphs,
+    promptText: paragraphs.join(' '),
+  }
+})
+
+let cancelExhibitPrefetch: (() => void) | undefined
+function warmRelatedExhibit(exhibitSlug: string, coverUrl?: string | null) {
+  cancelExhibitPrefetch?.()
+  const path = `/exhibits/${encodeURIComponent(exhibitSlug)}`
+  cancelExhibitPrefetch = schedulePrefetch(path, () => apiGet(path), { delayMs: 90, imageUrl: coverUrl })
+}
+function enterExhibitTransition(artifactSlug: string) {
+  markActiveArtifactPlate(artifactSlug)
+}
+function askLuoshengViewerQuestion(event: MouseEvent) {
+  if (!guideStore || !viewerQuestion.value) return
+  const titlePrefix = detail.value?.title ? `关于《${detail.value.title}》：` : ''
+  const prompt = isEnglish.value
+    ? `About "${detail.value?.title ?? 'this object'}": ${viewerQuestion.value.promptText}`
+    : `${titlePrefix}${viewerQuestion.value.promptText}`
+  guideStore.openGuide(event.currentTarget as HTMLElement, prompt)
+}
+
+const localizedExhibit = (exhibit: ArtifactDetail['exhibits'][number]) => localizedContent(exhibit, locale.value)
+const exhibitCoverOverrides: Record<string, string> = {
+  'heluo-bronze-ding-3d': '/media/editorial/explore-bronze-ding-user-v2.webp',
+  'river-map-stone-raking': '/media/editorial/explore-river-map-stone-user-v2.webp',
+}
+const exhibitThumb = (exhibit: ArtifactDetail['exhibits'][number]) => exhibitCoverOverrides[exhibit.slug] ?? exhibit.coverImageUrl
 
 const contents = computed(() => contentBlocks.value.flatMap((block, index) => block.heading ? [{ title: block.text, id: `reading-section-${index}` }] : []))
 const isConcept = computed(() => (artifact.value ?? article.value)?.title.includes('概念展品') ?? false)
+const bookmarks = useCuratorialBookmarks()
+const currentBookmarkKind = computed(() => (isArtifact.value ? 'artifact' : 'article') as 'artifact' | 'article')
+const savedInJournal = computed(() => (
+  detail.value ? bookmarks.isBookmarked(currentBookmarkKind.value, detail.value.slug) : false
+))
+function toggleDetailBookmark() {
+  const raw = artifact.value ?? article.value
+  if (!raw || !detail.value) return
+  bookmarks.toggleBookmark({
+    kind: currentBookmarkKind.value,
+    slug: raw.slug,
+    title: raw.title,
+    titleEn: raw.titleEn || detail.value.title,
+    subtitle: raw.category.name,
+    subtitleEn: raw.category.nameEn || raw.category.name,
+    imageUrl: detailCoverUrl.value,
+    path: route.path,
+  })
+}
 
 function returnToCollection() {
   const previous = window.history.state?.back
@@ -233,20 +308,44 @@ let detailRequestId = 0
 async function loadDetail() {
   const requestId = ++detailRequestId
   const path = route.path
-  loading.value = true
+  const slug = String(route.params.slug)
+  const apiPath = isArtifact.value
+    ? `/artifacts/${encodeURIComponent(slug)}`
+    : `/articles/${encodeURIComponent(slug)}`
+
   error.value = ''
-  artifact.value = null
-  article.value = null
   imageFailed.value = false
   activeSectionId.value = ''
   narrativeCue = 'idle'
-  const slug = String(route.params.slug)
+
+  const cached = isArtifact.value
+    ? readPrefetchCache<ArtifactDetail>(apiPath)
+    : readPrefetchCache<ArticleDetail>(apiPath)
+
+  if (cached) {
+    if (isArtifact.value) {
+      artifact.value = cached as ArtifactDetail
+      article.value = null
+    } else {
+      article.value = cached as ArticleDetail
+      artifact.value = null
+    }
+    loading.value = false
+    await nextTick()
+    if (contents.value.length) activeSectionId.value = contents.value[0]!.id
+    setupScrollNarrative()
+    return
+  }
+
+  loading.value = true
+  artifact.value = null
+  article.value = null
   try {
     if (isArtifact.value) {
-      const data = await apiGet<ArtifactDetail>(`/artifacts/${encodeURIComponent(slug)}`)
+      const data = await apiGet<ArtifactDetail>(apiPath)
       if (requestId === detailRequestId) artifact.value = data
     } else {
-      const data = await apiGet<ArticleDetail>(`/articles/${encodeURIComponent(slug)}`)
+      const data = await apiGet<ArticleDetail>(apiPath)
       if (requestId === detailRequestId) article.value = data
     }
   } catch (reason) {
@@ -282,6 +381,7 @@ onMounted(() => {
   updateReadingProgress()
 })
 onBeforeUnmount(() => {
+  cancelExhibitPrefetch?.()
   detailRequestId += 1
   gsapContext?.revert()
   window.removeEventListener('scroll', updateReadingProgress)
@@ -316,9 +416,22 @@ onBeforeUnmount(() => {
 
       <!-- Editorial Spread Header: 60% Object Plinth + 40% Museum Plaque -->
       <header class="detail-header" :class="{ 'detail-header--article': !artifact }">
-        <div class="detail-media surface-plinth" data-motion="detail-cover">
+        <div
+          class="detail-media surface-plinth"
+          data-motion="detail-cover"
+          :style="!artifact ? artifactPlateTransitionStyle(detail.slug) : undefined"
+        >
+          <ArtifactLoupeStage
+            v-if="artifact && detailCoverUrl && !imageFailed"
+            :src="detailCoverUrl"
+            :srcset="mediaSrcset(detailCoverUrl)"
+            sizes="(max-width: 760px) calc(100vw - 32px), 720px"
+            :alt="detail.title"
+            :transition-style="artifactPlateTransitionStyle(detail.slug)"
+            @error="imageFailed = true"
+          />
           <img
-            v-if="detailCoverUrl && !imageFailed"
+            v-else-if="detailCoverUrl && !imageFailed"
             :src="detailCoverUrl"
             :srcset="mediaSrcset(detailCoverUrl)"
             sizes="(max-width: 760px) calc(100vw - 32px), 720px"
@@ -339,17 +452,46 @@ onBeforeUnmount(() => {
 
           <!-- Specimen Plaque Card -->
           <dl v-if="artifact" class="object-facts" :aria-label="copy.plaqueTitle">
-            <div v-if="artifact.period" data-motion="facts"><dt>{{ copy.period }}</dt><dd>{{ artifact.period }}</dd></div>
-            <div v-if="artifact.material" data-motion="facts"><dt>{{ copy.material }}</dt><dd>{{ artifact.material }}</dd></div>
-            <div v-if="artifact.dimensions" data-motion="facts"><dt>{{ copy.dimensions }}</dt><dd>{{ artifact.dimensions }}</dd></div>
-            <div v-if="artifact.collectionLocation" data-motion="facts"><dt>{{ copy.location }}</dt><dd>{{ artifact.collectionLocation }}</dd></div>
+            <div v-if="(detail as ArtifactDetail).period" data-motion="facts"><dt>{{ copy.period }}</dt><dd>{{ (detail as ArtifactDetail).period }}</dd></div>
+            <div v-if="(detail as ArtifactDetail).material" data-motion="facts"><dt>{{ copy.material }}</dt><dd>{{ (detail as ArtifactDetail).material }}</dd></div>
+            <div v-if="(detail as ArtifactDetail).dimensions" data-motion="facts"><dt>{{ copy.dimensions }}</dt><dd>{{ (detail as ArtifactDetail).dimensions }}</dd></div>
+            <div v-if="(detail as ArtifactDetail).collectionLocation" data-motion="facts"><dt>{{ copy.location }}</dt><dd>{{ (detail as ArtifactDetail).collectionLocation }}</dd></div>
           </dl>
+
+          <!-- Mineral Pigment Swatches & Craft Clues -->
+          <section
+            v-if="artifact && materialProfile"
+            class="curatorial-material-block"
+            data-testid="artifact-mineral-swatches"
+            :aria-label="isEnglish ? 'Mineral palette and craft clues' : '器物矿物色谱与工艺线索'"
+          >
+            <div class="curatorial-material-block__head">
+              <span>{{ isEnglish ? 'MINERAL PALETTE' : '器物矿物色谱' }}</span>
+              <span class="font-mono">OKLCH</span>
+            </div>
+            <ul class="mineral-swatch-row">
+              <li v-for="swatch in materialProfile.swatches" :key="swatch.nameEn" class="mineral-swatch-item">
+                <span class="mineral-swatch-dot" :style="{ background: swatch.oklch }" aria-hidden="true"></span>
+                <span class="mineral-swatch-meta">
+                  <strong>{{ isEnglish ? swatch.nameEn : swatch.nameZh }}</strong>
+                  <code>{{ swatch.oklch }}</code>
+                </span>
+              </li>
+            </ul>
+            <ul class="craft-clue-list" :aria-label="isEnglish ? 'Craft clues' : '传统工艺线索'">
+              <li v-for="clue in materialProfile.craftClues" :key="clue.en" class="craft-clue-tag">
+                {{ isEnglish ? clue.en : clue.zh }}
+              </li>
+            </ul>
+          </section>
 
           <div class="detail-header__actions">
             <RouterLink
               v-if="artifact && artifact.exhibits.length"
               class="fluid-button fluid-button--primary"
               :to="{ path: `/exhibits/${artifact.exhibits[0]!.slug}`, query: { from: route.path } }"
+              @pointerenter="warmRelatedExhibit(artifact.exhibits[0]!.slug, artifact.exhibits[0]!.coverImageUrl)"
+              @click="enterExhibitTransition(artifact.slug)"
             >
               {{ copy.enter }} →
             </RouterLink>
@@ -368,6 +510,15 @@ onBeforeUnmount(() => {
               @click="guideStore.openGuide($event.currentTarget as HTMLElement)"
             >
               {{ isEnglish ? 'Ask Luosheng' : '问洛笙' }}
+            </button>
+            <button
+              type="button"
+              class="fluid-button fluid-button--secondary museum-button"
+              data-testid="detail-bookmark-btn"
+              :aria-pressed="savedInJournal"
+              @click="toggleDetailBookmark"
+            >
+              {{ savedInJournal ? (isEnglish ? '★ Saved in Journal' : '★ 已收入手账') : (isEnglish ? '☆ Save to Journal' : '☆ 收入观展手账') }}
             </button>
           </div>
         </div>
@@ -397,10 +548,48 @@ onBeforeUnmount(() => {
         </aside>
 
         <div class="detail-content">
-          <template v-for="(block, index) in contentBlocks" :key="`${index}-${block.text}`">
+          <template v-for="(block, index) in essayBlocks" :key="`${index}-${block.text}`">
             <h2 v-if="block.heading" :id="`reading-section-${index}`" data-motion="paragraph">{{ block.text }}</h2>
-            <p v-else data-motion="paragraph"><PlainTextLinks :text="block.text" /></p>
+            <p
+              v-else
+              :class="{
+                'detail-content__lead': index === firstProseBlockIndex,
+                'detail-content__lead--en': index === firstProseBlockIndex && isEnglish,
+              }"
+              data-motion="paragraph"
+            >
+              <PlainTextLinks :text="block.text" :enable-artifact-preview="true" :exclude-slug="detail.slug" />
+            </p>
           </template>
+
+          <!-- Cinnabar-Ruled End-of-Essay Curatorial Question Note -->
+          <aside
+            v-if="viewerQuestion"
+            :id="viewerQuestion.id"
+            class="curatorial-question-note"
+            data-testid="curatorial-question-note"
+          >
+            <div class="curatorial-question-note__head">
+              <span class="curatorial-question-note__seal">{{ viewerQuestion.heading }}</span>
+              <span class="font-mono">{{ isEnglish ? 'CURATORIAL MARGINALIA' : '朱砂策展批注笺' }}</span>
+            </div>
+            <p
+              v-for="(paragraph, pIdx) in viewerQuestion.paragraphs"
+              :key="pIdx"
+              class="curatorial-question-note__body"
+            >
+              <PlainTextLinks :text="paragraph" :enable-artifact-preview="true" :exclude-slug="detail.slug" />
+            </p>
+            <button
+              v-if="guideStore"
+              type="button"
+              class="curatorial-question-note__ask"
+              data-testid="ask-luosheng-viewer-question"
+              @click="askLuoshengViewerQuestion"
+            >
+              {{ isEnglish ? 'Ask Luosheng this question →' : '带着这个问题问洛笙 →' }}
+            </button>
+          </aside>
         </div>
       </section>
 
@@ -417,15 +606,15 @@ onBeforeUnmount(() => {
             :to="`/exhibits/${exhibit.slug}`"
           >
             <img
-              v-if="exhibit.coverImageUrl"
+              v-if="exhibitThumb(exhibit)"
               data-motion="related-media"
-              :src="exhibit.coverImageUrl"
-              :alt="exhibit.title"
+              :src="exhibitThumb(exhibit)"
+              :alt="localizedExhibit(exhibit).title"
               decoding="async"
             />
             <div data-motion="related-copy">
-              <h3>{{ exhibit.title }}</h3>
-              <p>{{ exhibit.summary }}</p>
+              <h3>{{ localizedExhibit(exhibit).title }}</h3>
+              <p>{{ localizedExhibit(exhibit).summary }}</p>
               <span class="related-exhibit__cta">{{ copy.enter }} →</span>
             </div>
           </RouterLink>
@@ -519,19 +708,40 @@ onBeforeUnmount(() => {
   max-height: 540px;
   display: grid;
   place-items: center;
-  padding: var(--space-5);
+  padding: var(--space-6);
   background-color: var(--surface-vitrine);
   background-image: var(--surface-vitrine-spotlight);
   box-shadow: var(--shadow-md);
 }
 
+.detail-media::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 7%;
+  width: 56%;
+  height: 13%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(
+    ellipse at center,
+    var(--plinth-contact-shadow) 0%,
+    color-mix(in oklch, var(--plinth-contact-shadow) 40%, transparent) 50%,
+    transparent 76%
+  );
+}
+
 .detail-media img {
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
-  max-height: 492px;
+  max-height: 484px;
   object-fit: contain;
   border-radius: var(--radius-xs);
-  filter: drop-shadow(0 20px 28px oklch(6% 0.004 75 / 0.48));
+  filter: drop-shadow(0 20px 28px var(--plinth-contact-shadow));
 }
 
 .detail-header__meta {
@@ -588,7 +798,6 @@ onBeforeUnmount(() => {
   gap: 1px;
   margin: var(--space-2) 0;
   border: 1px solid var(--border-strong);
-  border-left: 3px solid var(--accent-seal);
   border-radius: var(--radius-sm);
   background: var(--border-hairline);
   overflow: hidden;
@@ -711,9 +920,32 @@ onBeforeUnmount(() => {
   background: var(--accent-bronze);
 }
 
-.detail-content p:first-of-type {
+.detail-header--article {
+  align-items: center;
+}
+
+.detail-content__lead {
   font-size: 1.0625rem;
   color: var(--ink-primary);
+}
+
+.detail-content__lead::first-letter {
+  float: left;
+  margin: 0.08em 0.55rem 0.05em 0;
+  padding: 0.14em 0.28em;
+  border: 1px solid color-mix(in oklch, var(--accent-bronze) 38%, var(--border-strong));
+  border-radius: var(--radius-xs);
+  background: var(--surface-subtle);
+  font-family: var(--font-display);
+  font-size: 2.35rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ink-primary);
+}
+
+.detail-content__lead--en::first-letter {
+  margin-right: 0.36rem;
+  padding: 0.1em 0.24em;
 }
 
 /* ── Bottom Closing Cards ── */
@@ -764,8 +996,10 @@ onBeforeUnmount(() => {
 .related-exhibit img {
   width: 132px;
   height: 96px;
+  padding: 6px;
   border-radius: var(--radius-xs);
-  object-fit: cover;
+  object-fit: contain;
+  background: radial-gradient(circle at 50% 42%, oklch(20% 0.008 238), oklch(10% 0.005 238));
 }
 
 .related-exhibit h3 {

@@ -38,7 +38,7 @@ export const MUSIC_CATALOG: Readonly<Record<MusicTrack, MusicTrackMeta>> = {
     sceneZh: '3D 数字展厅 · 青铜鼎',
     sceneEn: '3D Gallery · Bronze Ding',
     durationLabel: '1:48',
-    artwork: '/media/editorial/exhibit-ding-moonlight.webp',
+    artwork: '/media/editorial/explore-bronze-ding-user-v2.webp',
   },
   jade: {
     id: 'jade',

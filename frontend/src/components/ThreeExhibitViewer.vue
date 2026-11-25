@@ -27,7 +27,9 @@ const props = withDefaults(defineProps<{
   alt: string
   enablePointCloud?: boolean
   initialMode?: DisplayMode
-}>(), { enablePointCloud: true, initialMode: 'solid' })
+  showSpatialGuide?: boolean
+  activePart?: FocusPart | null
+}>(), { enablePointCloud: true, initialMode: 'solid', showSpatialGuide: false, activePart: null })
 const emit = defineEmits<{
   (event: 'mode-change', value: DisplayMode): void
   (event: 'view-change', value: ViewName): void
@@ -35,7 +37,38 @@ const emit = defineEmits<{
   (event: 'quality-change', value: PointCloudQuality): void
   (event: 'state-change', value: ViewerRuntimeState): void
   (event: 'point-cloud-state', value: PointCloudState): void
+  (event: 'user-interact'): void
 }>()
+
+interface ProjectedPin {
+  id: FocusPart
+  x: number
+  y: number
+  elbowX: number
+  elbowY: number
+  endX: number
+  alignRight: boolean
+  occluded: boolean
+  labelZh: string
+  labelEn: string
+  subZh: string
+  subEn: string
+}
+
+const projectedPins = ref<ProjectedPin[]>([])
+const projectedDims = ref<{ hx: number; hy: number; wx: number; wy: number; visible: boolean }>({
+  hx: 0, hy: 0, wx: 0, wy: 0, visible: false,
+})
+const stageSize = ref<{ w: number; h: number }>({ w: 800, h: 600 })
+let syncSpatialCageVisibility: ((visible: boolean) => void) | undefined
+
+watch(() => props.showSpatialGuide, (visible) => {
+  syncSpatialCageVisibility?.(Boolean(visible))
+  if (!visible) {
+    projectedPins.value = []
+    projectedDims.value = { hx: 0, hy: 0, wx: 0, wy: 0, visible: false }
+  }
+})
 const { locale } = useLocale()
 const viewerCopy = computed(() => locale.value === 'zh-CN' ? {
   unsupported: '当前浏览器不支持 WebGL，已为你保留展项封面和说明。', loadFailed: '3D 模型暂时无法加载，已切换为展项封面和文字说明。你可以稍后重试。', unavailable: '互动 3D 展项暂时不可用，已切换为展项封面和文字说明。你可以稍后重试。',
@@ -196,6 +229,7 @@ async function initialize() {
       controlsRef = undefined
       cameraRef = undefined
       targetRef = undefined
+      syncSpatialCageVisibility = undefined
       changeMode = () => undefined
       cleanup = undefined
     }
@@ -253,13 +287,13 @@ async function initialize() {
     // The confirmed moon-jade layout supplies the room as a DOM background.
     // Keep WebGL transparent so the real model sits naturally in that space.
     scene.background = null
-    const sceneFog = new THREE.FogExp2('#eee9df', .006)
+    const sceneFog = new THREE.FogExp2('#f4f3ef', .006)
     let sceneTheme: PointCloudTheme = 'light'
     let syncCloudPalette: (() => void) | undefined
     let syncStageTheme: (() => void) | undefined
     const syncSceneTheme = () => {
       sceneTheme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
-      sceneFog.color.set(sceneTheme === 'dark' ? '#1c1b19' : '#eee9df')
+      sceneFog.color.set(sceneTheme === 'dark' ? '#0d1014' : '#f4f3ef')
       syncCloudPalette?.()
       syncStageTheme?.()
       if (container.value) container.value.dataset.themeFog = sceneTheme
@@ -377,6 +411,7 @@ async function initialize() {
       cameraTransition = undefined
       controlsActive = true
       pausePointerInteraction(320)
+      emit('user-interact')
     }
     const onControlsEnd = () => {
       controlsActive = false
@@ -468,16 +503,16 @@ async function initialize() {
     syncStageTheme = () => {
       const darkStage = sceneTheme === 'dark'
       const lightPointCloud = !darkStage && activeMode === 'points'
-      floorMaterial.color.set(darkStage ? '#181715' : lightPointCloud ? '#48433c' : '#b8b0a3')
+      floorMaterial.color.set(darkStage ? '#0e1217' : lightPointCloud ? '#232933' : '#b8b6b0')
       floorMaterial.opacity = darkStage ? .24 : lightPointCloud ? .22 : .12
-      baseMaterial.color.set(darkStage ? '#171614' : lightPointCloud ? '#38342f' : '#6e685f')
-      topMaterial.color.set(darkStage ? '#1f1d1a' : lightPointCloud ? '#2e2b27' : '#847d72')
-      pedestalTrimMaterial.color.set(darkStage ? '#d4a962' : lightPointCloud ? '#e2b65e' : '#b68a4b')
+      baseMaterial.color.set(darkStage ? '#11161d' : lightPointCloud ? '#1d232c' : '#656970')
+      topMaterial.color.set(darkStage ? '#161c24' : lightPointCloud ? '#222832' : '#7b8087')
+      pedestalTrimMaterial.color.set(darkStage ? '#d8b46e' : lightPointCloud ? '#e2bc68' : '#b68a4b')
       floorRingMaterials.forEach((material, index) => {
-        material.color.set(darkStage ? '#a8926e' : lightPointCloud ? '#b89c70' : '#af9d7d')
+        material.color.set(darkStage ? '#86a89c' : lightPointCloud ? '#9ab0a6' : '#af9d7d')
         material.opacity = darkStage || lightPointCloud ? .18 - index * .035 : .14 - index * .03
       })
-      riverMaterial.color.set(darkStage ? '#d2ad6d' : lightPointCloud ? '#d6b270' : '#b79d70')
+      riverMaterial.color.set(darkStage ? '#d8b46e' : lightPointCloud ? '#d8b672' : '#b79d70')
       riverMaterial.opacity = darkStage ? .16 : lightPointCloud ? .18 : .1
       scene.environmentIntensity = darkStage ? 1.12 : lightPointCloud ? .72 : .84
       hemi.intensity = darkStage ? 1.22 : lightPointCloud ? .96 : 1.32
@@ -494,7 +529,10 @@ async function initialize() {
 
     let cloud: Points | undefined
     let cloudMaterial: ShaderMaterial | undefined
+    let dustMaterial: ShaderMaterial | undefined
+    let artifactGroundY = 0.52
     syncCloudPalette = () => {
+      if (dustMaterial) dustMaterial.uniforms.uLightTheme.value = sceneTheme === 'light' ? 1 : 0
       if (!cloudMaterial) return
       const palette = selectPointCloudPalette(quality, sceneTheme)
       cloudMaterial.uniforms.uJade.value.set(...palette.jade)
@@ -610,16 +648,60 @@ async function initialize() {
       beginModeTransition(1, 1, duration, gatherArc)
       emit('mode-change', 'points')
     }
-    const makeDust = () => {
-      const count = quality === 'high' ? 900 : quality === 'medium' ? 500 : 240
-      const positions = new Float32Array(count * 3)
-      for (let i = 0; i < count; i += 1) {
-        const theta = Math.random() * Math.PI * 2, radius = 1.2 + Math.random() * 2.3
-        positions[i * 3] = Math.cos(theta) * radius; positions[i * 3 + 1] = .5 + Math.random() * 2.5; positions[i * 3 + 2] = Math.sin(theta) * radius
+    const makeDust = (groundY = .52) => {
+      const airCount = quality === 'high' ? 420 : quality === 'medium' ? 240 : 110
+      const poolCount = quality === 'high' ? 1100 : quality === 'medium' ? 620 : 280
+      const total = airCount + poolCount
+      const positions = new Float32Array(total * 3)
+      const seeds = new Float32Array(total)
+      const layers = new Float32Array(total) // 0 = floating gallery mote, 1 = concentric ground light pool
+      for (let i = 0; i < airCount; i += 1) {
+        const theta = Math.random() * Math.PI * 2
+        const radius = 1.35 + Math.random() * 2.45
+        positions[i * 3] = Math.cos(theta) * radius
+        positions[i * 3 + 1] = groundY + .35 + Math.random() * 2.55
+        positions[i * 3 + 2] = Math.sin(theta) * radius
+        seeds[i] = Math.random()
+        layers[i] = 0
+      }
+      for (let j = 0; j < poolCount; j += 1) {
+        const idx = airCount + j
+        const theta = Math.random() * Math.PI * 2
+        // Concentric harmonic light-pool rings beneath the bronze tripod feet
+        const ringBand = Math.floor(Math.random() * 4)
+        const ringBase = [0.62, 1.08, 1.62, 2.24][ringBand] ?? 1.2
+        const radialJitter = (Math.random() - 0.5) * (0.28 + ringBand * 0.14)
+        const radius = Math.max(0.22, ringBase + radialJitter)
+        positions[idx * 3] = Math.cos(theta) * radius
+        positions[idx * 3 + 1] = groundY + 0.014 + Math.random() * 0.032
+        positions[idx * 3 + 2] = Math.sin(theta) * radius
+        seeds[idx] = Math.random()
+        layers[idx] = 1
       }
       const geometry = new THREE.BufferGeometry()
       geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-      dust = new THREE.Points(geometry, new THREE.PointsMaterial({ color: '#ead3a2', size: .015, transparent: true, opacity: .66, depthWrite: false, sizeAttenuation: true }))
+      geometry.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1))
+      geometry.setAttribute('aLayer', new THREE.BufferAttribute(layers, 1))
+      const dustMat = new THREE.ShaderMaterial({
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        uniforms: {
+          uTime: { value: 0 },
+          uOpacity: { value: 0.72 },
+          uPixelRatio: { value: Math.min(window.devicePixelRatio, quality === 'mobile' ? 1.25 : 2) },
+          uReducedMotion: { value: reducedMotion ? 1 : 0 },
+          uLightTheme: { value: sceneTheme === 'light' ? 1 : 0 },
+        },
+        vertexShader: `attribute float aSeed; attribute float aLayer; uniform float uTime; uniform float uPixelRatio; uniform float uReducedMotion; varying float vSeed; varying float vLayer; varying float vRadial; void main(){vec3 p=position; float motion=1.0-uReducedMotion; float r=length(p.xz); if(aLayer>0.5){float wave=sin(uTime*0.85-r*2.6+aSeed*6.283)*0.016*motion; p.y+=wave;}else{p.y+=sin(uTime*0.55+aSeed*19.0)*0.07*motion; p.x+=cos(uTime*0.38+aSeed*13.0)*0.05*motion;} vec4 mv=modelViewMatrix*vec4(p,1.0); float baseSize=mix(2.6+aSeed*2.2, 2.2+aSeed*2.8, aLayer); gl_PointSize=clamp(baseSize*uPixelRatio*(5.4/-mv.z),1.4,8.5); gl_Position=projectionMatrix*mv; vSeed=aSeed; vLayer=aLayer; vRadial=r;}`,
+        fragmentShader: `uniform float uTime; uniform float uOpacity; uniform float uLightTheme; varying float vSeed; varying float vLayer; varying float vRadial; void main(){float d=length(gl_PointCoord-vec2(0.5)); if(d>0.5)discard; float glow=exp(-d*d*11.5); float twinkle=0.74+0.26*sin(uTime*1.4+vSeed*31.0); vec3 gold=vec3(0.98,0.85,0.54); vec3 patina=vec3(0.42,0.78,0.68); vec3 silver=vec3(0.95,0.97,1.0); float ringFade=1.0-smoothstep(0.65,2.75,vRadial); vec3 col=mix(mix(gold,silver,0.30*vSeed), mix(gold,patina,smoothstep(0.9,2.3,vRadial)*0.72), vLayer); float layerWeight=mix(0.46, 0.24+0.68*ringFade, vLayer); float alpha=glow*twinkle*layerWeight*uOpacity*mix(1.0,0.62,uLightTheme); if(alpha<0.008)discard; gl_FragColor=vec4(col,alpha);}`,
+      })
+      dustMaterial = dustMat
+      resources.add(() => { if (!releasedResources.has(geometry)) { releasedResources.add(geometry); geometry.dispose() } })
+      resources.add(() => disposeMaterial(dustMat, releasedResources))
+      dust = new THREE.Points(geometry, dustMat)
+      const createdDust = dust
+      resources.add(() => disposeScene(createdDust, releasedResources))
       scene.add(dust)
     }
 
@@ -638,6 +720,7 @@ async function initialize() {
       const count = POINT_COUNTS[quality === 'fallback' ? 'mobile' : quality]
       const positions = new Float32Array(count * 3), normals = new Float32Array(count * 3), origins = new Float32Array(count * 3), colors = new Float32Array(count * 3), seeds = new Float32Array(count), regions = new Float32Array(count), phases = new Float32Array(count)
       const bounds = new THREE.Box3().setFromObject(model)
+      artifactGroundY = bounds.min.y
       const height = Math.max(bounds.max.y - bounds.min.y, .001)
       const deterministic = (index: number, salt: number) => {
         const value = Math.sin(index * 12.9898 + salt * 78.233) * 43758.5453
@@ -693,8 +776,8 @@ async function initialize() {
       cloudMaterial = new THREE.ShaderMaterial({
         transparent: true, depthWrite: true,
         uniforms: { uProgress: { value: 1 }, uOpacity: { value: 0 }, uTime: { value: 0 }, uPulse: { value: 0 }, uTransition: { value: 0 }, uReducedMotion: { value: reducedMotion ? 1 : 0 }, uPixelRatio: { value: Math.min(window.devicePixelRatio, quality === 'mobile' ? 1.25 : 2) }, uPointSize: { value: selectPointCloudPointSize(quality, sceneTheme) }, uLightTheme: { value: sceneTheme === 'light' ? 1 : 0 }, uJade: { value: new THREE.Vector3(...palette.jade) }, uCopper: { value: new THREE.Vector3(...palette.copper) }, uCopperBase: { value: palette.copperBase }, uCopperRange: { value: palette.copperRange }, uPointOpacity: { value: palette.opacity }, uPointer: { value: new THREE.Vector2() }, uPointerStrength: { value: 0 }, uPointerRadius: { value: .9 } },
-        vertexShader: `attribute vec3 aNormal; attribute vec3 aOrigin; attribute vec3 aColor; attribute float aSeed; attribute float aRegion; attribute float aPhase; uniform float uProgress; uniform float uTime; uniform float uReducedMotion; uniform float uPixelRatio; uniform float uPointSize; uniform float uLightTheme; uniform vec3 uJade; uniform vec3 uCopper; uniform float uCopperBase; uniform float uCopperRange; uniform vec2 uPointer; uniform float uPointerStrength; uniform float uPointerRadius; varying vec3 vColor; varying float vSeed; varying float vMetalSpec; void main(){float gathered=smoothstep(0.0,1.0,uProgress); float phase=aPhase+aRegion*.035; vec3 drift=vec3(sin(uTime*.85+aSeed*31.0+phase),cos(uTime*.72+aSeed*19.0+phase),sin(uTime*.64+aSeed*47.0+phase))*(1.0-gathered)*.12*(1.0-uReducedMotion); vec3 basePosition=mix(aOrigin,position,gathered)+drift; float pointerDistance=distance(basePosition.xy,uPointer); float pointerInfluence=(1.0-smoothstep(0.0,uPointerRadius,pointerDistance))*uPointerStrength*(1.0-uReducedMotion); vec2 pointerDirection=normalize(basePosition.xy-uPointer+vec2(.0001)); basePosition.xy+=pointerDirection*pointerInfluence*.026; vec4 mvPosition=modelViewMatrix*vec4(basePosition,1.0); vec3 N=normalize(normalMatrix*aNormal); vec3 V=normalize(-mvPosition.xyz); vec3 L1=normalize(vec3(.42,.74,.60)); vec3 L2=normalize(vec3(-.66,.34,-.64)); vec3 L3=normalize(vec3(.0,-.32,.94)); vec3 H1=normalize(L1+V); vec3 H2=normalize(L2+V); float ndl1=clamp(dot(N,L1),.0,1.0); float ndl2=clamp(dot(N,L2),.0,1.0); float ndl3=clamp(dot(N,L3),.0,1.0); float spec1=pow(max(dot(N,H1),.0),12.0); float spec2=pow(max(dot(N,H2),.0),9.0); float fresnel=pow(1.0-abs(dot(N,V)),2.0); float heightGrad=clamp(aRegion/5.0,.0,1.0); float microGrain=fract(aSeed*23.17); float glintSeed=step(.86,fract(aSeed*41.3)); float sizeScale=mix(.78+.34*microGrain,1.14+.26*fract(aSeed*11.7),clamp(fresnel*.65+spec1*.8+glintSeed*.4,.0,1.0))*mix(1.0,1.12,uLightTheme); gl_PointSize=clamp(uPointSize*uPixelRatio*sizeScale*(7.6/-mvPosition.z),1.15,6.8); gl_Position=projectionMatrix*mvPosition; vec3 smokedBronze=mix(uCopper*vec3(.44,.38,.32)+uJade*vec3(.18,.22,.19),vec3(.22,.18,.14),uLightTheme); vec3 antiquePatina=mix(smokedBronze,uJade,smoothstep(.12,.82,.48+microGrain*.36)); vec3 satinBronze=mix(uCopper*vec3(.82,.72,.54),uCopper,.52+ndl1*.42); vec3 roseCopperRim=mix(uCopper*vec3(1.05,.86,.64),vec3(1.0,.82,.52),uLightTheme); vec3 champagneGold=mix(mix(uCopper,vec3(1.0,.96,.85),.56),vec3(1.0,.94,.74),uLightTheme); float patinaZone=(1.0-smoothstep(.20,.76,ndl1*.52+ndl3*.28+heightGrad*.35))*.50+(1.0-uCopperBase)*.40; float metalMix=clamp(uCopperBase+uCopperRange*(ndl1*.50+ndl3*.25+heightGrad*.20+microGrain*.15)+fresnel*.46-patinaZone*.36,.0,1.0); vec3 baseMetal=mix(antiquePatina,satinBronze,smoothstep(.18,.78,metalMix)); vec3 lit=baseMetal*(mix(.78,.82,uLightTheme)+ndl1*.48+ndl2*.25+ndl3*.26+heightGrad*.10); lit=mix(lit,roseCopperRim,clamp(fresnel*.66+ndl2*.24,.0,.80)); float sheen=clamp(spec1*.95+spec2*.40+fresnel*.40*(.55+glintSeed*.45),.0,1.0); vColor=mix(lit,champagneGold,sheen*.82)+champagneGold*spec1*mix(.32,.40,uLightTheme); vSeed=aSeed; vMetalSpec=clamp(spec1*1.15+fresnel*.58+glintSeed*.26*(ndl1+ndl3+.25),.0,1.0);}`,
-        fragmentShader: `uniform float uOpacity; uniform float uTime; uniform float uPulse; uniform float uTransition; uniform float uPointOpacity; uniform float uLightTheme; varying vec3 vColor; varying float vSeed; varying float vMetalSpec; void main(){float radius=length(gl_PointCoord-vec2(.5)); float disc=1.0-smoothstep(.20,.49,radius); if(uOpacity<.5||vSeed>uTransition||disc<=.001)discard; float core=1.0-smoothstep(.0,.26,radius); float microSheen=.97+.07*sin(uTime*1.6+vSeed*22.0)*(0.4+uPulse*.6); vec3 coreTint=mix(vec3(1.0,.97,.90),vec3(1.0,.95,.78),uLightTheme); vec3 specularCore=mix(vColor,coreTint,mix(.46,.54,uLightTheme)*vMetalSpec); vec3 finalCol=vColor*microSheen+specularCore*core*(.28+vMetalSpec*.48); gl_FragColor=vec4(finalCol,pow(disc,1.12)*uPointOpacity);}`,
+        vertexShader: `attribute vec3 aNormal; attribute vec3 aOrigin; attribute vec3 aColor; attribute float aSeed; attribute float aRegion; attribute float aPhase; uniform float uProgress; uniform float uTime; uniform float uReducedMotion; uniform float uPixelRatio; uniform float uPointSize; uniform float uLightTheme; uniform vec3 uJade; uniform vec3 uCopper; uniform float uCopperBase; uniform float uCopperRange; uniform vec2 uPointer; uniform float uPointerStrength; uniform float uPointerRadius; varying vec3 vColor; varying float vSeed; varying float vMetalSpec; void main(){float gathered=smoothstep(0.0,1.0,uProgress); float phase=aPhase+aRegion*.035; float motion=1.0-uReducedMotion; float swirl=(1.0-gathered)*(1.18+aPhase*2.15)*motion; float cs=cos(swirl); float sn=sin(swirl); vec3 swirledOrigin=vec3(aOrigin.x*cs-aOrigin.z*sn, aOrigin.y, aOrigin.x*sn+aOrigin.z*cs); vec3 drift=vec3(sin(uTime*.85+aSeed*31.0+phase),cos(uTime*.72+aSeed*19.0+phase),sin(uTime*.64+aSeed*47.0+phase))*(1.0-gathered)*.12*motion; vec3 breath=aNormal*(sin(uTime*1.12+aSeed*19.0+aRegion*0.62)*0.011*gathered*motion); vec3 basePosition=mix(swirledOrigin,position,gathered)+drift+breath; float pointerDistance=distance(basePosition.xy,uPointer); float pointerInfluence=(1.0-smoothstep(0.0,uPointerRadius,pointerDistance))*uPointerStrength*motion; vec2 pointerDirection=normalize(basePosition.xy-uPointer+vec2(.0001)); basePosition.xy+=pointerDirection*pointerInfluence*.028; vec4 mvPosition=modelViewMatrix*vec4(basePosition,1.0); vec3 N=normalize(normalMatrix*aNormal); vec3 V=normalize(-mvPosition.xyz); vec3 L1=normalize(vec3(.42,.74,.60)); vec3 L2=normalize(vec3(-.66,.34,-.64)); vec3 L3=normalize(vec3(.0,-.32,.94)); vec3 H1=normalize(L1+V); vec3 H2=normalize(L2+V); float ndl1=clamp(dot(N,L1),.0,1.0); float ndl2=clamp(dot(N,L2),.0,1.0); float ndl3=clamp(dot(N,L3),.0,1.0); float spec1=pow(max(dot(N,H1),.0),12.0); float spec2=pow(max(dot(N,H2),.0),9.0); float fresnel=pow(1.0-abs(dot(N,V)),2.0); float heightGrad=clamp(aRegion/5.0,.0,1.0); float microGrain=fract(aSeed*23.17); float glintSeed=step(.84,fract(aSeed*41.3)); float sizeScale=mix(.78+.34*microGrain,1.16+.28*fract(aSeed*11.7),clamp(fresnel*.65+spec1*.8+glintSeed*.42,.0,1.0))*mix(1.0,1.12,uLightTheme); gl_PointSize=clamp(uPointSize*uPixelRatio*sizeScale*(7.6/-mvPosition.z),1.15,6.9); gl_Position=projectionMatrix*mvPosition; vec3 smokedBronze=mix(uCopper*vec3(.40,.34,.28)+uJade*vec3(.24,.30,.26),vec3(.20,.19,.17),uLightTheme); vec3 antiquePatina=mix(smokedBronze,uJade,smoothstep(.08,.76,.54+microGrain*.38)); vec3 satinBronze=mix(uCopper*vec3(.84,.74,.54),uCopper,.56+ndl1*.40); vec3 roseCopperRim=mix(uCopper*vec3(1.06,.88,.60),vec3(1.0,.84,.52),uLightTheme); vec3 champagneGold=mix(mix(uCopper,vec3(1.0,.97,.88),.58),vec3(1.0,.95,.76),uLightTheme); float patinaZone=(1.0-smoothstep(.22,.78,ndl1*.52+ndl3*.28+heightGrad*.32))*.56+(1.0-uCopperBase)*.44; float metalMix=clamp(uCopperBase+uCopperRange*(ndl1*.50+ndl3*.26+heightGrad*.20+microGrain*.14)+fresnel*.48-patinaZone*.42,.0,1.0); vec3 baseMetal=mix(antiquePatina,satinBronze,smoothstep(.20,.78,metalMix)); vec3 lit=baseMetal*(mix(.80,.82,uLightTheme)+ndl1*.48+ndl2*.25+ndl3*.26+heightGrad*.10); lit=mix(lit,roseCopperRim,clamp(fresnel*.62+ndl2*.24,.0,.78)); float sheen=clamp(spec1*.95+spec2*.42+fresnel*.42*(.55+glintSeed*.45),.0,1.0); vColor=mix(lit,champagneGold,sheen*.84)+champagneGold*spec1*mix(.34,.40,uLightTheme); vSeed=aSeed; vMetalSpec=clamp(spec1*1.18+fresnel*.60+glintSeed*.30*(ndl1+ndl3+.25),.0,1.0);}`,
+        fragmentShader: `uniform float uOpacity; uniform float uTime; uniform float uPulse; uniform float uTransition; uniform float uPointOpacity; uniform float uLightTheme; varying vec3 vColor; varying float vSeed; varying float vMetalSpec; void main(){float radius=length(gl_PointCoord-vec2(.5)); float disc=1.0-smoothstep(.20,.49,radius); if(uOpacity<.5||vSeed>uTransition||disc<=.001)discard; float core=1.0-smoothstep(.0,.26,radius); float microSheen=.97+.07*sin(uTime*1.6+vSeed*22.0)*(0.4+uPulse*.6); vec3 silverCore=vec3(0.97,0.985,1.0); vec3 goldCore=mix(vec3(1.0,.97,.90),vec3(1.0,.95,.78),uLightTheme); vec3 coreTint=mix(goldCore,silverCore,pow(vMetalSpec,2.0)*mix(.72,.35,uLightTheme)); vec3 specularCore=mix(vColor,coreTint,mix(.52,.56,uLightTheme)*vMetalSpec); vec3 finalCol=vColor*microSheen+specularCore*core*(.32+vMetalSpec*.54); gl_FragColor=vec4(finalCol,pow(disc,1.12)*uPointOpacity);}`,
       })
       const createdMaterial = cloudMaterial
       resources.add(() => disposeMaterial(createdMaterial, releasedResources))
@@ -717,6 +800,7 @@ async function initialize() {
         disposeScene(dust, releasedResources)
         dust = undefined
       }
+      dustMaterial = undefined
     }
 
     const ensurePointCloud = () => {
@@ -740,7 +824,7 @@ async function initialize() {
           cloud.visible = true
           cloudMaterial.uniforms.uOpacity.value = 0
           cloudMaterial.uniforms.uProgress.value = 1
-          if (renderProfile.dust) makeDust()
+          if (renderProfile.dust) makeDust(artifactGroundY)
           if (host) host.dataset.pointCompileStartedAt = String(performance.now())
           await renderer.compileAsync(scene, camera)
           if (disposed || taskId !== pointCloudTask || version !== initializationVersion) return
@@ -793,6 +877,7 @@ async function initialize() {
       emit('mode-change', 'solid')
     }
 
+    let updateSpatialProjection: (() => void) | undefined
     const loader = new loaderModule.GLTFLoader()
     loader.setMeshoptDecoder(meshoptModule.MeshoptDecoder)
     emit('state-change', 'loading-model')
@@ -843,6 +928,130 @@ async function initialize() {
         artifact.position.set(-center.x * scale, -bounds.min.y * scale + .51, -center.z * scale)
         artifact.updateMatrixWorld(true)
         scene.add(artifact)
+
+        // Build precision 3D scale reference cage & real surface anchors from world bounds (245 x 200 mm)
+        const worldBounds = new THREE.Box3().setFromObject(artifact)
+        const wSize = worldBounds.getSize(new THREE.Vector3())
+        const wCenter = worldBounds.getCenter(new THREE.Vector3())
+        const spatialCage = new THREE.Group()
+        const boxGeom = new THREE.BoxGeometry(wSize.x * 1.03, wSize.y * 1.01, wSize.z * 1.03)
+        const edgesGeom = new THREE.EdgesGeometry(boxGeom)
+        boxGeom.dispose()
+        const cageLineMat = new THREE.LineBasicMaterial({
+          color: '#d8b878',
+          transparent: true,
+          opacity: 0.24,
+          depthWrite: false,
+        })
+        const cageLines = new THREE.LineSegments(edgesGeom, cageLineMat)
+        cageLines.position.copy(wCenter)
+        spatialCage.add(cageLines)
+
+        // Crisp vertical height ruler bracket on +X/+Z corner
+        const rx = worldBounds.max.x + 0.22
+        const rz = worldBounds.max.z * 0.35
+        const rulerPts = [
+          new THREE.Vector3(rx, worldBounds.min.y, rz),
+          new THREE.Vector3(rx, worldBounds.max.y, rz),
+          new THREE.Vector3(rx - 0.08, worldBounds.min.y, rz),
+          new THREE.Vector3(rx + 0.08, worldBounds.min.y, rz),
+          new THREE.Vector3(rx - 0.08, worldBounds.max.y, rz),
+          new THREE.Vector3(rx + 0.08, worldBounds.max.y, rz),
+        ]
+        const rulerMat = new THREE.LineBasicMaterial({ color: '#e6c88c', transparent: true, opacity: 0.56, depthWrite: false })
+        const rulerSegs = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(rulerPts), rulerMat)
+        spatialCage.add(rulerSegs)
+        spatialCage.visible = Boolean(props.showSpatialGuide)
+        scene.add(spatialCage)
+        syncSpatialCageVisibility = (visible: boolean) => { spatialCage.visible = visible }
+
+        const anchorDefs: Array<{
+          id: FocusPart
+          pos: import('three').Vector3
+          normal: import('three').Vector3
+          labelZh: string
+          labelEn: string
+          subZh: string
+          subEn: string
+        }> = [
+          {
+            id: 'ear',
+            pos: new THREE.Vector3(worldBounds.max.x * 0.68, worldBounds.min.y + wSize.y * 0.91, 0),
+            normal: new THREE.Vector3(0.76, 0.65, 0).normalize(),
+            labelZh: '双耳 · 对称立廓',
+            labelEn: 'Upright Loop Ears',
+            subZh: '俯视成对，侧视收窄为一线',
+            subEn: 'Paired from above; thin profile on side',
+          },
+          {
+            id: 'motif',
+            pos: new THREE.Vector3(0, worldBounds.min.y + wSize.y * 0.63, worldBounds.max.z * 0.88),
+            normal: new THREE.Vector3(0, 0.12, 1).normalize(),
+            labelZh: '器腹 · 凸出宽线带',
+            labelEn: 'Raised Belly Band',
+            subZh: '商代安阳期块范分型秩序',
+            subEn: 'Shang Anyang piece-mold register',
+          },
+          {
+            id: 'feet',
+            pos: new THREE.Vector3(0, worldBounds.min.y + wSize.y * 0.22, worldBounds.min.z * 0.72),
+            normal: new THREE.Vector3(0, -0.15, -1).normalize(),
+            labelZh: '三足 · 承重三角',
+            labelEn: 'Tripod Support',
+            subZh: '转至背面三足间距一目了然',
+            subEn: 'Rotate to back view to resolve all three legs',
+          },
+        ]
+        const projTmp = new THREE.Vector3()
+        const camDirTmp = new THREE.Vector3()
+        const hMid3D = new THREE.Vector3(rx + 0.12, wCenter.y, rz)
+        const wMid3D = new THREE.Vector3(0, worldBounds.min.y - 0.12, worldBounds.max.z * 0.78)
+
+        updateSpatialProjection = () => {
+          if (!props.showSpatialGuide || !container.value) return
+          const cw = container.value.clientWidth || 1
+          const ch = container.value.clientHeight || 1
+          stageSize.value = { w: cw, h: ch }
+
+          const pins: ProjectedPin[] = []
+          for (const def of anchorDefs) {
+            projTmp.copy(def.pos).project(camera)
+            if (projTmp.z > 1) continue
+            const sx = (projTmp.x * 0.5 + 0.5) * cw
+            const sy = (-projTmp.y * 0.5 + 0.5) * ch
+            camDirTmp.copy(camera.position).sub(def.pos).normalize()
+            const facing = camDirTmp.dot(def.normal)
+            const occluded = facing < -0.14
+            const alignRight = sx >= cw * 0.5
+            const dir = alignRight ? 1 : -1
+            const elbowX = Math.max(24, Math.min(cw - 24, sx + dir * (cw < 640 ? 18 : 30)))
+            const elbowY = Math.max(68, Math.min(ch - 210, sy - 16))
+            const endX = Math.max(16, Math.min(cw - 16, elbowX + dir * (cw < 640 ? 58 : 88)))
+            pins.push({
+              id: def.id,
+              x: sx,
+              y: sy,
+              elbowX,
+              elbowY,
+              endX,
+              alignRight,
+              occluded,
+              labelZh: def.labelZh,
+              labelEn: def.labelEn,
+              subZh: def.subZh,
+              subEn: def.subEn,
+            })
+          }
+          projectedPins.value = pins
+
+          projTmp.copy(hMid3D).project(camera)
+          const hx = Math.max(48, Math.min(cw - 68, (projTmp.x * 0.5 + 0.5) * cw))
+          const hy = Math.max(76, Math.min(ch - 196, (-projTmp.y * 0.5 + 0.5) * ch))
+          projTmp.copy(wMid3D).project(camera)
+          const wx = Math.max(60, Math.min(cw - 60, (projTmp.x * 0.5 + 0.5) * cw))
+          const wy = Math.max(88, Math.min(ch - 196, (-projTmp.y * 0.5 + 0.5) * ch))
+          projectedDims.value = { hx, hy, wx, wy, visible: true }
+        }
         const compositionLift = window.innerWidth <= 760 ? .1 : .22
         target.set(0, .51 + size.y * scale * .5 - compositionLift, 0)
         setView('front', { animated: false })
@@ -972,7 +1181,13 @@ async function initialize() {
         cloudMaterial.uniforms.uPointer.value.copy(pointerWorld)
         cloudMaterial.uniforms.uPointerStrength.value = pointResponseAllowed ? pointerStrength : 0
       }
-      if (dust) { dust.rotation.y = reducedMotion ? 0 : time * .00006; (dust.material as import('three').PointsMaterial).opacity = activeMode === 'points' || !introComplete ? .64 : .16 }
+      if (dust) {
+        dust.rotation.y = reducedMotion ? 0 : time * .000055
+        if (dustMaterial) {
+          dustMaterial.uniforms.uTime.value = time * .001
+          dustMaterial.uniforms.uOpacity.value = activeMode === 'points' || !introComplete ? .86 : .22
+        }
+      }
       if (transition && cloudMaterial) {
         const progress = clamp((time - transition.start) / transition.duration), eased = smootherStep(progress)
         const mix = transition.fromMix + (transition.toMix - transition.fromMix) * eased
@@ -993,6 +1208,7 @@ async function initialize() {
         }
       }
       try { submitRender() } catch { fail(viewerCopy.value.unavailable); return }
+      updateSpatialProjection?.()
       const measured = performanceMonitor.record(time, modelReady && !transition && !cameraTransition && !pointCloudBusy, quality)
       if (measured && host) host.dataset.renderFpsWindow = measured.fps.toFixed(2)
       if (measured?.quality) {
@@ -1032,6 +1248,69 @@ onBeforeUnmount(() => { initializationVersion += 1; cleanup?.() })
 <template>
   <div class="three-viewer">
     <div ref="container" class="three-canvas" role="img" data-cursor="native" :aria-label="`${alt}${viewerCopy.aria}`"></div>
+
+    <!-- Real-time 3D Projected Spatial Micro-Light Anchors & 245x200mm Dimension Overlay -->
+    <div
+      v-if="showSpatialGuide && !loading && !error && projectedPins.length"
+      class="three-spatial-overlay"
+      data-testid="three-spatial-overlay"
+    >
+      <svg
+        class="three-spatial-svg"
+        :viewBox="`0 0 ${stageSize.w} ${stageSize.h}`"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <template v-for="pin in projectedPins" :key="`line-${pin.id}`">
+          <polyline
+            v-if="!pin.occluded"
+            :points="`${pin.x},${pin.y} ${pin.elbowX},${pin.elbowY} ${pin.endX},${pin.elbowY}`"
+            class="three-spatial-leader"
+            :class="{ 'is-active': activePart === pin.id }"
+          />
+        </template>
+      </svg>
+
+      <span
+        v-if="projectedDims.visible"
+        class="three-dim-badge font-mono"
+        :style="{ transform: `translate3d(${projectedDims.hx}px, ${projectedDims.hy}px, 0)` }"
+      >
+        H 245 mm
+      </span>
+      <span
+        v-if="projectedDims.visible"
+        class="three-dim-badge font-mono"
+        :style="{ transform: `translate3d(${projectedDims.wx}px, ${projectedDims.wy}px, 0) translateX(-50%)` }"
+      >
+        Ø 200 mm
+      </span>
+
+      <template v-for="pin in projectedPins" :key="pin.id">
+        <button
+          type="button"
+          class="three-spatial-pin"
+          :class="{ 'is-occluded': pin.occluded, 'is-active': activePart === pin.id }"
+          :style="{ transform: `translate3d(${pin.x}px, ${pin.y}px, 0)` }"
+          :aria-label="locale === 'en-US' ? pin.labelEn : pin.labelZh"
+          @click="focusPart(pin.id, { animated: true })"
+        >
+          <span class="three-spatial-pin__halo" aria-hidden="true"></span>
+          <span class="three-spatial-pin__core" aria-hidden="true"></span>
+        </button>
+
+        <div
+          v-if="!pin.occluded"
+          class="three-spatial-callout"
+          :class="{ 'is-right': pin.alignRight, 'is-left': !pin.alignRight, 'is-active': activePart === pin.id }"
+          :style="{ transform: `translate3d(${pin.elbowX}px, ${pin.elbowY}px, 0)` }"
+        >
+          <strong>{{ locale === 'en-US' ? pin.labelEn : pin.labelZh }}</strong>
+          <small>{{ locale === 'en-US' ? pin.subEn : pin.subZh }}</small>
+        </div>
+      </template>
+    </div>
+
     <Transition name="exhibit-loading">
       <div v-if="loading" class="three-overlay" role="status" aria-live="polite"><div class="exhibit-loader" data-glass="dark"><span class="exhibit-loader__artifact" aria-hidden="true"><i></i><b></b></span><div class="exhibit-loader__copy"><small>DIGITAL OBJECT</small><strong>{{ viewerCopy.loading }}</strong><span class="exhibit-loader__track" aria-hidden="true"><i :style="{ width: `${loadingProgress || 12}%` }"></i></span><em>{{ loadingProgress ? `${loadingProgress}%` : 'LOADING' }}</em></div></div></div>
     </Transition>
@@ -1135,5 +1414,137 @@ onBeforeUnmount(() => { initializationVersion += 1; cleanup?.() })
   width: auto;
   min-height: 44px;
   border-radius: 8px;
+}
+
+/* ── Spatial Micro-Light Anchors & 245x200mm Scale Overlay ── */
+.three-spatial-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.three-spatial-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.three-spatial-leader {
+  fill: none;
+  stroke: oklch(82% 0.052 78 / 0.45);
+  stroke-width: 0.9;
+  transition: stroke 180ms ease;
+}
+
+.three-spatial-leader.is-active {
+  stroke: oklch(88% 0.068 80 / 0.88);
+  stroke-width: 1.15;
+}
+
+.three-dim-badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 0.16rem 0.48rem;
+  border-radius: var(--radius-xs);
+  border: 1px solid oklch(82% 0.052 78 / 0.28);
+  background: oklch(14% 0.006 74 / 0.76);
+  color: oklch(88% 0.048 80);
+  font-size: var(--text-xs);
+  line-height: 1.3;
+  letter-spacing: 0.04em;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  white-space: nowrap;
+}
+
+.three-spatial-pin {
+  position: absolute;
+  top: -22px;
+  left: -22px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: opacity 220ms var(--ease-curatorial);
+}
+
+.three-spatial-pin.is-occluded {
+  opacity: 0.18;
+  pointer-events: none;
+}
+
+.three-spatial-pin__halo {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 1px solid oklch(86% 0.062 80 / 0.62);
+  animation: spatial-pin-breathe 2.4s ease-in-out infinite;
+}
+
+.three-spatial-pin.is-active .three-spatial-pin__halo {
+  width: 22px;
+  height: 22px;
+  border-color: oklch(91% 0.072 82 / 0.95);
+}
+
+.three-spatial-pin__core {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: oklch(93% 0.055 82);
+  box-shadow: 0 0 8px oklch(84% 0.07 78 / 0.65);
+}
+
+.three-spatial-callout {
+  position: absolute;
+  top: -22px;
+  left: 0;
+  display: grid;
+  gap: 1px;
+  padding: 0.2rem 0.45rem;
+  border-radius: var(--radius-xs);
+  background: oklch(14% 0.006 74 / 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: oklch(94% 0.008 82);
+  white-space: nowrap;
+}
+
+.three-spatial-callout.is-right {
+  margin-left: 6px;
+  text-align: left;
+}
+
+.three-spatial-callout.is-left {
+  transform-origin: right center;
+  margin-left: -6px;
+  translate: -100% 0;
+  text-align: right;
+}
+
+.three-spatial-callout strong {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: oklch(90% 0.048 80);
+}
+
+.three-spatial-callout small {
+  font-size: var(--text-xs);
+  color: oklch(78% 0.01 78);
+}
+
+@keyframes spatial-pin-breathe {
+  0%, 100% { transform: scale(0.88); opacity: 0.52; }
+  50% { transform: scale(1.18); opacity: 0.96; }
 }
 </style>

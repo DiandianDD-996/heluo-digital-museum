@@ -4,10 +4,13 @@ import { RouterLink, useRoute } from 'vue-router'
 import { gsap } from 'gsap'
 import { Box, Connection, InfoFilled, VideoPlay } from '@element-plus/icons-vue'
 import { qualityLabel, type PointCloudQuality } from '../lib/pointCloudQuality'
+import { getCuratorialMaterialProfile } from '../lib/curatorialSwatches'
+import { artifactPlateTransitionStyle } from '../lib/inkTransitions'
+import { readPrefetchCache } from '../lib/prefetch'
 import { apiGet } from '../lib/api'
 import BottomSheet from '../components/BottomSheet.vue'
 import AcousticRuler from '../components/AcousticRuler.vue'
-import { GUIDE_ARTIFACT_SLUG, GUIDE_EXHIBIT_SLUG, type GuidePartName } from '../lib/guideTypes'
+import { GUIDE_ARTIFACT_SLUG, GUIDE_EXHIBIT_SLUG, STONE_EXHIBIT_SLUG, type GuidePartName } from '../lib/guideTypes'
 import { useLocale } from '../stores/locale'
 import { useAudio } from '../stores/audio'
 import { guideEnabled, useLuoshengStore } from '../stores/luoshengStore'
@@ -22,8 +25,11 @@ type ViewerRuntimeState = 'poster' | 'activating' | 'loading-runtime' | 'loading
 interface Exhibit {
   slug: string
   title: string
+  titleEn?: string | null
   summary: string
+  summaryEn?: string | null
   description: string
+  descriptionEn?: string | null
   modelUrl: string
   modelFormat: string
   modelSizeBytes: number
@@ -108,6 +114,12 @@ const viewerKey = ref(0)
 const preferMobileModel = ref(false)
 const pointCloudLoading = ref(false)
 const pointCloudFailed = ref(false)
+const spatialGuideOpen = ref(false)
+const focusedPart = ref<GuidePartName | null>(null)
+const tourActive = ref(false)
+const tourPlaying = ref(false)
+const tourInterrupted = ref(false)
+const tourStepIndex = ref(0)
 let gsapContext: gsap.Context | undefined
 let modelPreloadLink: HTMLLinkElement | undefined
 let discoveryCued = false
@@ -123,6 +135,42 @@ const ThreeExhibitViewer = defineAsyncComponent({
   },
 })
 
+const RakingLightViewer = defineAsyncComponent({
+  loader: () => import('../components/RakingLightViewer.vue'),
+  delay: 0,
+  onError() {
+    clearModelPreload()
+    viewerRuntimeError.value = navigator.onLine === false ? copy.value.viewerOffline : copy.value.viewerUnavailable
+    viewerRuntimeState.value = 'error'
+  },
+})
+
+const isBronzeDingExhibit = computed(() => exhibit.value?.slug === GUIDE_EXHIBIT_SLUG)
+const isStoneRakingExhibit = computed(() => exhibit.value?.slug === STONE_EXHIBIT_SLUG)
+const materialProfile = computed(() => getCuratorialMaterialProfile(exhibit.value?.slug ?? exhibit.value?.artifact?.slug))
+const siblingExhibit = computed(() => {
+  if (!exhibit.value) return null
+  if (isBronzeDingExhibit.value) {
+    return {
+      slug: STONE_EXHIBIT_SLUG,
+      badge: 'EXHIBIT 02',
+      labelZh: '切换展柜 · 河洛图纹石板',
+      labelEn: 'Switch to EXHIBIT 02 · River Map Stone',
+    }
+  }
+  if (isStoneRakingExhibit.value) {
+    return {
+      slug: GUIDE_EXHIBIT_SLUG,
+      badge: 'EXHIBIT 01',
+      labelZh: '切换展柜 · 河洛青铜鼎 3D',
+      labelEn: 'Switch to EXHIBIT 01 · Bronze Ding 3D',
+    }
+  }
+  return null
+})
+const consumedQueryFocus = ref<string | null>(null)
+const validFocusParts: readonly GuidePartName[] = ['ear', 'motif', 'feet']
+
 const copy = computed(() => locale.value === 'zh-CN' ? {
   viewerOffline: '网络已断开，请恢复连接后重试启动。',
   pointCloudFailed: '点云暂时无法构建，实体模型仍可查看。可再次选择点云重试。',
@@ -135,6 +183,15 @@ const copy = computed(() => locale.value === 'zh-CN' ? {
   info: '查看展项信息',
   openDrawer: '展品档案',
   closeDrawer: '收起档案',
+  spatialGuide: '空间标尺',
+  microTourBtn: '3 步微导览',
+  microTourPaused: '已交还手动视角 · 可继续下一步',
+  microTourPlaying: '自动巡礼中 · 拖拽模型可随时接管',
+  microTourPrev: '上一步',
+  microTourNext: '下一步',
+  microTourResume: '继续自动',
+  microTourPause: '暂停自动',
+  microTourClose: '关闭导览',
   back: '返回数字展厅',
   factLabels: ['来源', '材质', '位置'],
   material: '古青铜 PBR 网页重制',
@@ -142,33 +199,39 @@ const copy = computed(() => locale.value === 'zh-CN' ? {
   noDescription: '数字展项说明',
   digitalExhibit: '数字展项',
   renderMode: '渲染模式',
-  solid: '实体',
-  points: '点云',
-  particles: '粒子解构中',
-  pbr: 'PBR 实体展示',
+  solid: isStoneRakingExhibit.value ? '原石斜射' : '实体',
+  points: isStoneRakingExhibit.value ? '墨拓法线' : '点云',
+  particles: isStoneRakingExhibit.value ? '墨拓微浮雕显影' : '粒子解构中',
+  pbr: isStoneRakingExhibit.value ? 'WebGL 掠射光刻痕检视' : 'PBR 实体展示',
   artifact: '阅读文物故事',
   booking: '预约参观',
   tour: '展览导览',
   modeLabel: '观察模式',
   modeGroup: '展品显示模式',
-  solidModel: '实体模型',
-  returnSolid: '返回实体',
-  pointsOn: '点云已开启',
-  pointCloudMode: '点云模式',
-  pointCloudTour: '点云讲解',
-  returnSolidModel: '返回实体模型',
-  viewsTitle: '视角切换',
-  views: ['正面', '左侧', '右侧', '背面', '俯视'],
+  solidModel: isStoneRakingExhibit.value ? '原石斜射' : '实体模型',
+  returnSolid: isStoneRakingExhibit.value ? '返回原石' : '返回实体',
+  pointsOn: isStoneRakingExhibit.value ? '墨拓已开启' : '点云已开启',
+  pointCloudMode: isStoneRakingExhibit.value ? '墨拓显影' : '点云模式',
+  pointCloudTour: isStoneRakingExhibit.value ? '墨拓显影' : '点云讲解',
+  returnSolidModel: isStoneRakingExhibit.value ? '返回原石斜射' : '返回实体模型',
+  viewsTitle: isStoneRakingExhibit.value ? '掠射光向' : '视角切换',
+  views: isStoneRakingExhibit.value
+    ? ['低掠刀口', '西侧斜照', '东侧掠光', '北侧逆光', '正顶漫射']
+    : ['正面', '左侧', '右侧', '背面', '俯视'],
   current: '当前展品',
   infoTitle: '展品档案',
-  steps: ['器形概览', '结构观察', '纹样细节', '材质层次', '点云解构', '来源说明'],
+  steps: isStoneRakingExhibit.value
+    ? ['低掠寻痕', '河图圆阵', '双河交汇', '石理风化', '墨拓显影', '概念边界']
+    : ['器形概览', '结构观察', '纹样细节', '材质层次', '点云解构', '来源说明'],
   title: '数字展项',
-  enterViewer: '进入互动 3D',
-  preparingViewer: '正在准备互动 3D…',
+  enterViewer: isStoneRakingExhibit.value ? '开启斜射光检视' : '进入互动 3D',
+  preparingViewer: isStoneRakingExhibit.value ? '正在准备斜射光光学台…' : '正在准备互动 3D…',
   retryViewer: '重试启动',
-  viewerUnavailable: '互动 3D 资源加载失败，请重试启动。',
-  posterHint: '启动后可 360° 自由旋转、缩放并切换实体与点云视角。',
-  modelSize: '模型体积',
+  viewerUnavailable: '互动展柜资源加载失败，请重试启动。',
+  posterHint: isStoneRakingExhibit.value
+    ? '启动后可 360° 调节掠射光源方位与仰角，切换 2.4× 放大镜与墨拓法线显影。'
+    : '启动后可 360° 自由旋转、缩放并切换实体与点云视角。',
+  modelSize: isStoneRakingExhibit.value ? '高清底图' : '模型体积',
   pointCloudLoading: '正在构建点云…',
   pointCloudBusy: '构建中',
 } : {
@@ -183,6 +246,15 @@ const copy = computed(() => locale.value === 'zh-CN' ? {
   info: 'View exhibit details',
   openDrawer: 'Object Plaque',
   closeDrawer: 'Hide Plaque',
+  spatialGuide: 'Spatial Scale',
+  microTourBtn: '3-Step Tour',
+  microTourPaused: 'Manual orbit active · Step whenever ready',
+  microTourPlaying: 'Guided tour active · Drag anytime to take over',
+  microTourPrev: 'Prev',
+  microTourNext: 'Next',
+  microTourResume: 'Auto',
+  microTourPause: 'Pause',
+  microTourClose: 'Close tour',
   back: 'Back to 3D Gallery',
   factLabels: ['Source', 'Material', 'Location'],
   material: 'Recrafted aged-bronze PBR',
@@ -190,38 +262,55 @@ const copy = computed(() => locale.value === 'zh-CN' ? {
   noDescription: 'Digital exhibit notes',
   digitalExhibit: 'Digital exhibit',
   renderMode: 'Render mode',
-  solid: 'Solid',
-  points: 'Points',
-  particles: 'Point cloud active',
-  pbr: 'PBR solid model',
+  solid: isStoneRakingExhibit.value ? 'Raking Stone' : 'Solid',
+  points: isStoneRakingExhibit.value ? 'Ink Rubbing' : 'Points',
+  particles: isStoneRakingExhibit.value ? 'Ink-rubbing relief active' : 'Point cloud active',
+  pbr: isStoneRakingExhibit.value ? 'WebGL raking-light inspection' : 'PBR solid model',
   artifact: 'Read object story',
   booking: 'Book a visit',
   tour: 'Exhibit tour',
   modeLabel: 'VIEW MODE',
   modeGroup: 'Exhibit display mode',
-  solidModel: 'Solid model',
-  returnSolid: 'Return to solid',
-  pointsOn: 'Point cloud on',
-  pointCloudMode: 'Point cloud mode',
-  pointCloudTour: 'Point cloud guide',
-  returnSolidModel: 'Return to solid model',
-  viewsTitle: 'Viewpoints',
-  views: ['Front', 'Left', 'Right', 'Back', 'Top'],
+  solidModel: isStoneRakingExhibit.value ? 'Raking Stone' : 'Solid model',
+  returnSolid: isStoneRakingExhibit.value ? 'Return to stone' : 'Return to solid',
+  pointsOn: isStoneRakingExhibit.value ? 'Rubbing on' : 'Point cloud on',
+  pointCloudMode: isStoneRakingExhibit.value ? 'Ink rubbing' : 'Point cloud mode',
+  pointCloudTour: isStoneRakingExhibit.value ? 'Ink rubbing' : 'Point cloud guide',
+  returnSolidModel: isStoneRakingExhibit.value ? 'Return to raking stone' : 'Return to solid model',
+  viewsTitle: isStoneRakingExhibit.value ? 'Light angles' : 'Viewpoints',
+  views: isStoneRakingExhibit.value
+    ? ['Low Grazing', 'West Raking', 'East Raking', 'North Backlight', 'Overhead']
+    : ['Front', 'Left', 'Right', 'Back', 'Top'],
   current: 'Current exhibit',
   infoTitle: 'Object Plaque',
-  steps: ['Form overview', 'Structure', 'Motif details', 'Material layers', 'Point cloud', 'Source notes'],
+  steps: isStoneRakingExhibit.value
+    ? ['Grazing shadow', 'Compass rings', 'Dual rivers', 'Weathered slate', 'Ink rubbing', 'Concept note']
+    : ['Form overview', 'Structure', 'Motif details', 'Material layers', 'Point cloud', 'Source notes'],
   title: 'Digital exhibit',
-  enterViewer: 'Enter interactive 3D',
-  preparingViewer: 'Preparing interactive 3D…',
+  enterViewer: isStoneRakingExhibit.value ? 'Enter Raking Light' : 'Enter interactive 3D',
+  preparingViewer: isStoneRakingExhibit.value ? 'Preparing optical stage…' : 'Preparing interactive 3D…',
   retryViewer: 'Retry 3D',
   viewerUnavailable: 'Interactive 3D resources could not be loaded. Please retry.',
-  posterHint: 'Start to rotate 360°, zoom, and switch between solid and point cloud.',
-  modelSize: 'Model size',
+  posterHint: isStoneRakingExhibit.value
+    ? 'Start to sweep 360° raking light, inspect incised grooves with a 2.4× loupe, and toggle ink-rubbing relief.'
+    : 'Start to rotate 360°, zoom, and switch between solid and point cloud.',
+  modelSize: isStoneRakingExhibit.value ? 'Plate asset' : 'Model size',
   pointCloudLoading: 'Building point cloud…',
   pointCloudBusy: 'Building',
 })
 
-const displayTitle = computed(() => exhibit.value?.title || copy.value.title)
+const displayTitle = computed(() => {
+  if (!exhibit.value) return copy.value.title
+  if (locale.value === 'en-US' && exhibit.value.titleEn?.trim()) return exhibit.value.titleEn.trim()
+  return exhibit.value.title || copy.value.title
+})
+const displayDescription = computed(() => {
+  if (!exhibit.value) return ''
+  if (locale.value === 'en-US') {
+    return exhibit.value.descriptionEn?.trim() || exhibit.value.summaryEn?.trim() || exhibit.value.description || exhibit.value.summary
+  }
+  return exhibit.value.description || exhibit.value.summary
+})
 const headerBadge = computed(() => {
   if (exhibit.value?.slug === 'heluo-bronze-ding-3d') return 'EXHIBIT 01'
   return `EXHIBIT ${exhibit.value?.displayNo || '01'}`
@@ -243,9 +332,18 @@ const localizedSourceCredit = computed(() => {
   }
   return raw
 })
+const localizedLicenseLabel = computed(() => {
+  const raw = exhibit.value?.licenseLabel
+  if (!raw) return copy.value.material
+  if (locale.value === 'zh-CN') {
+    if (raw.includes('CC0 reference')) return 'CC0 公开馆藏参考 · 项目数字重制'
+    if (raw.toLowerCase().includes('concept')) return '原创概念光学展项'
+  }
+  return raw
+})
 const exhibitFacts = computed(() => [
   { label: copy.value.factLabels[0], value: localizedSourceCredit.value },
-  { label: copy.value.factLabels[1], value: exhibit.value?.licenseLabel || copy.value.material },
+  { label: copy.value.factLabels[1], value: localizedLicenseLabel.value },
   { label: copy.value.factLabels[2], value: exhibit.value?.collectionLocation || exhibit.value?.summary || copy.value.noDescription },
 ])
 const views = computed<Array<{ key: ViewName; label: string; thumbnail: string }>>(() => [
@@ -335,6 +433,13 @@ function preloadActiveModel() {
 
 function resetViewerRuntime() {
   clearModelPreload()
+  clearGuidedTour()
+  tourActive.value = false
+  tourPlaying.value = false
+  tourInterrupted.value = false
+  tourStepIndex.value = 0
+  spatialGuideOpen.value = false
+  focusedPart.value = null
   discoveryCued = false
   awakenCued = false
   const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection
@@ -401,11 +506,21 @@ function handlePointCloudState(state: 'idle' | 'loading' | 'ready' | 'error') {
 async function load() {
   const requestId = ++detailRequestId
   resetViewerRuntime()
+  const path = `/exhibits/${encodeURIComponent(String(route.params.slug))}`
+  const prefetched = readPrefetchCache<Exhibit>(path)
+  if (prefetched) {
+    exhibit.value = prefetched
+    error.value = ''
+    loading.value = false
+    await nextTick()
+    revealExhibitShell()
+    return
+  }
   loading.value = true
   error.value = ''
   exhibit.value = null
   try {
-    const result = await apiGet<Exhibit>(`/exhibits/${encodeURIComponent(String(route.params.slug))}`)
+    const result = await apiGet<Exhibit>(path)
     if (requestId === detailRequestId) exhibit.value = result
   } catch (reason) {
     if (requestId === detailRequestId) error.value = reason instanceof Error ? reason.message : copy.value.loadFailed
@@ -426,6 +541,174 @@ watch([viewerRuntimeState, displayMode, activeView], ([state, mode, view]) => {
     view,
   })
 })
+
+let tourTimers: ReturnType<typeof setTimeout>[] = []
+let programmaticTourFocus = false
+
+const microTourStops = computed<Array<{ part: GuidePartName; indexLabel: string; title: string; detail: string; toast: string }>>(() => (
+  locale.value === 'en-US'
+    ? [
+      {
+        part: 'ear',
+        indexLabel: '01 / 03',
+        title: 'Upright Loop Handles',
+        detail: 'Top view · Observe the paired cast handles rising symmetrically from the rim.',
+        toast: 'Step 1/3 · Upright Ears (Top)',
+      },
+      {
+        part: 'motif',
+        indexLabel: '02 / 03',
+        title: 'Taotie Belly Band',
+        detail: 'Front view · Trace the wide-line animal-mask relief and central flange.',
+        toast: 'Step 2/3 · Belly Band Motif (Front)',
+      },
+      {
+        part: 'feet',
+        indexLabel: '03 / 03',
+        title: 'Tripod Columnar Legs',
+        detail: 'Back view · Compare the three load-bearing legs and mold-seam alignment.',
+        toast: 'Step 3/3 · Three Tripod Legs (Back)',
+      },
+    ]
+    : [
+      {
+        part: 'ear',
+        indexLabel: '01 / 03',
+        title: '立耳对称轮廓',
+        detail: '俯视观察双立耳与口沿的铸接对称关系及内壁厚度。',
+        toast: '导览 1/3 · 俯视双耳对称轮廓',
+      },
+      {
+        part: 'motif',
+        indexLabel: '02 / 03',
+        title: '器腹兽面纹带',
+        detail: '平视近观腹部宽线浅浮雕纹带与正中扉棱节律。',
+        toast: '导览 2/3 · 正面器腹宽线纹样',
+      },
+      {
+        part: 'feet',
+        indexLabel: '03 / 03',
+        title: '三足承重柱体',
+        detail: '转至背面比对三根实心柱足的间距与器底分范线迹。',
+        toast: '导览 3/3 · 背面三足完整支撑',
+      },
+    ]
+))
+
+const currentMicroTourStop = computed(() => microTourStops.value[tourStepIndex.value] ?? microTourStops.value[0])
+
+function clearGuidedTour() {
+  for (const timer of tourTimers) clearTimeout(timer)
+  tourTimers = []
+}
+
+function interruptGuidedTour() {
+  if (!tourPlaying.value && tourTimers.length === 0) return
+  clearGuidedTour()
+  tourPlaying.value = false
+  if (tourActive.value) {
+    tourInterrupted.value = true
+  }
+}
+
+function applyGuidedTourStep(index: number, showHint = false) {
+  const stops = microTourStops.value
+  const clamped = ((index % stops.length) + stops.length) % stops.length
+  tourStepIndex.value = clamped
+  const stop = stops[clamped]
+  if (!stop || viewerRuntimeState.value !== 'ready' || !viewer.value) return
+  spatialGuideOpen.value = true
+  focusedPart.value = stop.part
+  programmaticTourFocus = true
+  try {
+    viewer.value.focusPart(stop.part, { animated: true })
+  } finally {
+    programmaticTourFocus = false
+  }
+  if (showHint) {
+    guideStore?.showToast(stop.toast, 2500)
+  }
+}
+
+function scheduleNextGuidedStop() {
+  clearGuidedTour()
+  if (!tourPlaying.value) return
+  if (tourStepIndex.value >= microTourStops.value.length - 1) {
+    const finishTimer = setTimeout(() => {
+      tourPlaying.value = false
+    }, 3000)
+    tourTimers.push(finishTimer)
+    return
+  }
+  const timer = setTimeout(() => {
+    if (!tourPlaying.value || viewerRuntimeState.value !== 'ready' || !viewer.value) {
+      tourPlaying.value = false
+      return
+    }
+    applyGuidedTourStep(tourStepIndex.value + 1, true)
+    scheduleNextGuidedStop()
+  }, 3000)
+  tourTimers.push(timer)
+}
+
+function startGuidedTour(startIndex = 0, showHint = true) {
+  if (!viewerInteractive.value || !isBronzeDingExhibit.value) return
+  clearGuidedTour()
+  tourActive.value = true
+  tourInterrupted.value = false
+  tourPlaying.value = true
+  applyGuidedTourStep(startIndex, showHint)
+  scheduleNextGuidedStop()
+}
+
+function stepGuidedTour(delta: number) {
+  if (!viewerInteractive.value) return
+  clearGuidedTour()
+  tourPlaying.value = false
+  tourInterrupted.value = false
+  tourActive.value = true
+  applyGuidedTourStep(tourStepIndex.value + delta, false)
+}
+
+function toggleGuidedTourPlay() {
+  if (!viewerInteractive.value) return
+  if (tourPlaying.value) {
+    clearGuidedTour()
+    tourPlaying.value = false
+    return
+  }
+  tourInterrupted.value = false
+  tourPlaying.value = true
+  const restartFrom = tourStepIndex.value >= microTourStops.value.length - 1 ? 0 : tourStepIndex.value
+  applyGuidedTourStep(restartFrom, false)
+  scheduleNextGuidedStop()
+}
+
+function closeGuidedTour() {
+  clearGuidedTour()
+  tourPlaying.value = false
+  tourInterrupted.value = false
+  tourActive.value = false
+}
+
+// Consume deep-link ?focus=ear|motif|feet from HomeView Section 2 once 3D viewer is ready
+watch(
+  [() => route.query?.focus, viewerRuntimeState, viewer, exhibit],
+  ([rawFocus, state, ctrl, currentExhibit]) => {
+    const focus = typeof rawFocus === 'string' ? rawFocus.trim() : ''
+    if (!focus || !validFocusParts.includes(focus as GuidePartName)) return
+    if (!currentExhibit || currentExhibit.slug !== GUIDE_EXHIBIT_SLUG) return
+    const key = `${currentExhibit.slug}:${focus}`
+    if (consumedQueryFocus.value === key) return
+    if (state === 'ready' && ctrl) {
+      consumedQueryFocus.value = key
+      spatialGuideOpen.value = true
+      focusedPart.value = focus as GuidePartName
+      ctrl.focusPart(focus as GuidePartName, { animated: true })
+    }
+  },
+  { immediate: true },
+)
 
 // Consume queued 3D actions from Luosheng (same-page or cross-page navigation)
 watch(
@@ -455,11 +738,23 @@ watch(
     if (state === 'ready' && ctrl) {
       const consumed = guideStore.consumeViewerAction()
       if (!consumed) return
+      clearGuidedTour()
       if (consumed.mode && consumed.mode !== displayMode.value) {
         selectMode(consumed.mode)
       }
+      if (consumed.tour && isBronzeDingExhibit.value) {
+        startGuidedTour(0, true)
+        return
+      }
       if (consumed.part) {
-        ctrl.focusPart(consumed.part, { animated: true })
+        spatialGuideOpen.value = true
+        focusedPart.value = consumed.part
+        programmaticTourFocus = true
+        try {
+          ctrl.focusPart(consumed.part, { animated: true })
+        } finally {
+          programmaticTourFocus = false
+        }
       } else if (consumed.view) {
         activeView.value = consumed.view
         ctrl.setView(consumed.view, { animated: true })
@@ -484,6 +779,7 @@ const PART_RIPPLE_POS: Record<GuidePartName, number> = {
 
 function selectMode(mode: 'solid' | 'points') {
   if (!viewerInteractive.value || (mode === 'points' && pointCloudLoading.value)) return
+  interruptGuidedTour()
   if (mode !== displayMode.value) {
     acousticRulerRef.value?.triggerRipple(0.5, 0.65)
   }
@@ -491,6 +787,12 @@ function selectMode(mode: 'solid' | 'points') {
 }
 
 function handlePartFocus(part: GuidePartName) {
+  focusedPart.value = part
+  if (!programmaticTourFocus && tourPlaying.value) {
+    interruptGuidedTour()
+    const matchIndex = microTourStops.value.findIndex((stop) => stop.part === part)
+    if (matchIndex >= 0) tourStepIndex.value = matchIndex
+  }
   const now = Date.now()
   if (now - lastPartFocusSfxAt >= 180) {
     lastPartFocusSfxAt = now
@@ -504,12 +806,16 @@ watch(displayMode, (mode) => {
 }, { immediate: true })
 
 function togglePointCloud() { selectMode(displayMode.value === 'points' ? 'solid' : 'points') }
-function chooseView(view: ViewName) { if (!viewerInteractive.value) return; activeView.value = view; viewer.value?.setView(view, { animated: true }) }
-function reset() { if (!viewerInteractive.value) return; activeView.value = 'front'; viewer.value?.resetView() }
+function chooseView(view: ViewName) { if (!viewerInteractive.value) return; interruptGuidedTour(); focusedPart.value = null; activeView.value = view; viewer.value?.setView(view, { animated: true }) }
+function rotateViewer() { if (!viewerInteractive.value) return; interruptGuidedTour(); viewer.value?.rotate() }
+function zoomInViewer() { if (!viewerInteractive.value) return; interruptGuidedTour(); viewer.value?.zoomIn() }
+function zoomOutViewer() { if (!viewerInteractive.value) return; interruptGuidedTour(); viewer.value?.zoomOut() }
+function reset() { if (!viewerInteractive.value) return; interruptGuidedTour(); focusedPart.value = null; activeView.value = 'front'; viewer.value?.resetView() }
 
 onMounted(load)
 watch(() => route.params.slug, load)
 onBeforeUnmount(() => {
+  clearGuidedTour()
   audioSystem.setSpaceAcoustic('default')
   gsapContext?.revert()
   clearModelPreload()
@@ -528,13 +834,47 @@ onBeforeUnmount(() => {
     <section class="exhibit-scene" :data-display-mode="displayMode">
       <!-- Module 1: Frameless Top Floating Bar -->
       <header class="darkroom-topbar" data-motion="scene-label">
-        <RouterLink class="darkroom-back" :to="backDestination">← {{ backLabel }}</RouterLink>
+        <div class="darkroom-topbar__left">
+          <RouterLink class="darkroom-back" :to="backDestination">← {{ backLabel }}</RouterLink>
+          <RouterLink
+            v-if="siblingExhibit"
+            class="darkroom-exhibit-switch"
+            data-testid="darkroom-sibling-switch"
+            :to="`/exhibits/${siblingExhibit.slug}`"
+          >
+            <span class="font-mono">{{ siblingExhibit.badge }}</span>
+            <span>⇄ {{ locale === 'en-US' ? (isBronzeDingExhibit ? 'Stone Relief' : 'Bronze Ding') : (isBronzeDingExhibit ? '图纹石板' : '青铜鼎 3D') }}</span>
+          </RouterLink>
+        </div>
         <div class="darkroom-title">
           <span class="font-mono">{{ headerBadge }}</span>
           <i aria-hidden="true">·</i>
           <h1>{{ displayTitle }}</h1>
         </div>
         <div class="darkroom-topbar__actions">
+          <button
+            v-if="isBronzeDingExhibit && viewerRuntimeState === 'ready'"
+            class="darkroom-spatial-toggle"
+            :class="{ 'is-active': spatialGuideOpen }"
+            data-testid="spatial-guide-toggle"
+            type="button"
+            :aria-pressed="spatialGuideOpen"
+            @click="spatialGuideOpen = !spatialGuideOpen"
+          >
+            <span class="darkroom-spatial-toggle__star" aria-hidden="true">✦</span>
+            <span>{{ copy.spatialGuide }}</span>
+          </button>
+          <button
+            v-if="isBronzeDingExhibit && viewerRuntimeState === 'ready'"
+            class="darkroom-spatial-toggle"
+            :class="{ 'is-active': tourActive }"
+            data-testid="start-micro-tour"
+            type="button"
+            :aria-pressed="tourActive"
+            @click="tourActive ? closeGuidedTour() : startGuidedTour(0, false)"
+          >
+            <span>{{ copy.microTourBtn }}</span>
+          </button>
           <button
             class="darkroom-drawer-toggle"
             type="button"
@@ -589,20 +929,38 @@ onBeforeUnmount(() => {
         </div>
       </Transition>
 
-      <!-- Full-bleed Studio Darkroom 3D Stage -->
+      <!-- Full-bleed Studio Darkroom 3D / Optical Stage -->
       <div class="exhibit-viewer-wrap" :data-viewer-state="viewerRuntimeState">
+        <RakingLightViewer
+          v-if="viewerRuntimeRequested && isStoneRakingExhibit && activeModel"
+          :key="`raking-${viewerKey}`"
+          ref="viewer"
+          :image-url="activeModel.url"
+          :alt="displayTitle"
+          initial-mode="solid"
+          @mode-change="displayMode = $event"
+          @view-change="activeView = $event"
+          @part-focus="handlePartFocus"
+          @user-interact="interruptGuidedTour"
+          @quality-change="renderQuality = $event"
+          @state-change="handleViewerState"
+          @point-cloud-state="handlePointCloudState"
+        />
         <ThreeExhibitViewer
-          v-if="viewerRuntimeRequested && activeModel"
+          v-else-if="viewerRuntimeRequested && activeModel"
           :key="viewerKey"
           ref="viewer"
           :model-url="activeModel.url"
           :cover-image-url="exhibit.coverImageUrl"
           :alt="displayTitle"
           :enable-point-cloud="true"
+          :show-spatial-guide="spatialGuideOpen"
+          :active-part="focusedPart"
           initial-mode="solid"
           @mode-change="displayMode = $event"
           @view-change="activeView = $event"
           @part-focus="handlePartFocus"
+          @user-interact="interruptGuidedTour"
           @quality-change="renderQuality = $event"
           @state-change="handleViewerState"
           @point-cloud-state="handlePointCloudState"
@@ -614,7 +972,13 @@ onBeforeUnmount(() => {
           class="three-viewer three-viewer--poster"
         >
           <div class="three-fallback three-fallback--activation" role="status" aria-live="polite">
-            <img :src="exhibit.coverImageUrl" :alt="displayTitle" decoding="async" fetchpriority="high" />
+            <img
+              :src="exhibit.coverImageUrl"
+              :alt="displayTitle"
+              :style="artifactPlateTransitionStyle(exhibit.artifact.slug)"
+              decoding="async"
+              fetchpriority="high"
+            />
             <div class="viewer-poster-copy">
               <span class="viewer-poster-badge font-mono">{{ headerBadge }}</span>
               <p>
@@ -642,6 +1006,62 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
+      <!-- Interruptible 3-Step Guided Micro-Tour Bar -->
+      <aside
+        v-if="tourActive && isBronzeDingExhibit && viewerRuntimeState === 'ready' && currentMicroTourStop"
+        class="micro-tour-bar"
+        data-glass="dark"
+        data-testid="micro-tour-bar"
+        :data-tour-state="tourPlaying ? 'playing' : 'paused'"
+        aria-live="polite"
+      >
+        <div class="micro-tour-bar__copy">
+          <div class="micro-tour-bar__head">
+            <span class="font-mono micro-tour-bar__step">{{ currentMicroTourStop.indexLabel }}</span>
+            <strong>{{ currentMicroTourStop.title }}</strong>
+            <em class="micro-tour-bar__status">
+              {{ tourPlaying ? copy.microTourPlaying : copy.microTourPaused }}
+            </em>
+          </div>
+          <p>{{ currentMicroTourStop.detail }}</p>
+        </div>
+        <div class="micro-tour-bar__controls">
+          <button
+            type="button"
+            data-testid="micro-tour-prev"
+            :aria-label="copy.microTourPrev"
+            @click="stepGuidedTour(-1)"
+          >
+            ‹ {{ copy.microTourPrev }}
+          </button>
+          <button
+            type="button"
+            data-testid="micro-tour-play"
+            :aria-pressed="tourPlaying"
+            @click="toggleGuidedTourPlay"
+          >
+            {{ tourPlaying ? copy.microTourPause : copy.microTourResume }}
+          </button>
+          <button
+            type="button"
+            data-testid="micro-tour-next"
+            :aria-label="copy.microTourNext"
+            @click="stepGuidedTour(1)"
+          >
+            {{ copy.microTourNext }} ›
+          </button>
+          <button
+            type="button"
+            class="micro-tour-bar__close"
+            data-testid="micro-tour-close"
+            :aria-label="copy.microTourClose"
+            @click="closeGuidedTour"
+          >
+            ×
+          </button>
+        </div>
+      </aside>
+
       <!-- Module 3: Collapsible Right Specimen Plaque Drawer (Desktop) -->
       <aside
         class="exhibit-panel exhibit-panel-desktop"
@@ -658,12 +1078,40 @@ onBeforeUnmount(() => {
           <button class="exhibit-panel-close" type="button" :aria-label="copy.closeDrawer" @click="desktopDrawerOpen = false">×</button>
         </div>
 
+        <p v-if="displayDescription" class="exhibit-panel-summary">{{ displayDescription }}</p>
+
         <dl class="exhibit-facts">
           <div v-for="fact in exhibitFacts" :key="fact.label" data-motion="panel-fact">
             <dt>{{ fact.label }}</dt>
             <dd>{{ fact.value }}</dd>
           </div>
         </dl>
+
+        <section
+          v-if="materialProfile"
+          class="curatorial-material-block curatorial-material-block--darkroom"
+          data-testid="exhibit-mineral-swatches"
+          :aria-label="locale === 'en-US' ? 'Mineral palette and craft clues' : '器物矿物色谱与工艺线索'"
+        >
+          <div class="curatorial-material-block__head">
+            <span>{{ locale === 'en-US' ? 'MINERAL PALETTE' : '器物矿物色谱' }}</span>
+            <span class="font-mono">OKLCH</span>
+          </div>
+          <ul class="mineral-swatch-row">
+            <li v-for="swatch in materialProfile.swatches" :key="swatch.nameEn" class="mineral-swatch-item">
+              <span class="mineral-swatch-dot" :style="{ background: swatch.oklch }" aria-hidden="true"></span>
+              <span class="mineral-swatch-meta">
+                <strong>{{ locale === 'en-US' ? swatch.nameEn : swatch.nameZh }}</strong>
+                <code>{{ swatch.oklch }}</code>
+              </span>
+            </li>
+          </ul>
+          <ul class="craft-clue-list">
+            <li v-for="clue in materialProfile.craftClues" :key="clue.en" class="craft-clue-tag">
+              {{ locale === 'en-US' ? clue.en : clue.zh }}
+            </li>
+          </ul>
+        </section>
 
         <p class="render-quality" aria-live="polite">
           <i aria-hidden="true"></i>
@@ -685,7 +1133,7 @@ onBeforeUnmount(() => {
                 type="button"
                 :aria-label="pointCloudTourLabel"
                 :aria-pressed="displayMode === 'points'"
-                :disabled="!viewerInteractive || pointCloudLoading || renderQuality === 'fallback'"
+                :disabled="!viewerInteractive || pointCloudLoading || (!isStoneRakingExhibit && renderQuality === 'fallback')"
                 @click="togglePointCloud"
               >
                 {{ pointCloudLoading ? copy.pointCloudBusy : pointCloudTourLabel }}
@@ -697,6 +1145,9 @@ onBeforeUnmount(() => {
 
         <div class="exhibit-panel-actions">
           <RouterLink class="panel-cta-primary" data-motion="panel-action" :to="`/artifacts/${exhibit.artifact.slug}`">{{ copy.artifact }} →</RouterLink>
+          <RouterLink v-if="siblingExhibit" class="panel-cta-secondary" data-motion="panel-action" :to="`/exhibits/${siblingExhibit.slug}`">
+            {{ locale === 'en-US' ? siblingExhibit.labelEn : siblingExhibit.labelZh }}
+          </RouterLink>
           <RouterLink class="panel-cta-secondary" data-motion="panel-action" to="/appointment">{{ copy.booking }}</RouterLink>
         </div>
       </aside>
@@ -725,7 +1176,7 @@ onBeforeUnmount(() => {
               :class="{ active: displayMode === 'points' }"
               :aria-pressed="displayMode === 'points'"
               :aria-busy="pointCloudLoading"
-              :disabled="!viewerInteractive || pointCloudLoading || renderQuality === 'fallback'"
+              :disabled="!viewerInteractive || pointCloudLoading || (!isStoneRakingExhibit && renderQuality === 'fallback')"
               @click="selectMode('points')"
             >
               <Connection aria-hidden="true" />
@@ -757,9 +1208,9 @@ onBeforeUnmount(() => {
         <div class="dock-divider" aria-hidden="true"></div>
 
         <div class="dock-section viewer-tools" data-motion="dock-section" role="group" :aria-label="copy.toolsAria">
-          <button data-motion="exhibit-tool" type="button" :aria-label="copy.tools[0]" :title="copy.tools[0]" :disabled="!viewerInteractive" @click="viewer?.rotate()">↻</button>
-          <button data-motion="exhibit-tool" type="button" :aria-label="copy.tools[1]" :title="copy.tools[1]" :disabled="!viewerInteractive" @click="viewer?.zoomIn()">＋</button>
-          <button data-motion="exhibit-tool" type="button" :aria-label="copy.tools[2]" :title="copy.tools[2]" :disabled="!viewerInteractive" @click="viewer?.zoomOut()">−</button>
+          <button data-motion="exhibit-tool" type="button" :aria-label="copy.tools[0]" :title="copy.tools[0]" :disabled="!viewerInteractive" @click="rotateViewer">↻</button>
+          <button data-motion="exhibit-tool" type="button" :aria-label="copy.tools[1]" :title="copy.tools[1]" :disabled="!viewerInteractive" @click="zoomInViewer">＋</button>
+          <button data-motion="exhibit-tool" type="button" :aria-label="copy.tools[2]" :title="copy.tools[2]" :disabled="!viewerInteractive" @click="zoomOutViewer">−</button>
           <button data-motion="exhibit-tool" type="button" :aria-label="copy.tools[3]" :title="copy.tools[3]" :disabled="!viewerInteractive" @click="reset">◇</button>
         </div>
       </section>
@@ -789,19 +1240,43 @@ onBeforeUnmount(() => {
     >
       <div class="mobile-exhibit-info">
         <h2>{{ displayTitle }}</h2>
+        <p v-if="displayDescription" class="mobile-exhibit-summary">{{ displayDescription }}</p>
         <dl class="mobile-exhibit-facts">
           <div v-for="fact in exhibitFacts" :key="fact.label">
             <dt>{{ fact.label }}</dt>
             <dd>{{ fact.value }}</dd>
           </div>
         </dl>
+        <section v-if="materialProfile" class="curatorial-material-block">
+          <div class="curatorial-material-block__head">
+            <span>{{ locale === 'en-US' ? 'MINERAL PALETTE' : '器物矿物色谱' }}</span>
+            <span class="font-mono">OKLCH</span>
+          </div>
+          <ul class="mineral-swatch-row">
+            <li v-for="swatch in materialProfile.swatches" :key="swatch.nameEn" class="mineral-swatch-item">
+              <span class="mineral-swatch-dot" :style="{ background: swatch.oklch }" aria-hidden="true"></span>
+              <span class="mineral-swatch-meta">
+                <strong>{{ locale === 'en-US' ? swatch.nameEn : swatch.nameZh }}</strong>
+                <code>{{ swatch.oklch }}</code>
+              </span>
+            </li>
+          </ul>
+          <ul class="craft-clue-list">
+            <li v-for="clue in materialProfile.craftClues" :key="clue.en" class="craft-clue-tag">
+              {{ locale === 'en-US' ? clue.en : clue.zh }}
+            </li>
+          </ul>
+        </section>
         <div class="mobile-mode-switch" role="group" :aria-label="copy.renderMode">
           <button type="button" :class="{ active: displayMode === 'solid' }" :aria-pressed="displayMode === 'solid'" :disabled="!viewerInteractive" @click="selectMode('solid')">{{ copy.solid }}</button>
-          <button type="button" :class="{ active: displayMode === 'points' }" :aria-pressed="displayMode === 'points'" :aria-busy="pointCloudLoading" :disabled="!viewerInteractive || pointCloudLoading || renderQuality === 'fallback'" @click="selectMode('points')">{{ pointCloudLoading ? copy.pointCloudBusy : copy.points }}</button>
+          <button type="button" :class="{ active: displayMode === 'points' }" :aria-pressed="displayMode === 'points'" :aria-busy="pointCloudLoading" :disabled="!viewerInteractive || pointCloudLoading || (!isStoneRakingExhibit && renderQuality === 'fallback')" @click="selectMode('points')">{{ pointCloudLoading ? copy.pointCloudBusy : copy.points }}</button>
         </div>
         <p v-if="pointCloudFailed" class="point-cloud-error" role="status">{{ copy.pointCloudFailed }}</p>
         <div class="exhibit-panel-actions">
           <RouterLink class="fluid-button fluid-button--primary fluid-button--block" :to="`/artifacts/${exhibit.artifact.slug}`">{{ copy.artifact }} →</RouterLink>
+          <RouterLink v-if="siblingExhibit" class="fluid-button fluid-button--secondary fluid-button--block" :to="`/exhibits/${siblingExhibit.slug}`">
+            {{ locale === 'en-US' ? siblingExhibit.labelEn : siblingExhibit.labelZh }}
+          </RouterLink>
           <RouterLink class="fluid-button fluid-button--secondary fluid-button--block" to="/appointment">{{ copy.booking }}</RouterLink>
         </div>
       </div>
@@ -822,7 +1297,7 @@ onBeforeUnmount(() => {
   color: var(--ink-primary);
 }
 
-/* ── Museum Exhibition Stage: Sunlit Architectural Hall (Light) & Obsidian Silk Warm Gallery (Dark) ── */
+/* ── Museum Exhibition Stage: Sunlit Architectural Hall (Light) & Cold Obsidian Gallery (Dark) ── */
 .exhibit-scene {
   position: relative;
   width: 100%;
@@ -836,9 +1311,7 @@ onBeforeUnmount(() => {
   background-repeat: no-repeat;
 }
 
-/* Architectural curatorial dimming veil in Light Mode Point Cloud:
-   softly dims the sunlit hall with an overhead spotlight pool so burnished gold
-   and antique bronze points gleam crisply while the header & UI stay Light Mode. */
+/* Architectural curatorial dimming veil in Light Mode Point Cloud */
 .exhibit-scene::after {
   content: '';
   position: absolute;
@@ -848,8 +1321,8 @@ onBeforeUnmount(() => {
   opacity: 0;
   background:
     radial-gradient(ellipse 52% 24% at 50% 6%, oklch(92% 0.032 80 / 0.16) 0%, transparent 72%),
-    radial-gradient(ellipse 54% 68% at 50% 48%, oklch(12% 0.010 78 / 0.86) 0%, oklch(16% 0.010 80 / 0.78) 48%, oklch(22% 0.008 82 / 0.62) 78%, oklch(26% 0.008 84 / 0.48) 100%),
-    linear-gradient(180deg, oklch(20% 0.008 82 / 0.24) 0%, oklch(15% 0.010 80 / 0.14) 48%, oklch(14% 0.010 78 / 0.34) 100%);
+    radial-gradient(ellipse 58% 72% at 50% 48%, oklch(10% 0.008 238 / 0.90) 0%, oklch(13% 0.009 238 / 0.82) 48%, oklch(18% 0.009 238 / 0.68) 78%, oklch(22% 0.008 238 / 0.54) 100%),
+    linear-gradient(180deg, oklch(16% 0.008 238 / 0.30) 0%, oklch(12% 0.008 238 / 0.18) 48%, oklch(10% 0.008 238 / 0.42) 100%);
   transition: opacity 560ms var(--ease-curatorial);
 }
 
@@ -877,7 +1350,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: var(--space-4);
   padding: var(--space-4) clamp(1rem, 3vw, 2rem);
-  background: linear-gradient(180deg, oklch(97% 0.006 95 / 0.52) 0%, transparent 100%);
+  background: linear-gradient(180deg, oklch(97% 0.006 84 / 0.52) 0%, transparent 100%);
   pointer-events: none;
 }
 
@@ -885,10 +1358,19 @@ onBeforeUnmount(() => {
   pointer-events: auto;
 }
 
-.darkroom-back {
+.darkroom-topbar__left {
   justify-self: start;
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.darkroom-back,
+.darkroom-exhibit-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   min-height: var(--control-min);
   padding: 0 0.875rem;
   border: 1px solid var(--border-strong);
@@ -902,7 +1384,13 @@ onBeforeUnmount(() => {
   transition: border-color var(--duration-fast) var(--ease-curatorial);
 }
 
-.darkroom-back:hover {
+.darkroom-exhibit-switch .font-mono {
+  color: var(--accent-bronze);
+  letter-spacing: 0.06em;
+}
+
+.darkroom-back:hover,
+.darkroom-exhibit-switch:hover {
   border-color: var(--accent-bronze);
 }
 
@@ -1086,7 +1574,7 @@ onBeforeUnmount(() => {
   padding: 3px;
   border: 1px solid var(--glass-dark-border);
   border-radius: var(--radius-pill);
-  background: oklch(11% 0.005 74 / 0.68);
+  background: oklch(11.6% 0.006 238 / 0.72);
 }
 
 .dock-mode-switch button {
@@ -1204,7 +1692,7 @@ onBeforeUnmount(() => {
   z-index: 19;
   display: grid;
   gap: var(--space-4);
-  width: 332px;
+  width: 356px;
   max-height: calc(100% - 168px);
   overflow-y: auto;
   padding: var(--space-5);
@@ -1428,7 +1916,7 @@ onBeforeUnmount(() => {
   padding: var(--space-6);
   border: 1px solid var(--glass-dark-border);
   border-radius: var(--radius-lg);
-  background: oklch(13% 0.005 74 / 0.86);
+  background: oklch(13% 0.006 238 / 0.88);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   text-align: center;
@@ -1578,6 +2066,10 @@ onBeforeUnmount(() => {
     padding: var(--space-3) var(--space-3);
   }
 
+  .darkroom-exhibit-switch {
+    display: none;
+  }
+
   .darkroom-back,
   .mobile-exhibit-info-trigger {
     white-space: nowrap;
@@ -1603,7 +2095,7 @@ onBeforeUnmount(() => {
   }
 
   .darkroom-invite {
-    top: 74px;
+    top: 66px;
     max-width: calc(100% - 1.5rem);
   }
 
@@ -1680,6 +2172,176 @@ onBeforeUnmount(() => {
     bottom: 4px;
   }
 }
+
+/* ── Spatial Scale Toggle & Interruptible Micro-Tour Bar ── */
+.darkroom-spatial-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: var(--control-min);
+  padding: 0 0.875rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--glass-light-bg);
+  color: var(--ink-primary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: border-color var(--duration-fast) var(--ease-curatorial),
+              background-color var(--duration-fast) var(--ease-curatorial),
+              color var(--duration-fast) var(--ease-curatorial);
+}
+
+.darkroom-spatial-toggle:hover {
+  border-color: var(--accent-bronze);
+}
+
+.darkroom-spatial-toggle.is-active {
+  border-color: oklch(76% 0.095 75);
+  background: oklch(78% 0.052 76 / 0.24);
+  color: var(--ink-primary);
+}
+
+.darkroom-spatial-toggle__star {
+  color: var(--accent-bronze);
+  font-size: var(--text-xs);
+  line-height: 1;
+}
+
+.exhibit-panel-summary {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.65;
+  color: var(--ink-on-dark-muted);
+}
+
+.mobile-exhibit-summary {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.65;
+  color: var(--ink-secondary);
+}
+
+.micro-tour-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 118px;
+  transform: translateX(-50%);
+  z-index: 21;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  width: min(calc(100% - 2rem), 680px);
+  padding: 0.65rem 0.9rem 0.65rem 1.1rem;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  color: var(--ink-on-dark);
+}
+
+.micro-tour-bar__copy {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.micro-tour-bar__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.micro-tour-bar__step {
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  color: oklch(82% 0.068 78);
+}
+
+.micro-tour-bar__head strong {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-on-dark);
+}
+
+.micro-tour-bar__status {
+  font-style: normal;
+  font-size: var(--text-xs);
+  color: var(--ink-on-dark-muted);
+}
+
+.micro-tour-bar[data-tour-state="paused"] .micro-tour-bar__status {
+  color: oklch(82% 0.068 78);
+}
+
+.micro-tour-bar__copy p {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--ink-on-dark-muted);
+}
+
+.micro-tour-bar__controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.micro-tour-bar__controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--glass-dark-border);
+  border-radius: var(--radius-pill);
+  background: oklch(16% 0.006 74 / 0.72);
+  color: var(--ink-on-dark);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-curatorial),
+              background-color var(--duration-fast) var(--ease-curatorial);
+}
+
+.micro-tour-bar__controls button:hover {
+  border-color: oklch(78% 0.062 76 / 0.75);
+  background: oklch(78% 0.052 76 / 0.18);
+}
+
+.micro-tour-bar__controls .micro-tour-bar__close {
+  min-width: 44px;
+  padding: 0;
+  font-size: var(--text-md);
+  color: var(--ink-on-dark-muted);
+}
+
+@media (max-width: 760px) {
+  .darkroom-spatial-toggle {
+    display: none;
+  }
+
+  .micro-tour-bar {
+    left: var(--space-3);
+    right: var(--space-3);
+    bottom: 146px;
+    width: auto;
+    transform: none;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+    padding: 0.65rem 0.85rem;
+  }
+
+  .micro-tour-bar__controls {
+    justify-content: flex-end;
+  }
+}
 </style>
 
 <style>
@@ -1691,25 +2353,32 @@ html[data-theme="dark"] .immersive-exhibit .exhibit-scene[data-display-mode="poi
 }
 
 html[data-theme="dark"] .immersive-exhibit .darkroom-topbar {
-  background: linear-gradient(180deg, oklch(12% 0.005 74 / 0.68) 0%, transparent 100%);
+  background: linear-gradient(180deg, oklch(11.6% 0.006 238 / 0.72) 0%, transparent 100%);
 }
 
-html[data-theme="dark"] .immersive-exhibit .darkroom-back {
+html[data-theme="dark"] .immersive-exhibit .darkroom-back,
+html[data-theme="dark"] .immersive-exhibit .darkroom-exhibit-switch {
   border-color: var(--glass-dark-border);
   background: var(--glass-dark-bg);
   color: var(--ink-on-dark);
 }
 
 html[data-theme="dark"] .immersive-exhibit .darkroom-title {
-  background: oklch(18% 0.006 74 / 0.66);
+  background: oklch(16% 0.007 238 / 0.72);
   border-color: var(--glass-dark-border);
   color: var(--ink-on-dark);
 }
 
+html[data-theme="dark"] .immersive-exhibit .darkroom-spatial-toggle,
 html[data-theme="dark"] .immersive-exhibit .darkroom-drawer-toggle,
 html[data-theme="dark"] .immersive-exhibit .mobile-exhibit-info-trigger {
   border-color: var(--glass-dark-border);
   background: var(--glass-dark-bg);
   color: var(--ink-on-dark);
+}
+
+html[data-theme="dark"] .immersive-exhibit .darkroom-spatial-toggle.is-active {
+  border-color: oklch(78% 0.075 76 / 0.8);
+  background: oklch(78% 0.052 76 / 0.22);
 }
 </style>

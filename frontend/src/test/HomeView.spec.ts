@@ -45,8 +45,11 @@ describe('HomeView', () => {
     const heroSource = wrapper.get('.home-cover source')
     const heroImage = wrapper.get('.corridor-home__hero-media')
     expect(heroSource.attributes('media')).toBe('(max-width: 760px)')
-    expect(heroSource.attributes('srcset')).toContain('home-corridor-light-user-v2-portrait.webp 483w')
+    expect(heroSource.attributes('srcset')).toContain('home-hero-light-v3-portrait.webp 483w')
     expect(heroImage.attributes('fetchpriority')).toBe('high')
+    expect(wrapper.find('.home-cover__armillary').exists()).toBe(true)
+    const closeup3d = wrapper.get('.home-inline-link')
+    expect(closeup3d.attributes('data-to')).toBeTruthy()
 
     const cardImages = wrapper.findAll('.home-theme img')
     expect(cardImages[0]?.attributes('src')).toBe('/media/editorial/explore-bronze-jue-user-v2.webp')

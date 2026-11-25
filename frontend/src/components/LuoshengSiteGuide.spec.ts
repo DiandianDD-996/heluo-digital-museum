@@ -141,4 +141,148 @@ describe('LuoshengSiteGuide v2', () => {
     wrapper.unmount()
     expect(duckSpy).toHaveBeenLastCalledWith('luosheng', false)
   })
+
+  it('renders bold and list formatting safely and queues viewer_tour action', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      makeSseResponse([
+        'event:done\ndata:{"requestId":"r3","text":"建议按这三步看：**先看双耳**\\n- 第一步：俯视口沿\\n- 第二步：看器腹宽线","citations":[],"actions":[{"type":"viewer_tour","exhibitSlug":"heluo-bronze-ding-3d","label":"开启 3D 三步导览"}],"followUps":[],"boundaryNote":"","mode":"ai","degraded":false}\n\n',
+      ]),
+    ))
+
+    const wrapper = mount(LuoshengSiteGuide, {
+      global: { plugins: [router] },
+    })
+
+    await wrapper.get('[data-testid="luosheng-fab"]').trigger('click')
+    await wrapper.get('[data-testid="luosheng-input"]').setValue('带我逛青铜鼎')
+    await wrapper.get('form.luosheng-composer').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.find('.luosheng-bubble strong').text()).toBe('先看双耳')
+    expect(wrapper.findAll('.luosheng-list li')).toHaveLength(2)
+
+    const store = useLuoshengStore()
+    await wrapper.get('[data-action-type="viewer_tour"]').trigger('click')
+    await flushPromises()
+    expect(store.pendingViewerAction?.exhibitSlug).toBe('heluo-bronze-ding-3d')
+    expect(store.pendingViewerAction?.tour).toBe(true)
+    expect(router.currentRoute.value.path).toBe('/exhibits/heluo-bronze-ding-3d')
+    wrapper.unmount()
+  })
+
+  it('surfaces a clickable quick-ask capsule on cross-page dividers and balances unclosed ** mid-stream without flicker', async () => {
+    let streamController!: ReadableStreamDefaultController<Uint8Array>
+    const encoder = new TextEncoder()
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(makeSseResponse([
+        'event:done\ndata:{"requestId":"r4","text":"你好，我是洛笙。","citations":[],"actions":[],"followUps":[],"boundaryNote":"","mode":"ai","degraded":false}\n\n',
+      ]))
+      .mockImplementationOnce(() => Promise.resolve(new Response(new ReadableStream<Uint8Array>({
+        start(ctrl) { streamController = ctrl },
+      }), { status: 200, headers: { 'Content-Type': 'text/event-stream; charset=utf-8' } }))))
+
+    const wrapper = mount(LuoshengSiteGuide, { global: { plugins: [router] } })
+    const store = useLuoshengStore()
+    await wrapper.get('[data-testid="luosheng-fab"]').trigger('click')
+    await wrapper.get('[data-testid="luosheng-input"]').setValue('你好')
+    await wrapper.get('form.luosheng-composer').trigger('submit')
+    await flushPromises()
+
+    // Switch page context -> inserts divider with quick-ask capsule
+    store.setPageContext({
+      route: 'artifact-detail',
+      path: '/artifacts/river-map-jade-bi',
+      title: '河图玉璧（概念展品）',
+      artifactSlug: 'river-map-jade-bi',
+      exhibitSlug: null,
+      articleSlug: null,
+    })
+    await flushPromises()
+
+    const dividerStarter = wrapper.get('[data-testid="luosheng-divider-starter"]')
+    expect(dividerStarter.text()).toContain('这件展品最值得看哪些细节？')
+
+    // Click the divider quick-ask capsule -> starts streaming without raw ** flicker
+    await dividerStarter.trigger('click')
+    await flushPromises()
+
+    streamController.enqueue(encoder.encode('event:delta\ndata:{"text":"先看外缘与**中央穿孔"}\n\n'))
+    await flushPromises()
+    expect(wrapper.find('.luosheng-bubble strong').text()).toBe('中央穿孔')
+    expect(wrapper.text()).not.toContain('**')
+
+    streamController.enqueue(encoder.encode('event:done\ndata:{"requestId":"r5","text":"先看外缘与**中央穿孔**的留白。","citations":[],"actions":[],"followUps":[],"boundaryNote":"","mode":"ai","degraded":false}\n\n'))
+    streamController.close()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="luosheng-divider-starter"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('先看外缘与中央穿孔的留白。')
+    wrapper.unmount()
+  })
+
+  it('supports wide mode toggle, context ribbon, mid-chat ideas & quick intents, copy/regenerate, and error retry', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    })
+
+    const fetchMock = vi.fn()
+      // Primary SSE call + automatic JSON fallback both fail to surface the retry button
+      .mockRejectedValueOnce(new Error('network down'))
+      .mockRejectedValueOnce(new Error('network down'))
+      .mockResolvedValueOnce(makeSseResponse([
+        'event:done\ndata:{"requestId":"r6","text":"首版回答：**河洛青铜鼎**铸于商代风格。","citations":[],"actions":[],"followUps":[],"boundaryNote":"","mode":"ai","degraded":false}\n\n',
+      ]))
+      .mockResolvedValueOnce(makeSseResponse([
+        'event:done\ndata:{"requestId":"r7","text":"新版回答：已为你重新整理三步看点。","citations":[],"actions":[],"followUps":[],"boundaryNote":"","mode":"ai","degraded":false}\n\n',
+      ]))
+      .mockResolvedValueOnce(makeSseResponse([
+        'event:done\ndata:{"requestId":"r8","text":"这是十五分钟高光路线。","citations":[],"actions":[],"followUps":[],"boundaryNote":"","mode":"ai","degraded":false}\n\n',
+      ]))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const wrapper = mount(LuoshengSiteGuide, { global: { plugins: [router] } })
+    const store = useLuoshengStore()
+    await wrapper.get('[data-testid="luosheng-fab"]').trigger('click')
+
+    // Wide mode toggle
+    const drawer = wrapper.get('[data-testid="luosheng-drawer"]')
+    expect(drawer.classes()).not.toContain('is-wide')
+    await wrapper.get('[data-testid="luosheng-expand"]').trigger('click')
+    expect(drawer.classes()).toContain('is-wide')
+
+    // Context ribbon reflects route
+    expect(wrapper.get('[data-testid="luosheng-context-bar"]').text()).toContain('博物馆首页')
+
+    // Network error + retry
+    await wrapper.get('[data-testid="luosheng-input"]').setValue('介绍青铜鼎')
+    await wrapper.get('form.luosheng-composer').trigger('submit')
+    await flushPromises()
+    const retryBtn = wrapper.get('[data-testid="luosheng-retry"]')
+    await retryBtn.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('首版回答：')
+
+    // Copy message strips bold markers
+    await wrapper.get('[data-testid="luosheng-copy-msg"]').trigger('click')
+    expect(writeText).toHaveBeenCalledWith('首版回答：河洛青铜鼎铸于商代风格。')
+
+    // Regenerate replaces latest assistant turn without duplicating user turn
+    await wrapper.get('[data-testid="luosheng-regenerate"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('新版回答：已为你重新整理三步看点。')
+    expect(store.messages.filter(m => m.role === 'user')).toHaveLength(1)
+
+    // Mid-conversation Ideas toggle + Quick-Intent dock
+    await wrapper.get('[data-testid="luosheng-ideas-toggle"]').trigger('click')
+    expect(wrapper.find('[data-testid="luosheng-ideas-drawer"]').exists()).toBe(true)
+    const intentButtons = wrapper.findAll('[data-testid="luosheng-quick-intents"] button')
+    expect(intentButtons.length).toBeGreaterThanOrEqual(3)
+    await intentButtons[0]!.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('这是十五分钟高光路线。')
+
+    wrapper.unmount()
+  })
 })

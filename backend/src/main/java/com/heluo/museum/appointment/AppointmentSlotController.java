@@ -32,7 +32,7 @@ public class AppointmentSlotController {
         LocalDate from = dateFrom == null ? today : dateFrom;
         LocalDate to = dateTo == null ? openWindowEnd : dateTo;
         if (from.isBefore(today) || to.isAfter(openWindowEnd) || to.isBefore(from)) {
-            throw new IllegalArgumentException("公开预约仅开放今天起未来 14 天的日期范围");
+            throw new IllegalArgumentException("公开预约仅开放今天起未来 365 天的日期范围");
         }
         LocalTime now = current.toLocalTime();
         return ApiResponse.ok(jdbc.query(

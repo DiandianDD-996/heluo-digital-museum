@@ -56,6 +56,31 @@ class BilingualSearchTests {
             .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).path("data").path("accessToken").asText();
     }
 
+    @Test void museumSearchRanksTitleBeforeBodyAndPagesAcrossTypes() throws Exception {
+        jdbc.update("update artifacts set title_en='Lantern ritual' where slug='heluo-bronze-ding'");
+        jdbc.update("update articles set content_en='Lantern ceremonial ritual' where slug='how-to-read-bronze'");
+        jdbc.update("update exhibits_3d set description_en='Lantern ritual' where slug='heluo-bronze-ding-3d'");
+        jdbc.update("update products set description_en='Lantern used during ritual' where slug='river-map-notebook'");
+        var first = search("lantern ritual", "museum", 1, 2);
+        assertThat(first.path("total").asInt()).isEqualTo(4);
+        assertThat(first.path("items").get(0).path("path").asText()).isEqualTo("/artifacts/heluo-bronze-ding");
+        assertThat(search("lantern ritual", "all", 1, 20).path("total").asInt()).isEqualTo(2);
+        var product = search("lantern ritual", "product", 1, 20).path("items").get(0);
+        assertThat(product.path("path").asText()).isEqualTo("/shop");
+        assertThat(product.path("price").asText()).isEqualTo("39.00");
+        assertThat(search("Anyang Bronze", "artifact", 1, 20).path("total").asInt()).isGreaterThanOrEqualTo(1);
+        jdbc.update("update categories set enabled=0 where code='BRONZE'");
+        assertThat(search("lantern ritual", "museum", 1, 20).path("total").asInt()).isEqualTo(1);
+    }
+
+    @Test void freshBootstrapPersistsAllNewPlatformFields() {
+        assertThat(jdbc.queryForObject("select count(*) from artifacts where content_en is not null and period_en is not null and material_en is not null", Integer.class)).isEqualTo(6);
+        assertThat(jdbc.queryForObject("select count(*) from articles where content_en is not null", Integer.class)).isEqualTo(4);
+        assertThat(jdbc.queryForObject("select count(*) from categories where name_en is not null and description_zh is not null and description_en is not null", Integer.class)).isEqualTo(3);
+        assertThat(jdbc.queryForObject("select count(*) from exhibits_3d where description_en is not null", Integer.class)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("select inspiration_artifact_slug from products where slug='river-line-teacup-set'", String.class)).isEqualTo("painted-pottery-water-jar");
+    }
+
     @Test void freshSeedIsFullyTranslatedAndCaseInsensitiveWithStablePaging() throws Exception {
         for (String table : new String[]{"artifacts", "articles"}) {
             assertThat(jdbc.queryForObject("select count(*) from " + table + " where title_en is null or summary_en is null", Integer.class)).isZero();

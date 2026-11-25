@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 import { ArrowLeft, ArrowRight, RefreshLeft } from '@element-plus/icons-vue'
 import { apiGet, apiRequest, type ContentPage } from '../lib/api'
 import InlineStatus from './InlineStatus.vue'
+import MuseumPassCard from './MuseumPassCard.vue'
 import StatusBadge from './StatusBadge.vue'
 import { audioSystem } from '../lib/audioSystem'
 import { useLocale } from '../stores/locale'
@@ -11,6 +12,7 @@ import { useLocale } from '../stores/locale'
 interface Appointment {
   id: number
   appointmentNo: string
+  verificationCode?: string
   status: string
   visitorCount: number
   contactName: string
@@ -27,6 +29,11 @@ const error = ref('')
 const items = ref<Appointment[]>([])
 const cancellingId = ref<number | null>(null)
 const confirmId = ref<number | null>(null)
+const expandedPassId = ref<number | null>(null)
+
+function togglePass(id: number) {
+  expandedPassId.value = expandedPassId.value === id ? null : id
+}
 const page = ref(1)
 const total = ref(0)
 const totalPages = ref(1)
@@ -115,24 +122,43 @@ onBeforeUnmount(() => { requestVersion++; controller?.abort() })
       <RouterLink class="profile-record-link" to="/appointment">{{ locale === 'en-US' ? 'Book a visit →' : '去预约参观 →' }}</RouterLink>
     </div>
     <div v-else class="profile-record-list">
-      <article v-for="item in items" :key="item.id" class="profile-record-card profile-record-card--appointment">
-        <div class="profile-record-card__date">
-          <strong class="font-mono">{{ item.visitDate.slice(8, 10) }}</strong>
-          <span>{{ formatMonth(item.visitDate) }}</span>
-        </div>
-        <div class="profile-record-card__body">
-          <span class="profile-record-kicker font-mono">{{ item.appointmentNo }}</span>
-          <h3>{{ formatDate(item.visitDate) }}</h3>
-          <p class="profile-record-time font-mono">{{ item.startTime.slice(0, 5) }}–{{ item.endTime.slice(0, 5) }} · {{ item.contactName }} · {{ item.visitorCount }} {{ locale === 'en-US' ? 'people' : '人' }}</p>
-        </div>
-        <div class="profile-record-actions">
-          <StatusBadge :status="item.status" />
-          <template v-if="(item.status === 'PENDING' || item.status === 'CONFIRMED') && canCancel(item)">
-            <button v-if="confirmId !== item.id" class="profile-cancel-btn" type="button" @click="cancel(item)">{{ locale === 'en-US' ? 'Cancel booking' : '取消预约' }}</button>
-            <button v-else class="profile-cancel-btn is-confirm" type="button" :disabled="cancellingId === item.id" @click="cancel(item)">{{ cancellingId === item.id ? (locale === 'en-US' ? 'Working…' : '处理中…') : (locale === 'en-US' ? 'Click again to confirm' : '再次点击确认') }}</button>
-          </template>
-        </div>
-      </article>
+      <div v-for="item in items" :key="item.id" class="profile-record-entry">
+        <article class="profile-record-card profile-record-card--appointment">
+          <div class="profile-record-card__date">
+            <strong class="font-mono">{{ item.visitDate.slice(8, 10) }}</strong>
+            <span>{{ formatMonth(item.visitDate) }}</span>
+          </div>
+          <div class="profile-record-card__body">
+            <div class="profile-record-kicker-row">
+              <span class="profile-record-kicker font-mono">{{ item.appointmentNo }}</span>
+              <small v-if="item.verificationCode" class="profile-record-verify font-mono">
+                {{ locale === 'en-US' ? 'Code' : '核验码' }} {{ item.verificationCode }}
+              </small>
+            </div>
+            <h3>{{ formatDate(item.visitDate) }}</h3>
+            <p class="profile-record-time font-mono">{{ item.startTime.slice(0, 5) }}–{{ item.endTime.slice(0, 5) }} · {{ item.contactName }} · {{ item.visitorCount }} {{ locale === 'en-US' ? 'people' : '人' }}</p>
+          </div>
+          <div class="profile-record-actions">
+            <StatusBadge :status="item.status" />
+            <div class="profile-record-actions__btns">
+              <button
+                class="profile-pass-btn"
+                data-testid="toggle-pass-card"
+                type="button"
+                :aria-expanded="expandedPassId === item.id"
+                @click="togglePass(item.id)"
+              >
+                {{ expandedPassId === item.id ? (locale === 'en-US' ? 'Hide Pass' : '收起票根') : (locale === 'en-US' ? 'Museum Pass' : '电子票根') }}
+              </button>
+              <template v-if="(item.status === 'PENDING' || item.status === 'CONFIRMED') && canCancel(item)">
+                <button v-if="confirmId !== item.id" class="profile-cancel-btn" type="button" @click="cancel(item)">{{ locale === 'en-US' ? 'Cancel booking' : '取消预约' }}</button>
+                <button v-else class="profile-cancel-btn is-confirm" type="button" :disabled="cancellingId === item.id" @click="cancel(item)">{{ cancellingId === item.id ? (locale === 'en-US' ? 'Working…' : '处理中…') : (locale === 'en-US' ? 'Click again to confirm' : '再次点击确认') }}</button>
+              </template>
+            </div>
+          </div>
+        </article>
+        <MuseumPassCard v-if="expandedPassId === item.id" class="profile-record-pass" :pass="item" />
+      </div>
     </div>
 
     <nav v-if="totalPages > 1" class="profile-record-pagination" :aria-label="locale === 'en-US' ? 'Visit booking pages' : '预约记录分页'">
@@ -246,9 +272,25 @@ onBeforeUnmount(() => { requestVersion++; controller?.abort() })
   min-width: 0;
 }
 
+.profile-record-kicker-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 .profile-record-kicker {
   font-size: var(--text-xs);
   color: var(--ink-muted);
+}
+
+.profile-record-verify {
+  padding: 0.08rem 0.4rem;
+  border-radius: var(--radius-xs);
+  background: color-mix(in oklab, var(--accent-seal) 10%, transparent);
+  color: var(--accent-seal);
+  font-size: var(--text-xs);
+  font-weight: 600;
 }
 
 .profile-record-card__body h3 {
@@ -266,6 +308,34 @@ onBeforeUnmount(() => { requestVersion++; controller?.abort() })
   flex-direction: column;
   align-items: flex-end;
   gap: var(--space-2);
+}
+
+.profile-record-entry {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.profile-record-actions__btns {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.profile-pass-btn {
+  min-height: 36px;
+  padding: 0 0.75rem;
+  border: 1px solid color-mix(in oklab, var(--accent-bronze) 55%, var(--border-strong));
+  border-radius: var(--radius-xs);
+  background: color-mix(in oklab, var(--accent-bronze) 10%, transparent);
+  color: var(--ink-primary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.profile-pass-btn:hover {
+  border-color: var(--accent-bronze);
 }
 
 .profile-cancel-btn {

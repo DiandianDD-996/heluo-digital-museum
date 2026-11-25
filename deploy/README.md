@@ -1,10 +1,10 @@
 # 本地容器运行
 
-## 洛笙预设讲解接口
+## 洛笙 AI 向导
 
 模型预览由 Maven 测试入口提供，仅监听本机回环地址。启动与联调说明见[洛笙青铜鼎实时问答预览](../docs/plans/2026-11-20-luosheng-model-preview.md)。
 
-接口默认关闭。独立 Spring 测试环境可通过 `MUSEUM_GUIDE_PRESET_ENABLED` 启用读取。启用时必须为 `MUSEUM_GUIDE_PACK_PATH`、`MUSEUM_GUIDE_MINIMUM_VERSION_PATH` 和 `MUSEUM_GUIDE_APPROVED_DIGEST_PATH` 提供进程可读的文件路径。最低版本文件填写正整数，指纹文件填写签核记录中的 SHA-256。发布时由受控环境挂载有效数据，当前 Compose 保持默认关闭。
+默认前后端关闭；显式开启后端 `MUSEUM_GUIDE_ENABLED` 与前端构建参数 `VITE_GUIDE_ENABLED`。候选覆盖文件 `compose.luosheng-candidate.yaml` 只读挂载 `MUSEUM_GUIDE_RELEASE_DIR`：放置已签核的 `ding.zh-CN.json`、`ding.zh-CN.sha256`、同目录 `ding.en-US.json`、`ding.en-US.sha256` 及共享的 `minimum-release-version.txt`。最低版本文件填写正整数，指纹文件填写各语言签核 SHA-256。通用部署变量见[洛笙说明](../docs/luosheng/README.md)。
 
 ## 当前本机演示入口（2026-09-21）
 
@@ -33,11 +33,15 @@ docker compose -p heluo-museum -f docker-compose.yml up -d --no-build
 2. 在 `deploy/.env` 中替换两个本地密码，不要提交该文件。
 3. 在仓库根目录运行：`docker compose --env-file deploy/.env -f deploy/compose.yaml up --build`。
 4. 浏览器访问 `http://localhost:8088`；存活检查为 `http://localhost:8088/api/v1/health`，数据库就绪检查为 `http://localhost:8088/api/v1/ready`。分别确认 HTTP 200 与 `data.status=UP`。
-5. 本地 Compose 默认启动 Mailpit 测试收件箱：`http://localhost:8025`。密码找回、预约和模拟支付通知只投递到这里，不会发送真实邮件；重置令牌不会写入应用日志或 API 响应。
+5. Compose 默认不启动 Mailpit，也不配置 SMTP。仅本机调试时，在 `deploy/.env` 设置 `MUSEUM_SMTP_HOST=mailpit`、`MUSEUM_SMTP_PORT=1025`，并运行 `docker compose --env-file deploy/.env -f deploy/compose.yaml --profile dev-mail up -d --build`。测试收件箱仅绑定 `127.0.0.1:8025`。已有旧部署要主动停止旧 Mailpit 容器；调整 profile 不会自动停止已经运行的旧实例。
 
-部署到已获批准的 SMTP 服务时，在本地忽略的 `deploy/.env` 中设置 `MUSEUM_SMTP_HOST`、端口、认证和 TLS 变量，并将 `MUSEUM_PUBLIC_BASE_URL` 设为公开前台地址。SMTP 密码不得提交到仓库。
+部署到已获批准的 SMTP 服务时，在本地忽略的 `deploy/.env` 中设置 `MUSEUM_SMTP_HOST`、端口、认证和 TLS 变量，并将 `MUSEUM_PUBLIC_BASE_URL` 设为公开前台地址。非开发配置在非回环站点上禁止 Mailpit 或 SMTP 1025。SMTP 密码不得提交到仓库。重置密码请求按来源 IP 和目标用户名节流，超限仍返回统一受理响应。
+
+后端不采用容器自动转发头重写。Compose 默认仅信任本机回环和 Nginx 固定地址 `172.30.88.10/32`；如网段冲突，同时更改 `MUSEUM_NETWORK_SUBNET` 与 `MUSEUM_NGINX_IP`。有额外上游反代时，在 `MUSEUM_TRUSTED_PROXY_CIDRS` 仅列出实际代理的出站地址，代理必须净化或追加其真实对端地址。PocketBay 直连不应信任客户提交的转发头；只配置真实前置代理。
 
 `compose.yaml` 使用 MySQL 8.4、Spring Boot API 和 Nginx 承载的 Vue 单页应用，数据库结构由版本化 Flyway 迁移维护。
+
+如果用 `MUSEUM_WEB_PORT=127.0.0.1:8088` 限制宿主机监听，另显式设置 `MUSEUM_PUBLIC_BASE_URL=http://127.0.0.1:8088`，不要将端口映射表达式用作公开 origin。现有实例升级前注意旧 Mailpit 是否仍暴露公网端口；仅在确认容器归属并获准变更后停止旧实例。
 
 ## 全站质量隔离环境
 
@@ -72,26 +76,14 @@ Windows 原生 MySQL 8 隔离验收使用 `node scripts/quality-mysql-environmen
 
 站点地图包含公开文物、文章、展项和五个公开入口；草稿、软删除、禁用分类及关联文物未发布的展项按对应公开 API 规则过滤。响应不缓存，撤回内容下次请求即消失。`frontend/public` 中旧静态索引不是生产服务来源；直接 Vite preview 不代表生产索引验收。
 
+`/artifacts/{slug}`、`/articles/{slug}`、`/exhibits/{slug}` 的 HTML 由后端注入标题、描述及 Open Graph 元数据。不可见条目返回 HTTP 404，公开详情也不缓存，撤回后无需等待 CDN 缓存过期（外层代理应遵守 `Cache-Control: no-store`）。PocketBay 使用包内 `static/index.html`；Compose 固定 `MUSEUM_SPA_INDEX_URL=http://frontend/index.html`，读取 Nginx 正在提供的同一版模板。该地址是可信部署配置，不应来自请求头，也不应设为外部用户可控地址。
+
 验收两种部署时均检查匿名 GET/HEAD、XML 解析、绝对 URL、撤回后的过滤和管理接口仍受保护。PocketBay/Cloudflare 可能替换 robots 内容，须在最终公开域名复验；平台返回 204 空响应不等于应用健康。
 
 ## 洛笙全站导览
 
-正式候选的 Spring 进程同时设置 `MUSEUM_GUIDE_PRESET_ENABLED=true`，用于读取已审讲解。可将 `MUSEUM_GUIDE_PAUSE_PATH` 指向进程可读的运维标记路径。运营创建该标记文件即可暂停问答，游客仍可阅读通过当前签核的讲解和查询公开时段。移除标记文件后恢复问答。发布前从普通首页检查停止及恢复，并记录构建、卡包指纹和运行实例。
+候选只使用 `VITE_GUIDE_ENABLED=true`（构建时）和 `MUSEUM_GUIDE_ENABLED=true`（服务运行时）。模型密钥仅在后端运行时注入，不能写入前端产物、镜像或报表。默认关闭时需用关闭态参数构建，不复用开启态镜像。
 
-中文公众端导览默认关闭。经过发布确认后，可在运行 Vite 前端构建的环境中设置 `VITE_GUIDE_SITE_ENABLED=true`，重新构建并发布前端产物。容器启动后设置该变量无法修改已构建的产物。此开关仅控制基于本站资料的导览入口和路线，与青铜鼎本机模型测试入口独立。
+获准在 Compose 开启候选后，显式加上 `-f deploy/compose.luosheng-candidate.yaml`。先用 `config --quiet` 验证插值，再核对证据卡、最低版本与签核指纹；配置校验本身不核验这些文件。运行时暂停可在只读挂载的宿主机目录创建 `pause` 标记，移除后恢复为管理员设置的模式。
 
-统一向导的回环联调使用 `VITE_GUIDE_UNIFIED_PREVIEW=http` 或对应的受控 `model` 模式，且只在 Vite 开发构建生效。正式候选的 `VITE_GUIDE_TURNS_ENABLED=true` 与 `VITE_GUIDE_SITE_ENABLED=true` 需一起在构建时设置。候选 Spring 进程需显式提供 `MUSEUM_GUIDE_TURNS_ENABLED=true`、已签包及其最低版本与指纹的只读挂载、获准的 HTTPS 模型地址和名称、运行时密钥与大于零的每日调用上限。现行 Compose 保持关闭。应通过候选环境的服务配置注入这些值，凭据仅在服务端处理。单实例重启会重置调用计数，发布责任人需核对供应商侧预算。清除服务端开启值并重启可关闭问答，界面仍能使用站内导航和预约查询。
-
-候选开启时，`museum.guide.journey` 在 Spring 实例内累计图版和预约返回的尝试数、到达数。面板澄清量为 `clarification.single + clarification.repeated`，连续澄清占比以其中的 `clarification.repeated` 为分子；这些是浏览器行为趋势，不是按人数计分。发布负责人在批准环境中使用内部指标采集汇总实例增量，并核对重启前后的计数。现有 Actuator 对外范围维持 `health` 和 `info`。浏览器可能丢失上报，现场通过率仍按联合试用表判定。
-
-如批准的候选环境使用 Docker Compose，可显式追加 `-f deploy/compose.luosheng-candidate.yaml`。该叠加文件给前端构建传入两个公开开关，并只在后端运行时注入模型配置。`MUSEUM_GUIDE_RELEASE_DIR` 须为已存在的绝对目录，内含经过六卡预检的 `evidence.json`、`minimum-version.txt`、`approved-sha256.txt`；容器用户仅需读取权限。挂载为只读，不会在宿主机自动创建缺失目录。暂停时由运营在该目录创建 `pause` 标记，恢复时移除；不要用临时预览包充当签核包。模型密钥由受保护的服务运行环境注入，不写入镜像、代码或报表。
-
-问答仍默认关闭，不读取展品路由档案。批准候选开启问答时，还须给后端注入 `MUSEUM_GUIDE_PROFILE_PATH`（`museum.guide.profile-path`），指向进程可读的 UTF-8 版本 1 JSON 文件。可参照仓库的 `docs/plans/luosheng-eval/ding-profile.example.json`（示例，不参与运行时，也不打入后端包）；档案只含公开标识、卡片修订映射和纠正词，不提供回答事实。Compose 候选应将档案随签核资料只读挂载，再通过候选环境的私有叠加配置注入容器内路径（如 `/run/luosheng/profile.json`）；仅设置宿主机环境变量不等于传入容器。文件缺失或非法则开启态拒绝启动；修改映射须重启，卡片仍在每轮按当前审批状态和修订重新核对。本轮不修改部署清单或开启候选。
-
-从仓库根用 `docker compose --env-file deploy/.env -f deploy/compose.yaml -f deploy/compose.luosheng-candidate.yaml config --quiet` 检查候选配置。不要输出完整插值后的配置，因为可能包含密钥。此命令不启动容器，也不核验证据内容。获准启动后仍须按[放行记录](../docs/plans/2026-11-19-luosheng-acceptance.md#unified-release-record)复核实例与来源。只用 `deploy/compose.yaml` 发版时须从默认配置重新构建前端并重建后端，不能复用开启态前端镜像冒充关闭态。
-
-复核关闭态部署时，在具有前端测试依赖与 Chrome 的机器上运行 `node frontend/scripts/luosheng-production-check.mjs`。将 `LUOSHENG_PRODUCTION_ORIGIN` 设为待验入口，将 `LUOSHENG_PRODUCTION_DIST` 设为同次部署中 Nginx 静态目录的本地副本。脚本比对实际提供的脚本和样式等文件，并检查首页、搜索、藏品、3D 海报及预约页。此检查需要至少一条可读取的公开时段，隔离环境可使用种子时段。
-
-在本机隔离部署复核开启态时，从 `frontend` 运行 `node scripts/luosheng-preset-check.mjs`。设置 `LUOSHENG_CANDIDATE_ORIGIN` 为绑定在 `127.0.0.1` 的 Nginx 地址，`LUOSHENG_CHECK_PUBLIC_TURNS=true`，并用 `LUOSHENG_QA_USERNAME` / `LUOSHENG_QA_PASSWORD` 提供隔离库的临时普通游客账号。该脚本需要其约定的合成证据包，并会注入失败情形，不用于正式站点。用初始化数据生成后天的公开时段后，可设 `LUOSHENG_CHECK_SEEDED_SLOTS=1`，核对未拦截的同源响应、面板余量及返回原视角。设 `LUOSHENG_CHECK_SWAPPED_THEMES=1` 可覆盖手机和桌面各自的双主题。不要将合成卡、其指纹或本机模型占位配置部署到发布环境。
-
-在已批准的候选环境，从内部服务日志按实例和时间窗统计 `guide_generation_started`，用 `guide_turn` 的结果和耗时区分已交付生成、澄清、无证据和退化。进程内 Timer / Counter 汇总在重启后会重置，现有 Actuator 暴露范围不变。发起计数表示已进入模型适配器，不是供应商收到的请求数，也不是收费凭据；费用须按同一时间窗用供应商用量和账单核对，浏览器端的可读耗时须另测。
+管理员可在 `/api/v1/admin/guide/overview` 查看关闭态、模型额度、并发与拦截计数；`POST /api/v1/admin/guide/cache/invalidate` 清空目录缓存，`POST /api/v1/admin/guide/runtime-mode` 可切换 `NORMAL`、`DETERMINISTIC`、`PAUSED`。文件暂停优先；应用重启会重置运行模式、应用计数与缓存，供应商实际用量以其账单为准。详细接口、评测和限制见[洛笙 v2.2 说明](../docs/luosheng/README.md#5-v22-后端加固与运行时治理2026-11-24)。

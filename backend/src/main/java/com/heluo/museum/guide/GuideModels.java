@@ -72,6 +72,10 @@ public final class GuideModels {
             return new Action("viewer_mode", label, exhibitSlug, null, null, mode, null, null, null, null, null);
         }
 
+        public static Action viewerTour(String exhibitSlug, String label) {
+            return new Action("viewer_tour", label, exhibitSlug, null, null, null, null, null, null, null, null);
+        }
+
         public static Action navigate(String path, Map<String, String> query, String label) {
             return new Action("navigate", label, null, null, null, null, path, query, null, null, null);
         }

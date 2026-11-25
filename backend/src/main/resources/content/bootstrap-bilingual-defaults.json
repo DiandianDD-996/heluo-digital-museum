@@ -1,0 +1,65 @@
+{
+  "heluo-bronze-ding": {
+    "contentEn": "The Heluo Bronze Ding is a digital reconstruction based on the Cleveland Museum of Art tripod 1962.281. Begin with the two upright handles, then follow the patterned band around the body and compare the three legs from several angles. The source catalog dates the reference object to the Shang Anyang period, about 1250–1046 BCE, and records overall dimensions of 24.5 × 20 cm. It does not establish an excavation site, weight, or inscription.",
+    "materialEn": "Bronze (reference object)",
+    "periodEn": "Shang dynasty, Anyang period (ca. 1250–1046 BCE)"
+  },
+  "heluo-bronze-jue": {
+    "contentEn": "This original concept pairs a long pouring spout and raised posts with a narrow body on three legs. Compare its directional profile to the balanced silhouette of a ding. The visual borrowing evokes early ritual bronze design; it is not the record of an excavated vessel.",
+    "periodEn": "Contemporary concept design",
+    "materialEn": "Bronze (concept material)"
+  },
+  "river-map-jade-bi": {
+    "contentEn": "A central opening and shallow rings invite the eye to travel from rim to center and back again. Look for alternating relief and shadow when the light moves across the surface. This original concept draws on the visual language of ritual jade discs rather than representing an archaeological object.",
+    "materialEn": "Jade (concept material)",
+    "periodEn": "Contemporary concept design"
+  },
+  "painted-pottery-water-jar": {
+    "contentEn": "Follow the painted lines as they bend around the shoulder of the jar. A generous body and narrower neck invite questions about carrying and storing water, while the repeating motif suggests a current. This is a project-original interpretation, not a recovered prehistoric vessel.",
+    "materialEn": "Painted earthenware (concept material)",
+    "periodEn": "Contemporary concept design"
+  },
+  "river-map-pattern-stone": {
+    "contentEn": "Read the incised lines as a possible river network, then try reading them as a diagram of relationships. Neither reading is definitive: the original concept uses stone and pattern to ask how a place becomes legible.",
+    "materialEn": "Stone (concept material)",
+    "periodEn": "Contemporary concept design"
+  },
+  "water-bird-bronze": {
+    "contentEn": "Notice the lift of the head, the compact folded wings, and the low stance before looking for surface details. The silhouette captures a pause at the water edge. This original concept sculpture imagines a dialogue between natural forms and bronze craft.",
+    "periodEn": "Contemporary concept design",
+    "materialEn": "Bronze (concept material)"
+  },
+  "why-negative-space-matters": {
+    "contentEn": "Empty space in an exhibition gives the eye a place to rest. Compare a crowded caption and image with the same pair at a comfortable distance. Notice how much easier it is to find the object first, read its label second, and return to its details with a question in mind."
+  },
+  "river-as-timeline": {
+    "contentEn": "Start with a river rather than a date. Follow the relationships among water, settlement, labor, and the motifs people made. Compare the painted jar with the pattern stone, keeping broad historical context separate from the museum project’s original interpretations."
+  },
+  "how-to-read-bronze": {
+    "contentEn": "First ask how the object stands; next trace where its surface pattern changes; finally ask what use its form suggests. Try the sequence on the ding and the concept jue, and distinguish what you can see from what the source record confirms."
+  },
+  "visit-and-digital-guide": {
+    "contentEn": "Browse the public collection or book an available time for a visit. In the digital hall, rotate or zoom to compare the tripod from several sides. If 3D is unavailable, use the three illustrated stops. Luosheng can explain a highlight or point to the booking page; only you can confirm a reservation."
+  },
+  "river-line-teacup-set": {
+    "descriptionEn": "A calm band of flowing lines around the cup borrows its rhythm from the painted water-pattern jar. Turn it in your hand to follow how the motif changes with the curve.",
+    "categoryCode": "TEAWARE",
+    "inspirationArtifactSlug": "painted-pottery-water-jar"
+  },
+  "heluo-silk-scarf": {
+    "descriptionEn": "The water-bird sculpture inspires a repeating motif that alternates stillness with movement. Folding the scarf changes which birds and lines are visible.",
+    "categoryCode": "TEXTILE",
+    "inspirationArtifactSlug": "water-bird-bronze"
+  },
+  "river-map-notebook": {
+    "descriptionEn": "The cover treats the museum pattern stone as a starting point for an imagined map. Use its pages for field notes, sketches, or the questions you want to carry out of the gallery.",
+    "categoryCode": "STATIONERY",
+    "inspirationArtifactSlug": "river-map-pattern-stone"
+  },
+  "heluo-bronze-ding-3d": {
+    "descriptionEn": "Rotate this digital reconstruction of the Heluo Bronze Ding to compare its handles, patterned body, and three legs. Switch between the surface view and point cloud, or use the three illustrated viewing stops when a 3D view is unavailable."
+  },
+  "river-map-stone-raking": {
+    "descriptionEn": "Built around the museum’s original concept object River-Map Pattern Stone, this WebGL raking-light stage reveals shallow incised river channels, concentric node constellations, and slate strata through low-angle grazing shadows, a 2.4× optical loupe, and a Xuan-paper ink-rubbing relief view. It is an original curatorial concept exhibit rather than a scan of an excavated stele."
+  }
+}

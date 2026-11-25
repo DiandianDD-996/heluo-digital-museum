@@ -1,5 +1,7 @@
 package com.heluo.museum.content;
 
+import com.heluo.museum.guide.GuideKnowledgeService;
+
 import com.heluo.museum.common.api.ApiResponse;
 import com.heluo.museum.common.audit.OperationLogService;
 import com.heluo.museum.common.error.ConflictException;
@@ -32,7 +34,10 @@ public class AdminExhibitController {
     private final JdbcTemplate jdbc;
     private final OperationLogService audit;
 
-    AdminExhibitController(JdbcTemplate jdbc, OperationLogService audit) {
+    private final GuideKnowledgeService guideKnowledge;
+
+    AdminExhibitController(JdbcTemplate jdbc, OperationLogService audit, GuideKnowledgeService guideKnowledge) {
+        this.guideKnowledge = guideKnowledge;
         this.jdbc = jdbc;
         this.audit = audit;
     }
@@ -72,7 +77,9 @@ public class AdminExhibitController {
                 blank(input.coverAssetRef()), blank(input.displayNo()), blank(input.sourceCredit()), blank(input.sourceUrl()),
                 blank(input.licenseLabel()), blank(input.collectionLocation()), actorId, actorId);
         long id = jdbc.queryForObject("select id from exhibits_3d where slug=?", Long.class, input.slug());
+        updateTranslations(id, input);
         audit.record(actorId, "CONTENT", "EXHIBIT_CREATE", "EXHIBIT_3D", String.valueOf(id));
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(find(id), "admin-exhibit-create");
     }
 
@@ -97,6 +104,8 @@ public class AdminExhibitController {
                 blank(input.coverAssetRef()), blank(input.displayNo()), blank(input.sourceCredit()), blank(input.sourceUrl()),
                 blank(input.licenseLabel()), blank(input.collectionLocation()), actorId, id);
         audit.record(actorId, "CONTENT", "EXHIBIT_UPDATE", "EXHIBIT_3D", String.valueOf(id));
+        updateTranslations(id, input);
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(find(id), "admin-exhibit-update");
     }
 
@@ -110,6 +119,7 @@ public class AdminExhibitController {
         long actorId = actorId(authentication);
         jdbc.update("update exhibits_3d set status='PUBLISHED',published_at=current_timestamp(3),updated_by=? where id=?", actorId, id);
         audit.record(actorId, "CONTENT", "EXHIBIT_PUBLISH", "EXHIBIT_3D", String.valueOf(id));
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(find(id), "admin-exhibit-publish");
     }
 
@@ -123,6 +133,7 @@ public class AdminExhibitController {
         long actorId = actorId(authentication);
         jdbc.update("update exhibits_3d set status='WITHDRAWN',updated_by=? where id=?", actorId, id);
         audit.record(actorId, "CONTENT", "EXHIBIT_WITHDRAW", "EXHIBIT_3D", String.valueOf(id));
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(find(id), "admin-exhibit-withdraw");
     }
 
@@ -133,6 +144,7 @@ public class AdminExhibitController {
         long actorId = actorId(authentication);
         jdbc.update("update exhibits_3d set deleted_at=current_timestamp(3),deleted_by=?,updated_by=? where id=?", actorId, actorId, id);
         audit.record(actorId, "CONTENT", "EXHIBIT_DELETE", "EXHIBIT_3D", String.valueOf(id));
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(find(id), "admin-exhibit-delete");
     }
 
@@ -145,6 +157,7 @@ public class AdminExhibitController {
         long actorId = actorId(authentication);
         jdbc.update("update exhibits_3d set deleted_at=null,deleted_by=null,status='WITHDRAWN',updated_by=? where id=?", actorId, id);
         audit.record(actorId, "CONTENT", "EXHIBIT_RESTORE", "EXHIBIT_3D", String.valueOf(id));
+        guideKnowledge.invalidateAfterCommit();
         return ApiResponse.ok(find(id), "admin-exhibit-restore");
     }
 
@@ -157,7 +170,7 @@ public class AdminExhibitController {
     }
 
     private static String select() {
-        return "select e.id,e.artifact_id,e.title,e.slug,e.summary,e.description,e.model_url,e.model_source_ref,e.model_format,"
+        return "select e.title_en,e.summary_en,e.description_en,e.id,e.artifact_id,e.title,e.slug,e.summary,e.description,e.model_url,e.model_source_ref,e.model_format,"
                 + "e.model_size_bytes,e.mobile_model_url,e.mobile_model_size_bytes,e.cover_image_url,e.cover_asset_ref,e.display_no,e.source_credit,e.source_url,e.license_label,e.collection_location,e.status,e.deleted_at,a.title artifact_title,"
                 + "(a.status='PUBLISHED' and a.deleted_at is null) artifact_published "
                 + "from exhibits_3d e join artifacts a on a.id=e.artifact_id";
@@ -171,7 +184,13 @@ public class AdminExhibitController {
                 empty(rs.getString("cover_image_url")), empty(rs.getString("cover_asset_ref")),
                 empty(rs.getString("display_no")), empty(rs.getString("source_credit")), empty(rs.getString("source_url")),
                 empty(rs.getString("license_label")), empty(rs.getString("collection_location")), rs.getString("status"),
-                rs.getTimestamp("deleted_at") != null, rs.getBoolean("artifact_published"));
+                rs.getTimestamp("deleted_at") != null, rs.getBoolean("artifact_published"),
+                rs.getString("title_en"), rs.getString("summary_en"), rs.getString("description_en"));
+    }
+
+    private void updateTranslations(long id, ExhibitInput input) {
+        jdbc.update("update exhibits_3d set title_en=coalesce(?,title_en),summary_en=coalesce(?,summary_en),description_en=coalesce(?,description_en) where id=?",
+                input.titleEn(), input.summaryEn(), input.descriptionEn(), id);
     }
 
     private void requireUsableArtifact(long artifactId) {
@@ -196,7 +215,8 @@ public class AdminExhibitController {
                                    String modelFormat, long modelSizeBytes, String mobileModelUrl, Long mobileModelSizeBytes,
                                    String coverImageUrl, String coverAssetRef,
                                    String displayNo, String sourceCredit, String sourceUrl, String licenseLabel,
-                                   String collectionLocation, String status, boolean deleted, boolean artifactPublished) { }
+                                   String collectionLocation, String status, boolean deleted, boolean artifactPublished,
+                                   String titleEn, String summaryEn, String descriptionEn) { }
 
     public record ExhibitInput(
             @NotNull Long artifactId,
@@ -216,5 +236,6 @@ public class AdminExhibitController {
             @Size(max = 255) String sourceCredit,
             @Size(max = 500) String sourceUrl,
             @Size(max = 128) String licenseLabel,
-            @Size(max = 255) String collectionLocation) { }
+            @Size(max = 255) String collectionLocation, @Size(max = 300) String titleEn,
+            @Size(max = 1000) String summaryEn, @Size(max = 16000) String descriptionEn) { }
 }

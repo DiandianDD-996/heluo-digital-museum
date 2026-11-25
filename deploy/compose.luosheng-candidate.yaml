@@ -2,12 +2,11 @@
 services:
   backend:
     environment:
-      MUSEUM_GUIDE_PRESET_ENABLED: "true"
-      MUSEUM_GUIDE_PACK_PATH: /run/luosheng/evidence.json
-      MUSEUM_GUIDE_MINIMUM_VERSION_PATH: /run/luosheng/minimum-version.txt
-      MUSEUM_GUIDE_APPROVED_DIGEST_PATH: /run/luosheng/approved-sha256.txt
+      MUSEUM_GUIDE_ENABLED: "true"
+      MUSEUM_GUIDE_PACK_PATH: /run/luosheng/ding.zh-CN.json
+      MUSEUM_GUIDE_MINIMUM_VERSION_PATH: /run/luosheng/minimum-release-version.txt
+      MUSEUM_GUIDE_APPROVED_DIGEST_PATH: /run/luosheng/ding.zh-CN.sha256
       MUSEUM_GUIDE_PAUSE_PATH: /run/luosheng/pause
-      MUSEUM_GUIDE_TURNS_ENABLED: "true"
       MUSEUM_GUIDE_MODEL_ENDPOINT: ${MUSEUM_GUIDE_MODEL_ENDPOINT:?set the approved model endpoint}
       MUSEUM_GUIDE_MODEL_NAME: ${MUSEUM_GUIDE_MODEL_NAME:?set the approved model name}
       MUSEUM_GUIDE_MODEL_KEY: ${MUSEUM_GUIDE_MODEL_KEY:?inject the approved model credential}
@@ -22,5 +21,4 @@ services:
   frontend:
     build:
       args:
-        VITE_GUIDE_SITE_ENABLED: "true"
-        VITE_GUIDE_TURNS_ENABLED: "true"
+        VITE_GUIDE_ENABLED: "true"

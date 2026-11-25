@@ -26,7 +26,13 @@
  * default tier keeps all three sub-bus gains at exactly 1.0, so the
  * pre-existing per-voice volumes are unchanged.
  */
-import { synthesizeSound } from './soundSynthesis'
+let synthModulePromise: Promise<typeof import('./soundSynthesis')> | null = null
+function loadSynthesizeSound() {
+  if (!synthModulePromise) {
+    synthModulePromise = import('./soundSynthesis')
+  }
+  return synthModulePromise
+}
 
 export type InteractionSound = 'click' | 'hover' | 'toggle' | 'error' | 'success' | 'awaken-bronze' | 'awaken-jade' | 'awaken-ink'
 export type TransitionSound = 'pageChange' | 'reveal' | 'dismiss'
@@ -294,11 +300,13 @@ class MuseumAudioSystem {
     this.ensureContext()
     const sampleRate = this.context!.sampleRate
 
-    const loadPromise = synthesizeSound(sampleRate, name).then((audioBuffer) => {
-      this.sounds.set(name, audioBuffer)
-      this.loadingPromises.delete(name)
-      return audioBuffer
-    })
+    const loadPromise = loadSynthesizeSound()
+      .then(({ synthesizeSound }) => synthesizeSound(sampleRate, name))
+      .then((audioBuffer) => {
+        this.sounds.set(name, audioBuffer)
+        this.loadingPromises.delete(name)
+        return audioBuffer
+      })
 
     this.loadingPromises.set(name, loadPromise)
     return loadPromise

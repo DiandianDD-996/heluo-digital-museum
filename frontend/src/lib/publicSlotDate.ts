@@ -11,5 +11,5 @@ export function isPublicSlotDate(date: string, now = new Date()) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false
   const timestamp = Date.parse(`${date}T00:00:00Z`)
   return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === date
-    && date >= shanghaiDay(0, now) && date <= shanghaiDay(13, now)
+    && date >= shanghaiDay(0, now) && date <= shanghaiDay(364, now)
 }

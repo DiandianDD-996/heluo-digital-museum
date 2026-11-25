@@ -1,29 +1,61 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { ArrowRight, Calendar, Check, CircleCheck, Clock, InfoFilled, Location, Minus, Plus, Refresh, Tickets, Timer, User } from '@element-plus/icons-vue'
+import { ArrowLeft, ArrowRight, Calendar, Check, CircleCheck, Clock, InfoFilled, Location, Minus, Plus, Refresh, Tickets, Timer, User } from '@element-plus/icons-vue'
 import { ApiRequestError, apiGet, apiRequest } from '../lib/api'
 import { gsap } from 'gsap'
 import { createGsapContext, revealBatch, revealFigures, revealSequence, shouldRunGsapReveal } from '../lib/gsap'
 import { useAuthStore } from '../stores/auth'
 import { clearAppointmentDraft, readAppointmentDraft, saveAppointmentDraft } from '../stores/appointmentDraft'
 import { useLocale } from '../stores/locale'
+import { useTheme } from '../stores/theme'
 import InlineStatus from '../components/InlineStatus.vue'
 import FluidButton from '../components/FluidButton.vue'
 import AppointmentContactFields from '../components/AppointmentContactFields.vue'
+import MuseumPassCard from '../components/MuseumPassCard.vue'
 import PointerDotField from '../components/PointerDotField.vue'
-import { isPublicSlotDate } from '../lib/publicSlotDate'
+import { isPublicSlotDate, shanghaiDay } from '../lib/publicSlotDate'
 import { guideEnabled, useLuoshengStore } from '../stores/luoshengStore'
 
 interface Slot { id: number; visitDate: string; startTime: string; endTime: string; remainingPeople: number }
-interface CalendarDay { iso: string; day: string; weekday: string; available: boolean; full: boolean }
-interface CreatedAppointment { appointmentNo: string }
+interface CalendarDay {
+  iso: string
+  day: string
+  weekday: string
+  inWindow: boolean
+  isPast: boolean
+  isToday: boolean
+  available: boolean
+  full: boolean
+  isMonday: boolean
+  remainingTotal: number
+  capacityRatio: number
+}
+interface CalendarMonthOption {
+  value: string
+  label: string
+}
+interface CreatedAppointment { appointmentNo: string; verificationCode?: string }
 
 const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 const { t, locale } = useLocale()
+const { isDark } = useTheme()
 const guideStore = guideEnabled ? useLuoshengStore() : null
+const venueMedia = computed(() => (
+  isDark.value
+    ? {
+      src: '/media/editorial/login-pavilion-dark-v3.webp',
+      srcset: '/media/responsive/login-pavilion-dark-v3-640w.webp 640w, /media/responsive/login-pavilion-dark-v3-960w.webp 960w, /media/editorial/login-pavilion-dark-v3.webp 896w',
+      plateLabel: 'NOCTURNE PAVILION · 河洛夜景',
+    }
+    : {
+      src: '/media/editorial/login-pavilion-light-v3.webp',
+      srcset: '/media/responsive/login-pavilion-light-v3-640w.webp 640w, /media/responsive/login-pavilion-light-v3-960w.webp 960w, /media/editorial/login-pavilion-light-v3.webp 896w',
+      plateLabel: 'DAYLIGHT PAVILION · 河洛实景',
+    }
+))
 const slots = ref<Slot[]>([])
 const selectedDate = ref('')
 const loading = ref(true)
@@ -33,7 +65,11 @@ const submitError = ref('')
 const fieldErrors = reactive<Record<string, string>>({})
 const message = ref('')
 const bookingNo = ref('')
+const bookingVerifyCode = ref('')
+const passModalOpen = ref(false)
+const stampingSeal = ref(false)
 const submitting = ref(false)
+let stampRevealTimer: ReturnType<typeof setTimeout> | undefined
 const mobileSummaryOpen = ref(false)
 const mobileSummarySnapPoint = ref<'medium' | 'full'>('full')
 const mobileBookingTrigger = ref<InstanceType<typeof FluidButton> | null>(null)
@@ -71,18 +107,29 @@ const workbenchCopy = computed(() => locale.value === 'zh-CN' ? {
   eyebrow: 'MUSEUM PASS · 入馆预约',
   myBookings: '我的预约',
   dateTitle: '选择参观日期',
-  window: '未来 14 天',
+  window: '未来一年（365 天）',
   closed: '未开放',
+  mondayClosed: '周一闭馆',
+  pastDay: '已过',
+  prevMonth: '上月',
+  nextMonth: '下月',
+  backToTodayMonth: '回本月',
+  monthSelectAria: '选择预约月份',
+  monthOpenSummary: '本月可约',
   timeTitle: '选择入馆时段',
   noDate: '尚未选择参观日期',
   noTimes: '当日暂无可预约时段',
   partyNote: '每次预约 1–30 人',
-  passLabel: '河洛电子入馆凭证',
-  summary: '本次参观',
-  pending: '待选择',
-  selected: '已选定',
-  submitted: '已签发',
-  concept: '场馆建筑概念图',
+  passLabel: '河洛电子入馆凭证 · 宣纸活字副券母版',
+  summary: '本次参观副券',
+  pending: '待钤印',
+  selected: '待钤印',
+  submitted: '已钤印签发',
+  unstampedSeal: '待钤\n朱印',
+  stampedSeal: '河洛\n验讫',
+  contactSlot: '预约人',
+  contactPending: '待排入铅字',
+  concept: '场馆建筑实景图',
   visitInfo: '参观须知',
   reviewNote: '提交后由管理员确认，请留意预约邮箱。',
   cancelNote: '如需取消，请至少提前 2 小时在个人中心办理。',
@@ -91,18 +138,29 @@ const workbenchCopy = computed(() => locale.value === 'zh-CN' ? {
   eyebrow: 'MUSEUM PASS · VISIT BOOKING',
   myBookings: 'My bookings',
   dateTitle: 'Choose your visit date',
-  window: 'Next 14 days',
+  window: 'Next 365 days',
   closed: 'Closed',
+  mondayClosed: 'Closed Mon',
+  pastDay: 'Past',
+  prevMonth: 'Prev',
+  nextMonth: 'Next',
+  backToTodayMonth: 'This month',
+  monthSelectAria: 'Choose booking month',
+  monthOpenSummary: 'Open this month',
   timeTitle: 'Choose an entry time',
   noDate: 'No visit date selected',
   noTimes: 'No entry times for this date',
   partyNote: '1–30 visitors per booking',
-  passLabel: 'ELECTRONIC MUSEUM PASS',
-  summary: 'Your visit',
-  pending: 'Pending',
-  selected: 'Selected',
-  submitted: 'Issued',
-  concept: 'Museum architectural concept',
+  passLabel: 'ELECTRONIC MUSEUM PASS · LIVE TYPESET MASTER',
+  summary: 'Typeset pass stub',
+  pending: 'Unstamped',
+  selected: 'Ready to stamp',
+  submitted: 'Stamped & Issued',
+  unstampedSeal: 'DRAFT\nSEAL',
+  stampedSeal: 'HELUO\nSTAMP',
+  contactSlot: 'Visitor',
+  contactPending: 'Awaiting name',
+  concept: 'Heluo Pavilion Architecture',
   visitInfo: 'Before your visit',
   reviewNote: 'Bookings are reviewed by our team. Confirmation is sent to your booking email.',
   cancelNote: 'You can cancel from your account at least 2 hours before your visit starts.',
@@ -180,26 +238,118 @@ const bookingStep = computed(() => {
   return 1
 })
 
+const todayIso = computed(() => shanghaiDay(0))
+const windowEndIso = computed(() => shanghaiDay(364))
+const todayMonth = computed(() => todayIso.value.slice(0, 7))
+const activeMonth = ref(todayMonth.value)
+
+const availableMonths = computed<CalendarMonthOption[]>(() => {
+  const start = todayMonth.value
+  const end = windowEndIso.value.slice(0, 7)
+  const [startYear, startMon] = start.split('-').map(Number)
+  const [endYear, endMon] = end.split('-').map(Number)
+  const result: CalendarMonthOption[] = []
+  let y = startYear!
+  let m = startMon!
+  while (y < endYear! || (y === endYear! && m <= endMon!)) {
+    const value = `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}`
+    const label = locale.value === 'en-US'
+      ? new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(y, m - 1, 1)))
+      : `${y} 年 ${m} 月`
+    result.push({ value, label })
+    m += 1
+    if (m > 12) { m = 1; y += 1 }
+  }
+  return result
+})
+
+const activeMonthIndex = computed(() => availableMonths.value.findIndex((item) => item.value === activeMonth.value))
+const canPrevMonth = computed(() => activeMonthIndex.value > 0)
+const canNextMonth = computed(() => activeMonthIndex.value >= 0 && activeMonthIndex.value < availableMonths.value.length - 1)
+const activeMonthLabel = computed(() => availableMonths.value[activeMonthIndex.value]?.label ?? activeMonth.value)
+
+function stepMonth(delta: number) {
+  const nextIndex = activeMonthIndex.value + delta
+  const target = availableMonths.value[nextIndex]
+  if (target) activeMonth.value = target.value
+}
+
+function jumpToTodayMonth() {
+  activeMonth.value = todayMonth.value
+}
+
+watch(selectedDate, (iso) => {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return
+  const ym = iso.slice(0, 7)
+  if (availableMonths.value.some((item) => item.value === ym)) {
+    activeMonth.value = ym
+  }
+})
+
+const weekdayHeaders = computed(() => locale.value === 'en-US'
+  ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+  : ['一', '二', '三', '四', '五', '六', '日'])
+
+const monthLeadingEmpty = computed(() => {
+  const [y, m] = activeMonth.value.split('-').map(Number)
+  if (!y || !m) return 0
+  const firstUtcDay = new Date(Date.UTC(y, m - 1, 1)).getUTCDay()
+  return (firstUtcDay + 6) % 7
+})
+
 const dateDays = computed<CalendarDay[]>(() => {
-  const available = new Set(slots.value.filter((slot) => slot.remainingPeople > 0).map((slot) => slot.visitDate))
-  const scheduled = new Set(slots.value.map((slot) => slot.visitDate))
-  const now = new Date()
-  const shanghaiDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
-  const base = new Date(`${shanghaiDate}T00:00:00Z`)
+  const remainingByDate = new Map<string, number>()
+  const scheduled = new Set<string>()
+  for (const slot of slots.value) {
+    scheduled.add(slot.visitDate)
+    remainingByDate.set(slot.visitDate, (remainingByDate.get(slot.visitDate) ?? 0) + Math.max(0, slot.remainingPeople))
+  }
+  const [y, m] = activeMonth.value.split('-').map(Number)
+  if (!y || !m) return []
+  const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate()
+  const today = todayIso.value
+  const windowEnd = windowEndIso.value
   const weekdaysZh = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-  return Array.from({ length: 14 }, (_, index) => {
-    const value = new Date(base)
-    value.setUTCDate(base.getUTCDate() + index)
+
+  return Array.from({ length: daysInMonth }, (_, index) => {
+    const value = new Date(Date.UTC(y, m - 1, index + 1))
     const iso = value.toISOString().slice(0, 10)
+    const isPast = iso < today
+    const inWindow = iso >= today && iso <= windowEnd
+    const remainingTotal = inWindow ? (remainingByDate.get(iso) ?? 0) : 0
+    const isAvailable = inWindow && remainingTotal > 0
     return {
       iso,
       day: String(value.getUTCDate()).padStart(2, '0'),
-      weekday: locale.value === 'en-US' ? value.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }) : weekdaysZh[value.getUTCDay()],
-      available: available.has(iso),
-      full: scheduled.has(iso) && !available.has(iso),
+      weekday: locale.value === 'en-US' ? value.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }) : weekdaysZh[value.getUTCDay()]!,
+      inWindow,
+      isPast,
+      isToday: iso === today,
+      available: isAvailable,
+      full: inWindow && scheduled.has(iso) && !isAvailable,
+      isMonday: value.getUTCDay() === 1,
+      remainingTotal,
+      capacityRatio: Math.min(1, remainingTotal / 120),
     }
   })
 })
+
+const activeMonthOpenCount = computed(() => dateDays.value.filter((day) => day.available).length)
+
+function calendarDayStatus(day: CalendarDay) {
+  if (day.isPast) return workbenchCopy.value.pastDay
+  if (day.available) return pageCopy.value.available
+  if (day.full) return pageCopy.value.full
+  if (day.isMonday) return workbenchCopy.value.mondayClosed
+  return workbenchCopy.value.closed
+}
+
+function calendarDayTitle(day: CalendarDay) {
+  if (day.available) return `${pageCopy.value.chooseDate}: ${day.iso}`
+  if (day.full) return `${day.iso}: ${pageCopy.value.full}`
+  if (day.isMonday) return `${day.iso}: ${workbenchCopy.value.mondayClosed}`
+  return `${day.iso}: ${pageCopy.value.unavailable}`
+}
 
 function selectDate(date: string) {
   if (formLocked.value) return
@@ -251,7 +401,7 @@ function bookingError(reason: unknown, type: 'load' | 'submit') {
   if (!(reason instanceof ApiRequestError)) return type === 'load' ? t.value.booking.loadError : t.value.booking.submitError
   if (reason.status === 401) return t.value.booking.loginRequired
   if (reason.status === 409) {
-    if (reason.code === 'APPOINTMENT_OUTSIDE_OPEN_WINDOW') return locale.value === 'en-US' ? 'Bookings are open for the next 14 days only.' : '预约仅开放未来 14 天内的时段。'
+    if (reason.code === 'APPOINTMENT_OUTSIDE_OPEN_WINDOW') return locale.value === 'en-US' ? 'Bookings are open for the next 365 days only.' : '预约仅开放未来 365 天内的时段。'
     if (reason.code === 'DUPLICATE_ACTIVE_APPOINTMENT') return locale.value === 'en-US' ? 'You already have this time slot booked.' : '你已经预约过这个参观时段。'
     if (reason.message.includes('日期')) return t.value.booking.pastDate
     if (reason.message.includes('名额')) return t.value.booking.noCapacity
@@ -283,6 +433,10 @@ async function load() {
     const requestedDate = typeof route.query.date === 'string' ? route.query.date : ''
     if (!formLocked.value && !form.slotId && isPublicSlotDate(requestedDate)) {
       selectedDate.value = requestedDate
+    }
+    const requestedPeople = typeof route.query.people === 'string' ? Number(route.query.people) : NaN
+    if (!formLocked.value && Number.isInteger(requestedPeople) && requestedPeople >= 1 && requestedPeople <= 30) {
+      form.visitorCount = requestedPeople
     }
   } catch (reason) {
     if (!controller.signal.aborted) loadError.value = bookingError(reason, 'load')
@@ -328,8 +482,26 @@ async function submit() {
     Object.assign(form, payload)
     message.value = pageCopy.value.success
     bookingNo.value = created.appointmentNo
+    bookingVerifyCode.value = created.verificationCode ?? ''
     creationKey.value = null
     clearAppointmentDraft()
+    mobileSummaryOpen.value = false
+    if (selectedSlot.value) {
+      stampingSeal.value = true
+      const isJsdom = typeof navigator !== 'undefined' && /jsdom/i.test(navigator.userAgent)
+      const reducedMotion = typeof window !== 'undefined'
+        && typeof window.matchMedia === 'function'
+        && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      if (isJsdom || reducedMotion) {
+        passModalOpen.value = true
+      } else {
+        if (stampRevealTimer) clearTimeout(stampRevealTimer)
+        stampRevealTimer = setTimeout(() => {
+          passModalOpen.value = true
+          stampRevealTimer = undefined
+        }, 360)
+      }
+    }
   } catch (reason) {
     submitError.value = bookingError(reason, 'submit')
     if (reason instanceof ApiRequestError && reason.status >= 400 && reason.status < 500 && reason.status !== 408) {
@@ -353,10 +525,9 @@ onMounted(async () => {
 })
 
 const calendarRange = computed(() => {
-  const dates = dateDays.value
-  if (!dates.length) return ''
-  const formatter = new Intl.DateTimeFormat(locale.value, { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })
-  return formatter.formatRange(new Date(`${dates[0]!.iso}T00:00:00Z`), new Date(`${dates[dates.length - 1]!.iso}T00:00:00Z`))
+  const start = todayIso.value.replaceAll('-', '/')
+  const end = windowEndIso.value.replaceAll('-', '/')
+  return `${start} – ${end}`
 })
 const insufficientCapacity = computed(() => Boolean(selectedSlot.value && selectedSlot.value.remainingPeople < form.visitorCount && !formLocked.value))
 
@@ -421,6 +592,50 @@ async function pulseSelection() {
   })
 }
 
+const issuedPass = computed(() => {
+  if (!message.value || !bookingNo.value || !selectedSlot.value) return null
+  return {
+    appointmentNo: bookingNo.value,
+    verificationCode: bookingVerifyCode.value,
+    visitDate: selectedSlot.value.visitDate,
+    startTime: selectedSlot.value.startTime,
+    endTime: selectedSlot.value.endTime,
+    visitorCount: form.visitorCount,
+    contactName: form.contactName,
+    status: 'PENDING' as const,
+  }
+})
+
+const passModalCopy = computed(() => locale.value === 'en-US' ? {
+  eyebrow: 'HELUO KEEPSAKE · ADMISSION PASS ISSUED',
+  title: 'Your collector’s museum pass is ready',
+  hint: 'Saved automatically under Account › My Bookings. Switch keepsake plates or export as a high-res PNG anytime.',
+  viewBookings: 'View my bookings',
+  reopen: 'Open keepsake pass',
+  stayHere: 'Stay on this page',
+  closeAria: 'Close museum pass dialog',
+} : {
+  eyebrow: '河洛礼遇 · 入馆纪念票根已签发',
+  title: '这份河洛藏书票，敬赠此行',
+  hint: '凭证已同步归档至「个人中心 · 我的预约」；可自由切换馆藏画片，或保存高清 PNG 留作纪念。',
+  viewBookings: '查看我的预约',
+  reopen: '检视纪念票根',
+  stayHere: '收起，留在当前页',
+  closeAria: '关闭电子票根弹窗',
+})
+
+function onPassModalKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && passModalOpen.value) {
+    passModalOpen.value = false
+  }
+}
+
+watch(passModalOpen, (isOpen) => {
+  if (typeof window === 'undefined') return
+  if (isOpen) window.addEventListener('keydown', onPassModalKeydown)
+  else window.removeEventListener('keydown', onPassModalKeydown)
+})
+
 watch(selectedDate, () => { void revealTimes() })
 watch(() => route.query.date, () => {
   previewRouteDate()
@@ -431,6 +646,8 @@ watch(message, (text) => { if (text) void revealResult() })
 watch([() => form.slotId, () => form.visitorCount], () => { void pulseSelection() })
 
 onBeforeUnmount(() => {
+  if (stampRevealTimer) clearTimeout(stampRevealTimer)
+  if (typeof window !== 'undefined') window.removeEventListener('keydown', onPassModalKeydown)
   mobileDateQuery?.removeEventListener('change', syncMobileDatePicker)
   loadController?.abort()
   gsapContext?.revert()
@@ -479,9 +696,24 @@ onBeforeUnmount(() => {
             <h2>{{ workbenchCopy.submitted }}</h2>
             <p>{{ message }}</p>
             <p class="font-mono">{{ locale === 'en-US' ? 'Booking No.' : '预约编号' }}：{{ bookingNo }}</p>
-            <RouterLink class="appointment-result__link" to="/profile">{{ locale === 'en-US' ? 'View my bookings' : '查看我的预约' }}<ArrowRight aria-hidden="true" /></RouterLink>
+            <div class="appointment-result__actions">
+              <button
+                v-if="issuedPass"
+                type="button"
+                class="appointment-result__pass-btn"
+                data-testid="reopen-museum-pass"
+                @click="passModalOpen = true"
+              >
+                <Tickets aria-hidden="true" />{{ passModalCopy.reopen }}
+              </button>
+              <RouterLink v-if="!passModalOpen" class="appointment-result__link" to="/profile">
+                {{ passModalCopy.viewBookings }}<ArrowRight aria-hidden="true" />
+              </RouterLink>
+            </div>
           </div>
         </div>
+
+        <MuseumPassCard v-if="issuedPass" :pass="issuedPass" />
 
         <InlineStatus v-if="fieldErrors.slotId" id="booking-slot-error" kind="error" :message="fieldErrors.slotId" />
         <FluidButton v-if="creationKey" data-recover-booking block :disabled="submitting" :loading="submitting" @click="submit()">
@@ -489,7 +721,7 @@ onBeforeUnmount(() => {
         </FluidButton>
         <InlineStatus v-if="submitError && !mobileSummaryOpen" data-submit-error kind="error" :message="submitError" />
 
-        <!-- Step 01: 14-day 2x7 Calendar Grid -->
+        <!-- Step 01: Full-Year (365-day) Monthly Calendar Grid -->
         <section class="appointment-section" aria-labelledby="appointment-date-title" :aria-busy="loading">
           <header class="appointment-section__heading">
             <h2 id="appointment-date-title"><span class="font-mono">01</span>{{ workbenchCopy.dateTitle }}</h2>
@@ -497,10 +729,58 @@ onBeforeUnmount(() => {
           </header>
           <div class="appointment-calendar-heading">
             <span><Calendar aria-hidden="true" />{{ calendarRange }}</span>
-            <span class="appointment-legend"><i aria-hidden="true"></i>{{ pageCopy.available }}</span>
+            <span class="appointment-legend">
+              <i aria-hidden="true"></i>{{ pageCopy.available }}
+              <span class="appointment-legend__count font-mono">· {{ workbenchCopy.monthOpenSummary }} {{ activeMonthOpenCount }}</span>
+            </span>
           </div>
+
+          <div class="appointment-month-nav" role="group" :aria-label="workbenchCopy.monthSelectAria">
+            <button
+              type="button"
+              class="appointment-month-btn"
+              data-testid="calendar-prev-month"
+              :disabled="!canPrevMonth"
+              :aria-label="workbenchCopy.prevMonth"
+              @click="stepMonth(-1)"
+            >
+              <ArrowLeft aria-hidden="true" /><span>{{ workbenchCopy.prevMonth }}</span>
+            </button>
+            <div class="appointment-month-select-wrap">
+              <select
+                v-model="activeMonth"
+                class="appointment-month-select"
+                data-testid="calendar-month-select"
+                :aria-label="workbenchCopy.monthSelectAria"
+              >
+                <option v-for="m in availableMonths" :key="m.value" :value="m.value">
+                  {{ m.label }}
+                </option>
+              </select>
+              <button
+                v-if="activeMonth !== todayMonth"
+                type="button"
+                class="appointment-month-today"
+                data-testid="calendar-today-month"
+                @click="jumpToTodayMonth"
+              >
+                {{ workbenchCopy.backToTodayMonth }}
+              </button>
+            </div>
+            <button
+              type="button"
+              class="appointment-month-btn"
+              data-testid="calendar-next-month"
+              :disabled="!canNextMonth"
+              :aria-label="workbenchCopy.nextMonth"
+              @click="stepMonth(1)"
+            >
+              <span>{{ workbenchCopy.nextMonth }}</span><ArrowRight aria-hidden="true" />
+            </button>
+          </div>
+
           <div v-if="loading" class="appointment-calendar-loading" role="status" :aria-label="t.booking.loading">
-            <span v-for="day in 14" :key="day"></span>
+            <span v-for="day in 35" :key="day"></span>
           </div>
           <div v-else-if="loadError" class="appointment-empty" role="alert">
             <InfoFilled aria-hidden="true" />
@@ -508,23 +788,42 @@ onBeforeUnmount(() => {
             <FluidButton variant="secondary" @click="load"><Refresh aria-hidden="true" />{{ pageCopy.retry }}</FluidButton>
           </div>
           <template v-else>
-            <div class="appointment-dates" role="group" :aria-label="pageCopy.chooseDate">
+            <div class="appointment-weekdays" aria-hidden="true">
+              <span v-for="head in weekdayHeaders" :key="head">{{ head }}</span>
+            </div>
+            <div class="appointment-dates" role="group" :aria-label="`${pageCopy.chooseDate} (${activeMonthLabel})`">
+              <span
+                v-for="pad in monthLeadingEmpty"
+                :key="`pad-${activeMonth}-${pad}`"
+                class="appointment-day-pad"
+                aria-hidden="true"
+              ></span>
               <button
                 v-for="day in dateDays"
                 :key="day.iso"
                 class="appointment-day"
                 data-motion="appointment-day"
-                :class="{ active: selectedDate === day.iso, 'is-full': day.full, 'is-available': day.available }"
+                :class="{
+                  active: selectedDate === day.iso,
+                  'is-full': day.full,
+                  'is-available': day.available,
+                  'is-past': day.isPast,
+                  'is-today': day.isToday,
+                  'is-monday-closed': day.isMonday && day.inWindow && !day.available && !day.full,
+                }"
                 :disabled="formLocked || !day.available"
                 :aria-pressed="selectedDate === day.iso"
-                :aria-label="`${pageCopy.chooseDate}: ${day.iso}, ${day.available ? pageCopy.available : day.full ? pageCopy.full : workbenchCopy.closed}`"
-                :title="day.available ? `${pageCopy.chooseDate}: ${day.iso}` : `${day.iso}: ${day.full ? pageCopy.full : pageCopy.unavailable}`"
+                :aria-label="`${pageCopy.chooseDate}: ${day.iso}, ${calendarDayStatus(day)}`"
+                :title="calendarDayTitle(day)"
                 type="button"
                 @click="selectDate(day.iso)"
               >
                 <span class="appointment-day__weekday">{{ day.weekday }}</span>
                 <strong class="font-mono">{{ day.day }}</strong>
-                <span class="appointment-day__status">{{ day.available ? pageCopy.available : day.full ? pageCopy.full : workbenchCopy.closed }}</span>
+                <span class="appointment-day__status">{{ calendarDayStatus(day) }}</span>
+                <span v-if="day.available" class="appointment-day__meter" aria-hidden="true">
+                  <i :style="{ width: `${Math.max(18, Math.round(day.capacityRatio * 100))}%` }"></i>
+                </span>
                 <Check v-if="selectedDate === day.iso" class="appointment-day__check" aria-hidden="true" />
               </button>
             </div>
@@ -612,16 +911,17 @@ onBeforeUnmount(() => {
         <div class="museum-pass" :class="{ 'is-issued': Boolean(message), 'is-selected': Boolean(selectedSlot) }">
           <figure class="appointment-venue">
             <img
-              src="/media/editorial/museum-exterior-watercolor.webp"
-              srcset="/media/editorial/museum-exterior-watercolor-480w-v1.webp 480w, /media/editorial/museum-exterior-watercolor-960w-v1.webp 960w, /media/editorial/museum-exterior-watercolor-1280w-v1.webp 1280w, /media/editorial/museum-exterior-watercolor.webp 1896w"
+              :src="venueMedia.src"
+              :srcset="venueMedia.srcset"
               sizes="(max-width: 760px) calc(100vw - 2rem), 360px"
               :alt="pageCopy.museumAlt"
-              width="1896"
-              height="830"
+              width="896"
+              height="1200"
               loading="lazy"
               decoding="async"
               fetchpriority="low"
             />
+            <span class="appointment-venue__scrim" aria-hidden="true"></span>
             <figcaption>{{ workbenchCopy.concept }}</figcaption>
           </figure>
 
@@ -642,36 +942,58 @@ onBeforeUnmount(() => {
             <span class="pass-perforation__notch pass-perforation__notch--right"></span>
           </div>
 
-          <!-- Live Ticket Stub -->
-          <section class="appointment-summary" :class="{ 'has-selection': selectedSlot }" aria-labelledby="appointment-summary-title">
+          <!-- Live Typeset Rice-Paper Ticket Stub (待钤印宣纸活字副券母版) -->
+          <section class="appointment-summary" data-testid="live-typeset-stub" :class="{ 'has-selection': selectedSlot, 'is-stamped': Boolean(message) || stampingSeal }" aria-labelledby="appointment-summary-title">
             <header class="pass-stub__header">
-              <h2 id="appointment-summary-title">{{ workbenchCopy.summary }}</h2>
+              <div class="pass-stub__title-group">
+                <h2 id="appointment-summary-title">{{ workbenchCopy.summary }}</h2>
+                <span
+                  class="pass-seal"
+                  :class="{ 'is-issued': Boolean(message), 'is-selected': Boolean(selectedSlot) && !message }"
+                >
+                  {{ message ? workbenchCopy.submitted : selectedSlot ? workbenchCopy.selected : workbenchCopy.pending }}
+                </span>
+              </div>
               <span
-                class="pass-seal"
-                :class="{ 'is-issued': Boolean(message), 'is-selected': Boolean(selectedSlot) && !message }"
+                class="pass-cinnabar-seal"
+                data-testid="pass-cinnabar-seal"
+                :class="{ 'is-stamped': Boolean(message) || stampingSeal }"
+                aria-hidden="true"
               >
-                {{ message ? workbenchCopy.submitted : selectedSlot ? workbenchCopy.selected : workbenchCopy.pending }}
+                {{ Boolean(message) || stampingSeal ? workbenchCopy.stampedSeal : workbenchCopy.unstampedSeal }}
               </span>
             </header>
 
             <dl class="pass-stub__grid">
-              <div>
+              <div :class="{ 'is-typeset': Boolean(selectedSlot) }">
                 <dt><Calendar aria-hidden="true" />{{ pageCopy.date }}</dt>
-                <dd class="font-mono" data-motion="appointment-summary-value">{{ selectedSlot?.visitDate || pageCopy.datePending }}</dd>
+                <dd class="font-mono pass-stub__lead" data-motion="appointment-summary-value">{{ selectedSlot?.visitDate || pageCopy.datePending }}</dd>
               </div>
-              <div>
+              <div :class="{ 'is-typeset': Boolean(selectedSlot) }">
                 <dt><Clock aria-hidden="true" />{{ pageCopy.time }}</dt>
-                <dd class="font-mono" data-motion="appointment-summary-value">{{ selectedSlot ? `${selectedSlot.startTime.slice(0,5)} – ${selectedSlot.endTime.slice(0,5)}` : pageCopy.timePending }}</dd>
+                <dd class="font-mono pass-stub__lead" data-motion="appointment-summary-value">{{ selectedSlot ? `${selectedSlot.startTime.slice(0,5)} – ${selectedSlot.endTime.slice(0,5)}` : pageCopy.timePending }}</dd>
               </div>
-              <div>
+              <div class="is-typeset">
                 <dt><User aria-hidden="true" />{{ pageCopy.visitors }}</dt>
-                <dd class="font-mono" data-motion="appointment-summary-value">{{ form.visitorCount }} {{ pageCopy.peopleUnit }}</dd>
+                <dd class="font-mono pass-stub__lead" data-motion="appointment-summary-value">{{ form.visitorCount }} {{ pageCopy.peopleUnit }}</dd>
+              </div>
+              <div :class="{ 'is-typeset': Boolean(form.contactName.trim()) }">
+                <dt><Tickets aria-hidden="true" />{{ workbenchCopy.contactSlot }}</dt>
+                <dd class="pass-stub__lead">{{ form.contactName.trim() || workbenchCopy.contactPending }}</dd>
               </div>
             </dl>
 
             <div v-if="bookingNo" class="pass-stub__code">
               <span>{{ locale === 'en-US' ? 'PASS NO.' : '凭证编号' }}</span>
               <strong class="font-mono">{{ bookingNo }}</strong>
+              <button
+                v-if="issuedPass"
+                type="button"
+                class="pass-stub__open-btn"
+                @click="passModalOpen = true"
+              >
+                <Tickets aria-hidden="true" />{{ passModalCopy.reopen }}
+              </button>
             </div>
           </section>
         </div>
@@ -691,7 +1013,7 @@ onBeforeUnmount(() => {
           <h2>{{ workbenchCopy.submitted }}</h2>
           <p>{{ message }}</p>
           <p class="font-mono">{{ bookingNo }}</p>
-          <RouterLink to="/profile">{{ locale === 'en-US' ? 'View my bookings' : '查看我的预约' }}<ArrowRight aria-hidden="true" /></RouterLink>
+          <RouterLink v-if="!passModalOpen" to="/profile">{{ passModalCopy.viewBookings }}<ArrowRight aria-hidden="true" /></RouterLink>
         </div>
       </div>
       <InlineStatus v-if="submitError" data-submit-error kind="error" :message="submitError" />
@@ -712,6 +1034,63 @@ onBeforeUnmount(() => {
         <p class="appointment-privacy">{{ pageCopy.privacy }}</p>
       </form>
     </BottomSheet>
+
+    <!-- Ceremonial Keepsake Pass Modal: immediately presented on booking success -->
+    <Teleport to="body">
+      <Transition name="pass-modal-fade">
+        <div
+          v-if="passModalOpen && issuedPass"
+          class="pass-modal-backdrop"
+          data-testid="museum-pass-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pass-modal-title"
+          @click.self="passModalOpen = false"
+        >
+          <div class="pass-modal-stage">
+            <header class="pass-modal-head">
+              <div class="pass-modal-head__copy">
+                <p class="pass-modal-head__eyebrow font-mono">{{ passModalCopy.eyebrow }}</p>
+                <h2 id="pass-modal-title">{{ passModalCopy.title }}</h2>
+                <p class="pass-modal-head__msg">{{ message }}</p>
+              </div>
+              <button
+                type="button"
+                class="pass-modal-close"
+                :aria-label="passModalCopy.closeAria"
+                @click="passModalOpen = false"
+              >
+                ×
+              </button>
+            </header>
+
+            <div class="pass-modal-body">
+              <MuseumPassCard :pass="issuedPass" surface="velvet" />
+            </div>
+
+            <footer class="pass-modal-foot">
+              <p class="pass-modal-foot__hint">{{ passModalCopy.hint }}</p>
+              <div class="pass-modal-foot__actions">
+                <button
+                  type="button"
+                  class="pass-modal-stay"
+                  @click="passModalOpen = false"
+                >
+                  {{ passModalCopy.stayHere }}
+                </button>
+                <RouterLink
+                  class="pass-modal-profile"
+                  to="/profile"
+                  @click="passModalOpen = false"
+                >
+                  {{ passModalCopy.viewBookings }}<ArrowRight aria-hidden="true" />
+                </RouterLink>
+              </div>
+            </footer>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </section>
 </template>
 
@@ -896,7 +1275,93 @@ onBeforeUnmount(() => {
   background: var(--accent-jade);
 }
 
-/* 14-day 2x7 Calendar Grid */
+.appointment-legend__count {
+  color: var(--ink-secondary);
+}
+
+.appointment-month-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+}
+
+.appointment-month-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 44px;
+  padding: 0 0.85rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-elevated);
+  color: var(--ink-primary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-curatorial);
+}
+
+.appointment-month-btn:hover:not(:disabled) {
+  border-color: var(--accent-bronze);
+}
+
+.appointment-month-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.appointment-month-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.appointment-month-select-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.appointment-month-select {
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-elevated);
+  color: var(--ink-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.appointment-month-today {
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border: 1px dashed var(--accent-bronze);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--accent-bronze);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.appointment-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-2);
+  padding-inline: 2px;
+  text-align: center;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+
+/* Monthly 7-Column Calendar Grid */
 .appointment-dates,
 .appointment-calendar-loading {
   display: grid;
@@ -904,8 +1369,14 @@ onBeforeUnmount(() => {
   gap: var(--space-2);
 }
 
+.appointment-day-pad {
+  min-height: 68px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklch, var(--surface-subtle) 45%, transparent);
+}
+
 .appointment-calendar-loading span {
-  height: 84px;
+  height: 68px;
   border-radius: var(--radius-sm);
   background: var(--surface-subtle);
 }
@@ -915,9 +1386,9 @@ onBeforeUnmount(() => {
   display: grid;
   justify-items: center;
   align-content: center;
-  gap: 3px;
-  min-height: 84px;
-  padding: var(--space-2);
+  gap: 2px;
+  min-height: 68px;
+  padding: 0.35rem var(--space-2);
   border: 1px solid var(--border-hairline);
   border-radius: var(--radius-sm);
   background: var(--surface-subtle);
@@ -926,6 +1397,14 @@ onBeforeUnmount(() => {
   transition: border-color var(--duration-fast) var(--ease-curatorial),
               background-color var(--duration-fast) var(--ease-curatorial),
               color var(--duration-fast) var(--ease-curatorial);
+}
+
+.appointment-day.is-today:not(.active) {
+  border-color: color-mix(in oklch, var(--accent-bronze) 75%, var(--border-strong));
+}
+
+.appointment-day.is-past {
+  opacity: 0.34;
 }
 
 .appointment-day.is-available {
@@ -961,6 +1440,43 @@ onBeforeUnmount(() => {
 
 .appointment-day__status {
   font-size: var(--text-xs);
+}
+
+.appointment-day.is-monday-closed {
+  border-style: dashed;
+  background: var(--surface-subtle);
+  color: var(--ink-muted);
+}
+
+.appointment-day.is-monday-closed .appointment-day__status {
+  color: var(--accent-bronze);
+  letter-spacing: 0.02em;
+}
+
+.appointment-day__meter {
+  position: relative;
+  display: block;
+  width: 72%;
+  height: 2.5px;
+  margin-top: 2px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in oklch, var(--border-strong) 65%, transparent);
+  overflow: hidden;
+}
+
+.appointment-day__meter i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent-jade);
+}
+
+.appointment-day.active .appointment-day__meter {
+  background: color-mix(in oklch, var(--accent-jade-ink) 28%, transparent);
+}
+
+.appointment-day.active .appointment-day__meter i {
+  background: var(--accent-jade-ink);
 }
 
 .appointment-day__check {
@@ -1239,24 +1755,41 @@ onBeforeUnmount(() => {
   margin: 0;
   aspect-ratio: 16 / 9;
   overflow: hidden;
-  background: var(--surface-plinth);
+  background: var(--surface-darkroom);
 }
 
 .appointment-venue img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center 42%;
+}
+
+.appointment-venue__scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    transparent 42%,
+    oklch(10% 0.008 238 / 0.58) 100%
+  );
+  pointer-events: none;
 }
 
 .appointment-venue figcaption {
   position: absolute;
   right: var(--space-3);
-  bottom: var(--space-2);
-  padding: 0.15rem 0.5rem;
-  border-radius: var(--radius-xs);
-  background: oklch(13% 0.006 74 / 0.76);
-  color: var(--ink-on-dark);
+  bottom: var(--space-3);
+  z-index: 2;
+  padding: 0.25rem 0.65rem;
+  border: 1px solid oklch(96% 0.006 86 / 0.22);
+  border-radius: var(--radius-pill);
+  background: oklch(11% 0.008 238 / 0.48);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: oklch(95% 0.006 86);
   font-size: var(--text-xs);
+  letter-spacing: 0.08em;
 }
 
 .appointment-venue-info {
@@ -1351,8 +1884,78 @@ onBeforeUnmount(() => {
   gap: var(--space-3);
 }
 
+.pass-stub__title-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 .pass-stub__header h2 {
   font-size: var(--text-md);
+}
+
+.pass-cinnabar-seal {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border: 1px dashed color-mix(in oklch, var(--accent-seal) 42%, var(--border-strong));
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink-muted);
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: pre-line;
+  text-align: center;
+  transform: rotate(-4deg);
+  transition: border-color 220ms var(--ease-curatorial),
+              background-color 220ms var(--ease-curatorial),
+              color 220ms var(--ease-curatorial),
+              transform 280ms var(--ease-curatorial);
+}
+
+.pass-cinnabar-seal.is-stamped {
+  border-style: solid;
+  border-width: 1.5px;
+  border-color: var(--accent-seal);
+  background: color-mix(in oklch, var(--accent-seal) 12%, var(--surface-canvas));
+  color: var(--accent-seal);
+  animation: heluo-seal-drop 320ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes heluo-seal-drop {
+  0% {
+    opacity: 0.4;
+    transform: translateY(-10px) scale(1.28) rotate(-14deg);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(1px) scale(0.96) rotate(-5deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(-6deg);
+  }
+}
+
+.pass-stub__grid > div.is-typeset .pass-stub__lead {
+  color: var(--ink-primary);
+}
+
+.pass-stub__grid > div:not(.is-typeset) .pass-stub__lead {
+  color: var(--ink-muted);
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pass-cinnabar-seal.is-stamped {
+    animation: none;
+    transform: rotate(-6deg);
+  }
 }
 
 .pass-seal {
@@ -1471,6 +2074,227 @@ onBeforeUnmount(() => {
   color: var(--ink-primary);
 }
 
+.appointment-result__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  margin-top: 0.55rem;
+}
+
+.appointment-result__pass-btn,
+.pass-stub__open-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  padding: 0 1.05rem;
+  border: 1px solid var(--accent-bronze);
+  border-radius: var(--radius-pill);
+  background: color-mix(in oklch, var(--accent-bronze) 12%, var(--surface-elevated));
+  color: var(--ink-primary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 180ms var(--ease-standard), transform 180ms var(--ease-standard);
+}
+
+.appointment-result__pass-btn:hover,
+.pass-stub__open-btn:hover {
+  background: color-mix(in oklch, var(--accent-bronze) 22%, var(--surface-elevated));
+}
+
+.pass-stub__open-btn {
+  width: 100%;
+  margin-top: 0.65rem;
+}
+
+/* ── Ceremonial Keepsake Pass Velvet Stage (Zero Bulky Modal Chrome) ── */
+.pass-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 108;
+  display: grid;
+  place-items: center;
+  padding: clamp(1rem, 3.5vw, 2.5rem);
+  background:
+    radial-gradient(ellipse 68% 58% at 50% 42%, oklch(17% 0.008 238 / 0.90), oklch(9% 0.006 238 / 0.95) 75%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  overflow-y: auto;
+}
+
+.pass-modal-stage {
+  width: min(100%, 940px);
+  display: grid;
+  gap: var(--space-5);
+  padding: clamp(0.5rem, 1.5vw, 1rem);
+  color: oklch(95% 0.012 86);
+}
+
+.pass-modal-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid oklch(86% 0.03 80 / 0.16);
+}
+
+.pass-modal-head__copy {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.pass-modal-head__eyebrow {
+  margin: 0;
+  font-size: var(--text-xs);
+  letter-spacing: 0.18em;
+  color: oklch(82% 0.072 78);
+}
+
+.pass-modal-head h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 2.4vw, 1.85rem);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: oklch(97% 0.008 86);
+}
+
+.pass-modal-head__msg {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: oklch(80% 0.012 82);
+}
+
+.pass-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border: 1px solid oklch(86% 0.02 80 / 0.22);
+  border-radius: 50%;
+  background: transparent;
+  color: oklch(84% 0.01 82);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 180ms var(--ease-standard), color 180ms var(--ease-standard);
+}
+
+.pass-modal-close:hover {
+  border-color: oklch(84% 0.075 78);
+  color: oklch(98% 0.008 86);
+}
+
+.pass-modal-body {
+  min-width: 0;
+}
+
+.pass-modal-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid oklch(86% 0.03 80 / 0.14);
+}
+
+.pass-modal-foot__hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.65;
+  color: oklch(82% 0.008 228);
+  max-width: 50ch;
+}
+
+.pass-modal-foot__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.pass-modal-stay {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border: 0;
+  background: transparent;
+  color: oklch(86% 0.008 228);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: color 180ms var(--ease-standard);
+}
+
+.pass-modal-stay:hover {
+  color: oklch(97% 0.006 86);
+}
+
+.pass-modal-profile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  padding: 0 1.4rem;
+  border-radius: 3px;
+  background: oklch(95% 0.008 86);
+  color: oklch(13% 0.006 238);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  transition: opacity 180ms var(--ease-standard);
+}
+
+.pass-modal-profile:hover {
+  opacity: 0.92;
+}
+
+.pass-modal-profile svg {
+  width: 15px;
+  height: 15px;
+}
+
+.pass-modal-fade-enter-active,
+.pass-modal-fade-leave-active {
+  transition: opacity 260ms var(--ease-standard);
+}
+
+.pass-modal-fade-enter-active .pass-modal-stage,
+.pass-modal-fade-leave-active .pass-modal-stage {
+  transition: transform 320ms var(--ease-standard), opacity 260ms var(--ease-standard);
+}
+
+.pass-modal-fade-enter-from,
+.pass-modal-fade-leave-to {
+  opacity: 0;
+}
+
+.pass-modal-fade-enter-from .pass-modal-stage,
+.pass-modal-fade-leave-to .pass-modal-stage {
+  opacity: 0;
+  transform: translateY(16px) scale(0.975);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pass-modal-fade-enter-active,
+  .pass-modal-fade-leave-active,
+  .pass-modal-fade-enter-active .pass-modal-stage,
+  .pass-modal-fade-leave-active .pass-modal-stage {
+    transition: none;
+  }
+}
+
 /* ── Responsive ── */
 @media (max-width: 1040px) {
   .appointment-layout {
@@ -1488,9 +2312,36 @@ onBeforeUnmount(() => {
     padding-top: var(--space-6);
   }
 
+  .appointment-month-nav {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .appointment-month-btn span {
+    display: none;
+  }
+
+  .appointment-weekdays,
   .appointment-dates,
   .appointment-calendar-loading {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .appointment-day,
+  .appointment-day-pad,
+  .appointment-calendar-loading span {
+    min-height: 60px;
+    padding: 4px 2px;
+  }
+
+  .appointment-day__weekday {
+    display: none;
+  }
+
+  .appointment-day__status {
+    line-height: 1.15;
+    text-align: center;
   }
 
   .appointment-times {
@@ -1505,6 +2356,25 @@ onBeforeUnmount(() => {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.35rem;
+  }
+
+  .pass-modal-backdrop {
+    align-items: start;
+    padding: 0.75rem;
+  }
+
+  .pass-modal-foot {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pass-modal-foot__actions {
+    justify-content: stretch;
+  }
+
+  .pass-modal-stay,
+  .pass-modal-profile {
+    flex: 1 1 auto;
   }
 }
 </style>

@@ -20,6 +20,10 @@ public class SiteIndexController {
     SiteIndexController(JdbcTemplate jdbc,
             @Value("${museum.mail.public-base-url}") String publicBaseUrl) {
         this.jdbc = jdbc;
+        this.baseUrl = publicOrigin(publicBaseUrl);
+    }
+
+    static String publicOrigin(String publicBaseUrl) {
         URI uri = URI.create(publicBaseUrl);
         if (!("https".equals(uri.getScheme()) || "http".equals(uri.getScheme()))
                 || uri.getHost() == null || uri.getUserInfo() != null
@@ -27,7 +31,7 @@ public class SiteIndexController {
                 || !(uri.getPath().isEmpty() || "/".equals(uri.getPath()))) {
             throw new IllegalArgumentException("MUSEUM_PUBLIC_BASE_URL must be an HTTP(S) origin without credentials");
         }
-        this.baseUrl = publicBaseUrl.replaceAll("/+$", "");
+        return publicBaseUrl.replaceAll("/+$", "");
     }
 
     @GetMapping(value = "/robots.txt", produces = "text/plain;charset=UTF-8")

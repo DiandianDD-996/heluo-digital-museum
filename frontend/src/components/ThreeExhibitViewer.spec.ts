@@ -271,12 +271,12 @@ describe('ThreeExhibitViewer pointer ownership', () => {
     await vi.waitFor(() => expect(threeState.renderers[0]?.scene).toBeDefined())
 
     const fog = threeState.renderers[0]?.scene?.fog as import('three').FogExp2
-    expect(fog.color.getHexString()).toBe('eee9df')
+    expect(fog.color.getHexString()).toBe('f4f3ef')
     expect(wrapper.get('.three-canvas').attributes('data-theme-fog')).toBe('light')
 
     document.documentElement.dataset.theme = 'dark'
     window.dispatchEvent(new CustomEvent('heluo:theme-change', { detail: 'dark' }))
-    expect(fog.color.getHexString()).toBe('1c1b19')
+    expect(fog.color.getHexString()).toBe('0d1014')
     expect(wrapper.get('.three-canvas').attributes('data-theme-fog')).toBe('dark')
 
     threeState.compileResolvers[0]?.()
@@ -284,7 +284,7 @@ describe('ThreeExhibitViewer pointer ownership', () => {
     wrapper.unmount()
     document.documentElement.dataset.theme = 'light'
     window.dispatchEvent(new CustomEvent('heluo:theme-change', { detail: 'light' }))
-    expect(fog.color.getHexString()).toBe('1c1b19')
+    expect(fog.color.getHexString()).toBe('0d1014')
   })
 
   it('uses the lower fixed-cost renderer profile on a phone viewport', async () => {
@@ -584,20 +584,22 @@ describe('ThreeExhibitViewer pointer ownership', () => {
 
     runFrame(1900)
     const material = prewarm.pointCloud?.material as import('three').ShaderMaterial
-    expect(material.uniforms.uJade.value.toArray()).toEqual([.30, .47, .41])
+    expect(material.uniforms.uJade.value.toArray()).toEqual([.26, .52, .44])
     expect(material.uniforms.uCopper.value.toArray()).toEqual([.94, .78, .46])
     expect(material.uniforms.uPointSize.value).toBe(1.02)
+    expect(material.vertexShader).toContain('breath')
+    expect(material.fragmentShader).toContain('silverCore')
 
     document.documentElement.dataset.theme = 'dark'
     window.dispatchEvent(new CustomEvent('heluo:theme-change', { detail: 'dark' }))
-    expect(material.uniforms.uJade.value.toArray()).toEqual([.42, .58, .51])
-    expect(material.uniforms.uCopper.value.toArray()).toEqual([.94, .79, .52])
-    expect(material.uniforms.uPointOpacity.value).toBe(.95)
+    expect(material.uniforms.uJade.value.toArray()).toEqual([.36, .68, .58])
+    expect(material.uniforms.uCopper.value.toArray()).toEqual([.96, .81, .49])
+    expect(material.uniforms.uPointOpacity.value).toBe(.96)
     expect(material.uniforms.uPointSize.value).toBe(1.14)
 
     document.documentElement.dataset.theme = 'light'
     window.dispatchEvent(new CustomEvent('heluo:theme-change', { detail: 'light' }))
-    expect(material.uniforms.uJade.value.toArray()).toEqual([.30, .47, .41])
+    expect(material.uniforms.uJade.value.toArray()).toEqual([.26, .52, .44])
     expect(material.uniforms.uPointSize.value).toBe(1.02)
     const gatherBeforeReverse = Number(material.uniforms.uProgress.value)
     const opacityBeforeReverse = Number(material.uniforms.uOpacity.value)

@@ -6,6 +6,8 @@ COPY frontend/package.json frontend/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --ignore-scripts --node-linker=hoisted
 COPY frontend/ ./
 ENV CI=true
+ARG VITE_GUIDE_ENABLED=false
+ENV VITE_GUIDE_ENABLED=${VITE_GUIDE_ENABLED}
 RUN ./node_modules/.bin/vite build
 
 FROM maven:3.9-eclipse-temurin-17 AS backend-build

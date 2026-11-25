@@ -65,7 +65,7 @@ describe('mediaSession integration', () => {
     expect(mediaSession.playbackState).toBe('playing')
     expect((mediaSession.metadata as FakeMediaMetadata).title).toBe('《观器·温金》')
     expect((mediaSession.metadata as FakeMediaMetadata).album).toBe('展馆原声 R4')
-    expect((mediaSession.metadata as FakeMediaMetadata).artwork[0]?.src).toContain('exhibit-ding-moonlight.webp')
+    expect((mediaSession.metadata as FakeMediaMetadata).artwork[0]?.src).toContain('explore-bronze-ding-user-v2.webp')
 
     handlers.get('pause')?.()
     handlers.get('play')?.()

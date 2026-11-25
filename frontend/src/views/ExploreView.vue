@@ -4,8 +4,10 @@ import { ArrowLeft, ArrowRight, Picture, Right, TopRight } from '@element-plus/i
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { gsap } from 'gsap'
 import { apiGet, type ContentPage } from '../lib/api'
+import { artifactPlateTransitionStyle, markActiveArtifactPlate } from '../lib/inkTransitions'
+import { schedulePrefetch } from '../lib/prefetch'
 import { mediaSrcset, mediaSizes } from '../lib/responsiveMedia'
-import { localizedContent } from '../lib/contentLocale'
+import { localizedContent, localizeCategoryName } from '../lib/contentLocale'
 import type { ArticleCard, ArtifactCard, Category, SearchResult } from '../lib/content'
 import { useLocale } from '../stores/locale'
 import { createGsapContext, revealBatch, revealFigures, revealSequence, shouldRunGsapReveal } from '../lib/gsap'
@@ -16,6 +18,7 @@ import MuseumSearchField from '../components/MuseumSearchField.vue'
 const categories = ref<Category[]>([])
 const route = useRoute()
 const router = useRouter()
+const pavilionCover = '/media/editorial/login-pavilion-light-v3.webp'
 const artifacts = ref<ArtifactCard[]>([])
 const articles = ref<ArticleCard[]>([])
 const searchResults = ref<SearchResult[]>([])
@@ -132,20 +135,6 @@ const copy = computed(() => locale.value === 'en-US' ? {
   searchFailed: '搜索未能完成，请重试。',
 })
 
-const categoryEnglish: Record<string, string> = { BRONZE: 'Bronze Rituals', JADE: 'Jade Imagery', RIVER: 'Heluo Stories', POTTERY: 'Pottery & Life', STONE: 'Stone Inscriptions' }
-const artifactEnglish: Record<string, { period: string; material: string; category: string }> = {
-  'heluo-bronze-ding': { period: 'Bronze Age ritual concept', material: 'Bronze', category: 'Bronze Rituals' },
-  'water-bird-bronze': { period: 'Animal motif concept', material: 'Bronze', category: 'Bronze Rituals' },
-  'heluo-bronze-jue': { period: 'Bronze Age concept', material: 'Bronze', category: 'Bronze Rituals' },
-  'river-map-jade-bi': { period: 'Traditional jade ritual concept', material: 'Jade', category: 'Jade Imagery' },
-  'painted-pottery-water-jar': { period: 'Prehistoric life concept', material: 'Pottery', category: 'Heluo Stories' },
-  'river-map-pattern-stone': { period: 'Heluo symbol concept', material: 'Stone', category: 'Heluo Stories' },
-}
-const articleEnglish: Record<string, { category: string }> = {
-  'why-negative-space-matters': { category: 'Jade Imagery' },
-  'river-as-timeline': { category: 'Heluo Stories' },
-  'how-to-read-bronze': { category: 'Bronze Rituals' },
-}
 const themeDescriptions = computed<Record<string, string>>(() => locale.value === 'en-US' ? {
   BRONZE: 'Form and pattern, cast into ritual.', JADE: 'A circle of stone, a world of meaning.', RIVER: 'Water, settlements and shared memory.',
 } : {
@@ -155,16 +144,23 @@ const themeDescriptions = computed<Record<string, string>>(() => locale.value ==
 const conceptSuffix = /\s*(?:（概念展品）|\(Concept\))$/
 const objectTitle = (artifact: ArtifactCard) => artifactCopy(artifact).title.replace(conceptSuffix, '')
 const isConcept = (artifact: ArtifactCard) => conceptSuffix.test(artifactCopy(artifact).title)
-const categoryName = (category: Pick<Category, 'code' | 'name'>) => locale.value === 'en-US' ? (categoryEnglish[category.code] ?? category.name) : category.name
-const artifactCopy = (artifact: ArtifactCard) => ({ ...localizedContent(artifact, locale.value), ...(locale.value === 'en-US' && artifactEnglish[artifact.slug] ? { period: artifactEnglish[artifact.slug].period, material: artifactEnglish[artifact.slug].material, categoryName: artifactEnglish[artifact.slug].category } : {}) })
-const artifactMaterial = (artifact: ArtifactCard): 'bronze' | 'jade' | 'ink' => (artifact.categoryCode === 'BRONZE' ? 'bronze' : artifact.categoryCode === 'JADE' ? 'jade' : 'ink')
-const articleCopy = (article: ArticleCard) => ({ ...localizedContent(article, locale.value), ...(locale.value === 'en-US' && articleEnglish[article.slug] ? { categoryName: articleEnglish[article.slug].category, authorDisplay: 'Heluo Digital Museum' } : {}) })
-const searchCopy = (item: SearchResult) => {
-  const localized = localizedContent(item, locale.value)
-  if (locale.value !== 'en-US') return localized
-  const category = item.type === 'artifact' ? artifactEnglish[item.slug]?.category : articleEnglish[item.slug]?.category
-  return { ...localized, categoryName: category ?? item.categoryName }
+const categoryName = (category: Pick<Category, 'code' | 'name' | 'nameEn'>) => localizeCategoryName(category, locale.value)
+const categoryDescription = (category: Category) => {
+  if (locale.value === 'en-US') return category.descriptionEn?.trim() || themeDescriptions.value[category.code] || category.description || ''
+  return category.descriptionZh?.trim() || themeDescriptions.value[category.code] || category.description || ''
 }
+const artifactCopy = (artifact: ArtifactCard) => {
+  const localized = localizedContent(artifact, locale.value)
+  if (locale.value !== 'en-US') return localized
+  const matchedCat = categories.value.find(c => c.code === artifact.categoryCode)
+  return {
+    ...localized,
+    categoryName: matchedCat ? localizeCategoryName(matchedCat, locale.value) : localized.categoryName,
+  }
+}
+const artifactMaterial = (artifact: ArtifactCard): 'bronze' | 'jade' | 'ink' => (artifact.categoryCode === 'BRONZE' ? 'bronze' : artifact.categoryCode === 'JADE' ? 'jade' : 'ink')
+const articleCopy = (article: ArticleCard) => localizedContent(article, locale.value)
+const searchCopy = (item: SearchResult) => localizedContent(item, locale.value)
 
 const hasSubmittedSearch = computed(() => submittedQuery.value.length > 0)
 const preferredOrder = ['heluo-bronze-ding', 'water-bird-bronze', 'heluo-bronze-jue', 'river-map-jade-bi', 'painted-pottery-water-jar', 'river-map-pattern-stone']
@@ -184,9 +180,10 @@ const articleCountLabel = (count: number) => locale.value === 'en-US'
   ? `${count} ${count === 1 ? 'article' : 'articles'}`
   : `${count} ${copy.value.articles}`
 const editorialArticleMedia: Record<string, string> = {
-  'why-negative-space-matters': editorialArtifactMedia['river-map-jade-bi'],
-  'river-as-timeline': editorialArtifactMedia['river-map-pattern-stone'],
-  'how-to-read-bronze': editorialArtifactMedia['heluo-bronze-jue'],
+  'visit-and-digital-guide': pavilionCover,
+  'why-negative-space-matters': editorialArtifactMedia['river-map-jade-bi']!,
+  'river-as-timeline': editorialArtifactMedia['river-map-pattern-stone']!,
+  'how-to-read-bronze': editorialArtifactMedia['heluo-bronze-jue']!,
 }
 const themeMedia: Record<string, string> = {
   BRONZE: editorialArtifactMedia['heluo-bronze-jue']!,
@@ -211,11 +208,11 @@ function artifactMediaSizes() {
   return `(max-width: 520px) ${mobileWidth}, (max-width: 760px) calc(50vw - 28px), (max-width: 1100px) calc(50vw - 48px), (max-width: 1296px) calc((100vw - 160px) / 3), 379px`
 }
 function articleVisual(article: ArticleCard) {
-  return editorialArticleMedia[article.slug] ?? article.coverImageUrl
+  return editorialArticleMedia[article.slug] || article.coverImageUrl || pavilionCover
 }
 function searchVisual(item: SearchResult) {
-  if (item.type === 'artifact') return editorialArtifactMedia[item.slug] ?? item.coverImageUrl
-  return editorialArticleMedia[item.slug] ?? item.coverImageUrl
+  if (item.type === 'artifact') return editorialArtifactMedia[item.slug] || item.coverImageUrl
+  return editorialArticleMedia[item.slug] || item.coverImageUrl || pavilionCover
 }
 
 let contentRequestId = 0
@@ -284,15 +281,38 @@ async function loadContent(page = collectionPage.value) {
   }
 }
 
+const searchScope = computed<'all' | 'museum'>(() => route.query.scope === 'museum' ? 'museum' : 'all')
+function setSearchScope(scope: 'all' | 'museum') {
+  if (!submittedQuery.value || searchScope.value === scope) return
+  void router.push({
+    query: {
+      q: submittedQuery.value,
+      ...(scope === 'museum' ? { scope: 'museum' } : {}),
+    },
+  })
+}
+function searchDestination(item: SearchResult) {
+  if (item.path?.trim()) return item.path.trim()
+  if (item.type === 'exhibit') return `/exhibits/${item.slug}`
+  if (item.type === 'product') return `/shop?item=${encodeURIComponent(item.slug)}`
+  return `/${item.type === 'artifact' ? 'artifacts' : 'articles'}/${item.slug}`
+}
+function searchTypeLabel(item: SearchResult) {
+  if (item.type === 'exhibit') return locale.value === 'en-US' ? '3D Exhibit' : '数字展项'
+  if (item.type === 'product') return locale.value === 'en-US' ? 'Museum Store' : '河洛文创'
+  return item.type === 'artifact' ? copy.value.artifact : copy.value.article
+}
+
 async function loadSearch() {
   const query = submittedQuery.value
+  const scope = searchScope.value
   const requestId = ++searchRequestId
   submittedQuery.value = query
   searchResults.value = []
   searching.value = true
   searchError.value = ''
   try {
-    const result = await apiGet<ContentPage<SearchResult>>(`/search?keyword=${encodeURIComponent(query)}&type=all&page=${collectionPage.value}&size=24`)
+    const result = await apiGet<ContentPage<SearchResult>>(`/search?keyword=${encodeURIComponent(query)}&type=${scope}&page=${collectionPage.value}&size=24`)
     if (requestId === searchRequestId) {
       searchResults.value = result.items
       searchTotal.value = result.total
@@ -361,8 +381,20 @@ function syncQuery() {
   else void loadContent()
 }
 
+let cancelHoverPrefetch: (() => void) | undefined
+function beginDetailPrefetch(kind: 'artifact' | 'article', slug: string, imageUrl?: string | null) {
+  cancelHoverPrefetch?.()
+  const path = `/${kind === 'artifact' ? 'artifacts' : 'articles'}/${encodeURIComponent(slug)}`
+  cancelHoverPrefetch = schedulePrefetch(path, () => apiGet(path), { delayMs: 120, imageUrl })
+}
+function stopDetailPrefetch() {
+  cancelHoverPrefetch?.()
+  cancelHoverPrefetch = undefined
+}
+
 watch(() => route.query, syncQuery, { immediate: true })
 onBeforeUnmount(() => {
+  stopDetailPrefetch()
   contentRequestId += 1
   searchRequestId += 1
   gsapContext?.revert()
@@ -402,9 +434,31 @@ onBeforeUnmount(() => {
 
     <section v-if="hasSubmittedSearch" id="collection-search-results" class="collection-results gallery-results" aria-live="polite" :aria-busy="searching">
       <header class="gallery-section-head">
-        <div>
+        <div class="gallery-results__heading">
           <h2>{{ locale === 'en-US' ? `${copy.results} “${submittedQuery}”` : `“${submittedQuery}”${copy.results}` }}</h2>
-          <p v-if="!searching && !searchError" class="gallery-count">{{ searchTotal }} {{ copy.items }}</p>
+          <div class="gallery-results__sub">
+            <p v-if="!searching && !searchError" class="gallery-count">{{ searchTotal }} {{ copy.items }}</p>
+            <div class="gallery-scope-switch" role="group" :aria-label="locale === 'en-US' ? 'Search scope' : '检索范围'">
+              <button
+                type="button"
+                class="gallery-scope-btn"
+                :class="{ 'is-active': searchScope === 'all' }"
+                :aria-pressed="searchScope === 'all'"
+                @click="setSearchScope('all')"
+              >
+                {{ locale === 'en-US' ? 'Collection & Journal' : '馆藏与专题' }}
+              </button>
+              <button
+                type="button"
+                class="gallery-scope-btn"
+                :class="{ 'is-active': searchScope === 'museum' }"
+                :aria-pressed="searchScope === 'museum'"
+                @click="setSearchScope('museum')"
+              >
+                {{ locale === 'en-US' ? 'Full Museum (+3D & Store)' : '全馆四类（含展厅与文创）' }}
+              </button>
+            </div>
+          </div>
         </div>
         <button class="text-action gallery-text-link" type="button" @click="clearSearch">{{ copy.clearSearch }}<Right aria-hidden="true" /></button>
       </header>
@@ -427,9 +481,9 @@ onBeforeUnmount(() => {
           :key="`${item.type}-${item.slug}`"
           class="search-result-card gallery-result-card"
           data-motion="explore-result"
-          :class="{ 'gallery-result-card--artifact': item.type === 'artifact' }"
-          :variant="item.type"
-          :to="`/${item.type === 'artifact' ? 'artifacts' : 'articles'}/${item.slug}`"
+          :class="{ 'gallery-result-card--artifact': item.type === 'artifact' || item.type === 'exhibit' }"
+          :variant="item.type === 'artifact' || item.type === 'exhibit' ? 'artifact' : 'article'"
+          :to="searchDestination(item)"
           :media-src="searchVisual(item)"
           media-alt=""
         >
@@ -437,7 +491,7 @@ onBeforeUnmount(() => {
             <img v-if="searchVisual(item) && !failedImages.has(searchVisual(item))" :src="searchVisual(item)" :srcset="mediaSrcset(searchVisual(item))" :sizes="mediaSizes" alt="" loading="lazy" decoding="async" @error="failedImages.add(searchVisual(item))" />
             <span v-else class="gallery-image-fallback"><Picture aria-hidden="true" />{{ copy.imageUnavailable }}</span>
           </template>
-          <template #meta>{{ item.type === 'artifact' ? copy.artifact : copy.article }} · {{ searchCopy(item).categoryName }}<span v-if="item.type === 'artifact' && item.slug === 'heluo-bronze-ding'"> · {{ locale === 'en-US' ? 'AI editorial image' : 'AI策展配图' }}</span></template>
+          <template #meta>{{ searchTypeLabel(item) }}<span v-if="searchCopy(item).categoryName"> · {{ searchCopy(item).categoryName }}</span><span v-if="item.price" class="font-mono"> · ¥{{ item.price }}</span><span v-if="item.type === 'artifact' && item.slug === 'heluo-bronze-ding'"> · {{ locale === 'en-US' ? 'AI editorial image' : 'AI策展配图' }}</span></template>
           <template #title>{{ searchCopy(item).title }}</template>
           <template #summary><p>{{ searchCopy(item).summary }}</p></template>
           <template #action>{{ copy.read }}<Right aria-hidden="true" /></template>
@@ -500,8 +554,12 @@ onBeforeUnmount(() => {
               :class="{ 'gallery-object--featured': isFeaturedArtifact(index) }"
               :to="`/artifacts/${artifact.slug}`"
               :aria-label="`${copy.view}：${artifactCopy(artifact).title}`"
+              @pointerenter="beginDetailPrefetch('artifact', artifact.slug, artifactVisual(artifact))"
+              @pointerleave="stopDetailPrefetch"
+              @focus="beginDetailPrefetch('artifact', artifact.slug, artifactVisual(artifact))"
+              @click="markActiveArtifactPlate(artifact.slug)"
             >
-              <div class="gallery-object__media">
+              <div class="gallery-object__media" :style="artifactPlateTransitionStyle(artifact.slug)">
                 <img
                   v-if="artifactVisual(artifact) && !failedImages.has(artifactVisual(artifact))"
                   :src="artifactVisual(artifact)"
@@ -573,7 +631,7 @@ onBeforeUnmount(() => {
               />
               <span class="gallery-themes__copy">
                 <strong>{{ categoryName(category) }}</strong>
-                <small v-if="themeDescriptions[category.code]">{{ themeDescriptions[category.code] }}</small>
+                <small v-if="categoryDescription(category)">{{ categoryDescription(category) }}</small>
               </span>
               <Right class="gallery-themes__arrow" aria-hidden="true" />
             </RouterLink>
@@ -596,6 +654,9 @@ onBeforeUnmount(() => {
               class="gallery-story"
               data-motion="explore-story"
               :to="`/articles/${article.slug}`"
+              @pointerenter="beginDetailPrefetch('article', article.slug, articleVisual(article))"
+              @pointerleave="stopDetailPrefetch"
+              @focus="beginDetailPrefetch('article', article.slug, articleVisual(article))"
             >
               <div class="gallery-story__media">
                 <img
@@ -842,7 +903,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-3);
+  padding: var(--space-4);
   background-color: var(--surface-vitrine);
   background-image: var(--surface-vitrine-spotlight);
   background-repeat: no-repeat;
@@ -850,20 +911,42 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
+.gallery-object__media::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 8%;
+  width: 58%;
+  height: 15%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(
+    ellipse at center,
+    var(--plinth-contact-shadow) 0%,
+    color-mix(in oklch, var(--plinth-contact-shadow) 38%, transparent) 48%,
+    transparent 76%
+  );
+}
+
 .gallery-object__media::after {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
-  box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.08), inset 0 -14px 28px oklch(8% 0.002 75 / 0.28);
+  z-index: 2;
+  box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.08), inset 0 -18px 34px oklch(6% 0.005 238 / 0.34);
 }
 
 .gallery-object__media img {
   position: absolute;
-  inset: var(--space-3);
-  width: calc(100% - var(--space-3) * 2);
-  height: calc(100% - var(--space-3) * 2);
+  inset: var(--space-4);
+  z-index: 1;
+  width: calc(100% - var(--space-4) * 2);
+  height: calc(100% - var(--space-4) * 2);
   object-fit: contain;
+  filter: drop-shadow(0 14px 20px var(--plinth-contact-shadow));
   transition: transform 460ms var(--ease-curatorial);
 }
 
@@ -1329,6 +1412,56 @@ onBeforeUnmount(() => {
 
   .gallery-story__body h3 {
     font-size: var(--text-md);
+  }
+}
+
+.gallery-results__sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  margin-top: var(--space-2);
+}
+
+.gallery-scope-switch {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.gallery-scope-btn {
+  min-height: 36px;
+  padding: 0 0.85rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-elevated);
+  color: var(--ink-secondary);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-curatorial), background-color var(--duration-fast) var(--ease-curatorial), color var(--duration-fast) var(--ease-curatorial), transform 100ms ease-out;
+}
+
+.gallery-scope-btn:hover {
+  border-color: var(--accent-bronze);
+  color: var(--ink-primary);
+}
+
+.gallery-scope-btn:active {
+  transform: scale(0.97);
+}
+
+.gallery-scope-btn.is-active {
+  background: var(--accent-jade);
+  border-color: var(--accent-jade);
+  color: var(--accent-jade-ink);
+  font-weight: 600;
+}
+
+@media (pointer: coarse) {
+  .gallery-scope-btn {
+    min-height: 44px;
   }
 }
 </style>

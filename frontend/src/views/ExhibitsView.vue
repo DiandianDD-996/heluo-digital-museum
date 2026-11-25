@@ -21,6 +21,9 @@ interface ExhibitCard {
   collectionLocation: string
   artifactSlug: string
   artifactTitle: string
+  titleEn?: string | null
+  summaryEn?: string | null
+  descriptionEn?: string | null
 }
 
 const items = ref<ExhibitCard[]>([])
@@ -32,12 +35,13 @@ let discoveryCued = false
 const { locale } = useLocale()
 
 const copy = computed(() => locale.value === 'en-US' ? {
-  eyebrow: '3D DIGITAL EXHIBITION',
-  title: 'Bring one object closer.',
-  intro: 'Reconstruct bronze silhouettes and taotie reliefs in digital light. Rotate freely, inspect up close, or switch between solid bronze and point-cloud geometry.',
+  eyebrow: '3D & OPTICAL DIGITAL EXHIBITION',
+  title: 'Bring museum craft closer.',
+  intro: 'Inspect ritual bronzes in 360° darkroom light and sweep low-angle raking shadows across incised stone reliefs.',
   interaction: 'Gallery specs',
-  headerSpecs: ['01 Interactive Masterpiece', 'Dual-Mode WebGL Stage', 'CC0 Public Provenance'],
+  headerSpecs: ['02 Curated Interactive Stages', '3D PBR & WebGL Raking Light', 'Transparent Provenance'],
   capabilities: ['360° Free Orbit', 'Aged-Bronze PBR', 'Point-Cloud Mode'],
+  stoneCapabilities: ['360° Raking Shadow', '2.4× Brass Loupe', 'Ink-Rubbing Relief'],
   retry: 'Try again',
   loading: 'Loading digital exhibits',
   emptyTitle: 'The gallery is being prepared',
@@ -46,15 +50,17 @@ const copy = computed(() => locale.value === 'en-US' ? {
   list: 'Digital exhibit list',
   related: 'Related artifact',
   start: 'Enter 3D Vitrine',
+  startStone: 'Enter Raking Light',
   attributionPrefix: 'Model attribution:',
   attributionFallback: 'Reconstructed with reference to Cleveland Museum of Art CC0 public collection (1962.281).',
 } : {
   eyebrow: '数字展厅',
   title: '把一件器物，拿到眼前。',
-  intro: '以数字重塑青铜器型与饕餮纹样，自由旋转近观，或在实体与点云之间切换视角。',
+  intro: '在暗房顶光中 360° 旋观青铜礼器与粒子点云，或牵引低掠射光源检视石刻阴线与乌金墨拓。',
   interaction: '展厅信息',
-  headerSpecs: ['开放互动馆藏', '360° 自由观展', '公开馆藏溯源'],
+  headerSpecs: ['双展柜交互精览', '3D 点云与斜射光学', '公开馆藏与概念溯源'],
   capabilities: ['360° 自由旋转', '古铜质感细观', '点云结构透视'],
+  stoneCapabilities: ['360° 斜射光影', '2.4× 光学放大镜', '乌金墨拓显影'],
   retry: '重新加载',
   loading: '正在加载数字展项',
   emptyTitle: '展厅正在布展',
@@ -63,6 +69,7 @@ const copy = computed(() => locale.value === 'en-US' ? {
   list: '数字展项列表',
   related: '关联展品',
   start: '进入 3D 展柜',
+  startStone: '开启斜射光检视',
   attributionPrefix: '展品数字溯源：',
   attributionFallback: '基于克利夫兰艺术博物馆 CC0 公开馆藏参考模型（1962.281）进行 PBR 材质重制。',
 })
@@ -72,8 +79,18 @@ const englishExhibit = {
   summary: 'A digital exhibit preserving the ritual silhouette and taotie motifs with a recrafted aged-bronze PBR material.',
 }
 
+const englishArtifactTitles: Record<string, string> = {
+  'heluo-bronze-ding': 'Heluo Bronze Ding (Digital Reconstruction)',
+  'river-map-pattern-stone': 'River-Map Pattern Stone (Concept Exhibit)',
+}
+
 const displayItem = (item: ExhibitCard) => {
-  if (locale.value === 'en-US' && item.slug === 'heluo-bronze-ding-3d') return { ...item, ...englishExhibit }
+  if (locale.value === 'en-US') {
+    const title = item.titleEn?.trim() || (item.slug === 'heluo-bronze-ding-3d' ? englishExhibit.title : item.title)
+    const summary = item.summaryEn?.trim() || (item.slug === 'heluo-bronze-ding-3d' ? englishExhibit.summary : item.summary)
+    const artifactTitle = englishArtifactTitles[item.artifactSlug] || item.artifactTitle
+    return { ...item, title, summary, artifactTitle }
+  }
   if (item.slug === 'heluo-bronze-ding-3d' && item.summary.includes('GLB')) {
     return {
       ...item,
@@ -88,12 +105,17 @@ const formatSourceCredit = (credit: string | undefined) => {
   if (locale.value === 'zh-CN' && credit.includes('Cleveland Museum of Art')) {
     return '克利夫兰艺术博物馆 · 1962.281 CC0 公开馆藏参考'
   }
+  if (locale.value === 'en-US' && /河洛数字博物馆/.test(credit)) {
+    return 'Heluo Digital Museum · Original Concept Optical Exhibit'
+  }
   return credit
 }
 
-const coverFor = (item: ExhibitCard) => item.slug.includes('bronze-ding')
-  ? '/media/editorial/exhibit-ding-moonlight.webp'
-  : item.coverImageUrl
+const coverFor = (item: ExhibitCard) => {
+  if (item.slug.includes('bronze-ding')) return '/media/editorial/explore-bronze-ding-user-v2.webp'
+  if (item.slug === 'river-map-stone-raking') return '/media/editorial/explore-river-map-stone-user-v2.webp'
+  return item.coverImageUrl
+}
 
 const isFeatureShowcase = computed(() => items.value.length > 0 && items.value.length <= 2)
 
@@ -185,7 +207,11 @@ onBeforeUnmount(() => {
         :to="`/exhibits/${item.slug}`"
         @click="openExhibit"
       >
-        <div class="exhibit-showcase__media" data-motion="card-media">
+        <div
+          class="exhibit-showcase__media"
+          :class="{ 'exhibit-showcase__media--panoramic': item.slug === 'river-map-stone-raking' }"
+          data-motion="card-media"
+        >
           <img :src="coverFor(item)" :alt="displayItem(item).title" loading="eager" decoding="async" />
           <span class="exhibit-showcase__badge font-mono" data-motion="card-index">
             EXHIBIT {{ String(index + 1).padStart(2, '0') }}
@@ -198,12 +224,17 @@ onBeforeUnmount(() => {
           <p class="exhibit-showcase__summary">{{ displayItem(item).summary }}</p>
 
           <ul class="exhibit-showcase__features" aria-label="交互特性">
-            <li v-for="tag in copy.capabilities" :key="tag">{{ tag }}</li>
+            <li
+              v-for="tag in (item.slug === 'river-map-stone-raking' ? copy.stoneCapabilities : copy.capabilities)"
+              :key="tag"
+            >
+              {{ tag }}
+            </li>
           </ul>
 
           <div class="exhibit-showcase__footer">
             <span class="exhibit-showcase__cta">
-              {{ copy.start }} <b aria-hidden="true">→</b>
+              {{ item.slug === 'river-map-stone-raking' ? copy.startStone : copy.start }} <b aria-hidden="true">→</b>
             </span>
             <p class="exhibit-showcase__credit">
               {{ copy.attributionPrefix }} {{ formatSourceCredit(item.sourceCredit) }}
@@ -326,9 +357,13 @@ onBeforeUnmount(() => {
 
 .exhibit-showcase__media {
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   min-width: 0;
   min-height: 440px;
+  padding: clamp(2rem, 3.8vw, 3.25rem);
   background-color: var(--surface-vitrine);
   background-image: var(--surface-vitrine-spotlight);
   background-size: 100% 100%;
@@ -336,18 +371,51 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
-.exhibit-showcase__media img {
+.exhibit-showcase__media::after {
+  content: '';
   position: absolute;
-  inset: 0;
+  left: 50%;
+  bottom: 10%;
+  width: 56%;
+  height: 14%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, var(--plinth-contact-shadow) 0%, transparent 72%);
+  pointer-events: none;
+}
+
+.exhibit-showcase__media img {
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  object-position: center 45%;
+  max-height: 360px;
+  object-fit: contain;
+  object-position: center;
+  filter: drop-shadow(0 16px 32px oklch(5% 0.006 238 / 0.55));
   transition: transform 520ms var(--ease-curatorial);
 }
 
 .exhibit-showcase:hover .exhibit-showcase__media img {
   transform: scale(1.03);
+}
+
+.exhibit-showcase__media--panoramic {
+  padding: clamp(2.25rem, 4vw, 3.25rem) clamp(1.5rem, 3vw, 2.5rem);
+}
+
+.exhibit-showcase__media--panoramic::after {
+  bottom: 18%;
+  width: 74%;
+  height: 10%;
+}
+
+.exhibit-showcase__media--panoramic img {
+  max-height: 310px;
+}
+
+.exhibit-showcase:hover .exhibit-showcase__media--panoramic img {
+  transform: scale(1.025);
 }
 
 .exhibit-showcase__badge {

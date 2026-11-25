@@ -2,13 +2,13 @@
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch, watchEffect } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { setUnauthorizedHandler } from './lib/api'
-import { User } from '@element-plus/icons-vue'
 import { musicDirector } from './lib/musicDirector'
 import { audioSystem } from './lib/audioSystem'
 import { installInteractionSounds, removeInteractionSounds } from './lib/interactionSound'
 import { useAuthStore } from './stores/auth'
 import { useLocale } from './stores/locale'
 import { useTheme } from './stores/theme'
+import { useCuratorialBookmarks } from './stores/curatorialBookmarks'
 import { guideEnabled, useLuoshengStore } from './stores/luoshengStore'
 import AudioControl from './components/AudioControl.vue'
 import LoadingSkeleton from './components/LoadingSkeleton.vue'
@@ -17,6 +17,8 @@ import MuseumBrandSeal from './components/MuseumBrandSeal.vue'
 const auth = useAuthStore()
 const { locale, t, toggle } = useLocale()
 const { isDark, toggle: toggleTheme } = useTheme()
+const bookmarks = useCuratorialBookmarks()
+const CuratorialBookmarkSheet = defineAsyncComponent(() => import('./components/CuratorialBookmarkSheet.vue'))
 const route = useRoute()
 const router = useRouter()
 const headerScrolled = ref(false)
@@ -95,8 +97,10 @@ const showSiteFooter = computed(() => !isAdminRoute.value && route.name !== 'exh
 const SiteGuide = guideEnabled
   ? defineAsyncComponent(() => import('./components/LuoshengSiteGuide.vue'))
   : null
+const AmbientGalleryBackdrop = defineAsyncComponent(() => import('./components/AmbientGalleryBackdrop.vue'))
 const PointerCursor = defineAsyncComponent(() => import('./components/PointerCursor.vue'))
 const LightPresetSwitcher = defineAsyncComponent(() => import('./components/LightPresetSwitcher.vue'))
+const showAmbientBackdrop = computed(() => !isAdminRoute.value && route.name !== 'exhibit-detail')
 const siteGuideRoutes = ['home', 'explore', 'artifact-detail', 'article-detail', 'exhibits', 'exhibit-detail', 'appointment', 'shop']
 const lightSwitcherRoutes = ['explore', 'exhibits', 'appointment', 'shop']
 const showLightDebugDock = computed(() => (
@@ -173,6 +177,7 @@ watchEffect(() => {
 
 <template>
   <div class="app-shell" :class="shellRouteClass">
+    <AmbientGalleryBackdrop v-if="showAmbientBackdrop" />
     <div v-if="!isAdminRoute" class="app-ambient-veil" aria-hidden="true"></div>
     <a class="skip-link" href="#main-content">{{ shellCopy.skip }}</a>
 
@@ -191,6 +196,21 @@ watchEffect(() => {
       </nav>
 
       <div class="site-utilities">
+        <button
+          class="notebook-toggle"
+          data-glass="compact"
+          data-glass-interactive
+          data-testid="header-notebook-trigger"
+          type="button"
+          :aria-label="locale === 'zh-CN' ? '打开观展手账' : 'Open viewing notebook'"
+          @click="bookmarks.openSheet()"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 4h12a1 1 0 0 1 1 1v15l-7-4-7 4V5a1 1 0 0 1 1-1Z" />
+          </svg>
+          <span>{{ locale === 'zh-CN' ? '手账' : 'Journal' }}</span>
+          <strong v-if="bookmarks.count.value > 0" class="notebook-toggle__count font-mono">{{ bookmarks.count.value }}</strong>
+        </button>
         <AudioControl />
         <button
           class="theme-toggle"
@@ -223,7 +243,10 @@ watchEffect(() => {
           to="/profile"
           :aria-label="accountLabel || mobileAccountLabel"
         >
-          <User class="account-icon" aria-hidden="true" />
+          <svg class="account-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M5.5 20a6.5 6.5 0 0 1 13 0" />
+          </svg>
           <span class="account-label--desktop">{{ accountLabel || mobileAccountLabel }}</span>
           <span class="account-label--mobile">{{ mobileAccountLabel }}</span>
         </RouterLink>
@@ -235,7 +258,10 @@ watchEffect(() => {
           to="/login"
           :aria-label="t.login"
         >
-          <User class="account-icon" aria-hidden="true" />
+          <svg class="account-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M5.5 20a6.5 6.5 0 0 1 13 0" />
+          </svg>
           <span class="account-label--desktop">{{ t.login }}</span>
           <span class="account-label--mobile">{{ mobileAccountLabel }}</span>
         </RouterLink>
@@ -273,6 +299,11 @@ watchEffect(() => {
             <li><RouterLink to="/appointment">{{ t.appointment }}</RouterLink></li>
             <li><RouterLink to="/shop">{{ t.shop }}</RouterLink></li>
             <li><RouterLink :to="auth.loggedIn ? '/profile' : '/login'">{{ shellCopy.footerProfile }}</RouterLink></li>
+            <li>
+              <button type="button" class="site-footer__journal-btn" @click="bookmarks.openSheet()">
+                {{ locale === 'zh-CN' ? '观展手账' : 'Viewing Notebook' }}{{ bookmarks.count.value > 0 ? ` (${bookmarks.count.value})` : '' }}
+              </button>
+            </li>
           </ul>
         </div>
 
@@ -315,6 +346,7 @@ watchEffect(() => {
 
     <LightPresetSwitcher v-if="showLightDebugDock" />
     <SiteGuide v-if="SiteGuide && siteGuideRoutes.includes(String(route.name))" />
+    <CuratorialBookmarkSheet v-if="bookmarks.sheetOpen.value" />
     <PointerCursor />
   </div>
 </template>

@@ -25,7 +25,7 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class GuideToolExecutor {
-    static final int OPEN_BOOKING_WINDOW_DAYS = 14;
+    static final int OPEN_BOOKING_WINDOW_DAYS = 365;
     static final int MIN_PEOPLE = 1;
     static final int MAX_PEOPLE = 30;
 
@@ -45,9 +45,9 @@ public class GuideToolExecutor {
         return List.of(
                 functionTool(
                         "get_museum_item_detail",
-                        "Fetch full curated description and metadata of a published museum artifact, cultural article, or 3D exhibit by type and slug. Use when the visitor asks about another exhibit/article or asks to compare items.",
+                        "Fetch full curated description and metadata of a published museum artifact, cultural article, 3D exhibit, or shop product by type and slug. Use when the visitor asks about another item, compares items, or wants deep curatorial/product context.",
                         Map.of(
-                                "type", Map.of("type", "string", "enum", List.of("artifact", "article", "exhibit"),
+                                "type", Map.of("type", "string", "enum", List.of("artifact", "article", "exhibit", "product"),
                                         "description", "Item category"),
                                 "slug", Map.of("type", "string", "description", "Exact slug from the museum catalog")),
                         List.of("type", "slug")),
@@ -58,10 +58,10 @@ public class GuideToolExecutor {
                         List.of("keyword")),
                 functionTool(
                         "query_appointment_slots",
-                        "Query real-time open museum visit appointment slots within the next 14 days (read-only, never books). Always call this when asked about visit times, dates, or remaining spots.",
+                        "Query real-time open museum visit appointment slots within the next 365 days (read-only, never books). Always call this when asked about visit times, dates, or remaining spots.",
                         Map.of(
                                 "date", Map.of("type", "string", "description", "Optional target date in YYYY-MM-DD format"),
-                                "days", Map.of("type", "integer", "description", "Optional number of days from today (1-14, default 3) when date is omitted"),
+                                "days", Map.of("type", "integer", "description", "Optional number of days from today (1-365, default 7) when date is omitted"),
                                 "people", Map.of("type", "integer", "description", "Optional visitor count (1-30) to check remaining capacity")),
                         List.of()));
     }
@@ -142,7 +142,7 @@ public class GuideToolExecutor {
                 if (a.exhibitSlug() != null) {
                     payload.put("exhibitSlug", a.exhibitSlug());
                     knowledge.findExhibit(a.exhibitSlug()).ifPresent(audit::recordExhibit);
-                    List<GuideEvidenceReader.Evidence> cards = knowledge.evidenceCards(a.exhibitSlug());
+                    List<GuideEvidenceReader.Evidence> cards = knowledge.evidenceCards(a.exhibitSlug(), audit.locale);
                     if (!cards.isEmpty()) {
                         cards.forEach(audit::recordEvidence);
                         payload.put("verifiedEvidenceCards", cards.stream().map(this::evidenceView).toList());
@@ -190,7 +190,7 @@ public class GuideToolExecutor {
                     audit.recordArtifact(a);
                     payload.put("artifactContent", a.content());
                 });
-                List<GuideEvidenceReader.Evidence> cards = knowledge.evidenceCards(e.slug());
+                List<GuideEvidenceReader.Evidence> cards = knowledge.evidenceCards(e.slug(), audit.locale);
                 if (!cards.isEmpty()) {
                     cards.forEach(audit::recordEvidence);
                     payload.put("verifiedEvidenceCards", cards.stream().map(this::evidenceView).toList());
@@ -198,7 +198,26 @@ public class GuideToolExecutor {
                 return payload;
             }).orElseGet(() -> Map.of("ok", false, "error", "NOT_FOUND", "message", "No published 3D exhibit found for slug: " + slug));
 
-            default -> Map.of("ok", false, "error", "INVALID_TYPE", "message", "type must be artifact, article, or exhibit");
+            case "product" -> knowledge.findProduct(slug).<Map<String, Object>>map(p -> {
+                audit.recordProduct(p);
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("ok", true);
+                payload.put("type", "product");
+                payload.put("citationId", "PRODUCT:" + p.slug());
+                payload.put("slug", p.slug());
+                payload.put("sku", p.sku());
+                payload.put("name", p.name());
+                payload.put("nameEn", p.nameEn());
+                payload.put("price", p.price());
+                payload.put("availableStock", p.availableStock());
+                payload.put("summary", p.summary());
+                payload.put("summaryEn", p.summaryEn());
+                payload.put("description", p.description());
+                payload.put("path", "/shop");
+                return payload;
+            }).orElseGet(() -> Map.of("ok", false, "error", "NOT_FOUND", "message", "No active shop product found for slug: " + slug));
+
+            default -> Map.of("ok", false, "error", "INVALID_TYPE", "message", "type must be artifact, article, exhibit, or product");
         };
     }
 
@@ -277,13 +296,13 @@ public class GuideToolExecutor {
                 out.put("today", today.toString());
                 out.put("openWindowEnd", windowEnd.toString());
                 out.put("requestedDate", target.toString());
-                out.put("message", "公开预约仅开放今天起未来 14 天（" + today + " 至 " + windowEnd + "）的时段。");
+                out.put("message", "公开预约仅开放今天起未来 365 天（" + today + " 至 " + windowEnd + "）的时段。");
                 return out;
             }
             from = target;
             to = target;
         } else {
-            int days = args.has("days") && args.get("days").canConvertToInt() ? args.get("days").asInt() : 3;
+            int days = args.has("days") && args.get("days").canConvertToInt() ? args.get("days").asInt() : 7;
             days = Math.max(1, Math.min(OPEN_BOOKING_WINDOW_DAYS, days));
             from = today;
             to = today.plusDays(days - 1L);
@@ -294,19 +313,7 @@ public class GuideToolExecutor {
 
         List<PublicSlot> slots = queryPublicSlots(from, to);
         Integer requiredPeople = people;
-        List<Map<String, Object>> slotRows = new ArrayList<>();
-        for (PublicSlot slot : slots) {
-            boolean enough = requiredPeople == null || slot.remainingPeople() >= requiredPeople;
-            if (requiredPeople != null && !enough) {
-                continue;
-            }
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("date", slot.visitDate().toString());
-            row.put("startTime", slot.startTime().toString().substring(0, 5));
-            row.put("endTime", slot.endTime().toString().substring(0, 5));
-            row.put("remainingPeople", slot.remainingPeople());
-            slotRows.add(row);
-        }
+        List<Map<String, Object>> slotRows = toSlotRows(slots, requiredPeople);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("ok", true);
@@ -320,8 +327,31 @@ public class GuideToolExecutor {
         }
         result.put("count", slotRows.size());
         result.put("slots", slotRows);
+        if (slotRows.isEmpty() && !dateText.isBlank()) {
+            List<Map<String, Object>> nextAvailable = toSlotRows(queryPublicSlots(today, windowEnd), requiredPeople)
+                    .stream()
+                    .limit(3)
+                    .toList();
+            result.put("nextAvailableSlots", nextAvailable);
+        }
         result.put("note", "只读查询结果，不包含预约写入；请引导游客点击「前往预约」按钮自行提交。");
         return result;
+    }
+
+    private List<Map<String, Object>> toSlotRows(List<PublicSlot> slots, Integer requiredPeople) {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (PublicSlot slot : slots) {
+            if (requiredPeople != null && slot.remainingPeople() < requiredPeople) {
+                continue;
+            }
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("date", slot.visitDate().toString());
+            row.put("startTime", slot.startTime().toString().substring(0, 5));
+            row.put("endTime", slot.endTime().toString().substring(0, 5));
+            row.put("remainingPeople", slot.remainingPeople());
+            rows.add(row);
+        }
+        return rows;
     }
 
     private Map<String, Object> evidenceView(GuideEvidenceReader.Evidence evidence) {
@@ -369,6 +399,11 @@ public class GuideToolExecutor {
      * (via pre-injection or tool execution) so GuideResponseValidator can enforce strict allowlists.
      */
     public static final class ToolAuditContext {
+        private final String locale;
+
+        public ToolAuditContext() { this("zh-CN"); }
+
+        public ToolAuditContext(String locale) { this.locale = locale; }
         private final Map<String, CitationMeta> allowedCitations = new LinkedHashMap<>();
         private final Set<String> allowedExternalUrls = new LinkedHashSet<>();
         private final List<String> invokedTools = new ArrayList<>();
@@ -448,7 +483,7 @@ public class GuideToolExecutor {
                     "live",
                     "/appointment",
                     null,
-                    "仅展示今天起 14 天内开放且尚有余量的公开时段，单笔限 1-30 人。"));
+                    "仅展示今天起 365 天内开放且尚有余量的公开时段，单笔限 1-30 人。"));
         }
 
         public void recordToolCall(String name) {

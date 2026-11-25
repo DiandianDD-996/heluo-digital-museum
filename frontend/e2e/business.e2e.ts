@@ -133,7 +133,7 @@ test('预约落库但响应丢失时锁定原摘要，重试只恢复同一条�
   await login(page, visitor, '/appointment')
   await page.getByTitle(`选择日期: ${slot.visitDate}`, { exact: true }).click()
   await page.getByRole('button', { name: new RegExp(`^${slot.startTime.slice(0, 5)}.*${slot.endTime.slice(0, 5)}`) }).click()
-  await page.getByRole('spinbutton', { name: '参与人数', exact: true }).fill('2')
+  await page.getByRole('spinbutton', { name: '同行人数', exact: true }).fill('2')
   await page.getByLabel('联系人姓名', { exact: true }).fill(visitor.nickname)
   await page.getByLabel('联系人手机号', { exact: true }).fill('13800000000')
   await page.getByLabel('联系人邮箱', { exact: true }).fill(visitor.email)
@@ -151,8 +151,8 @@ test('预约落库但响应丢失时锁定原摘要，重试只恢复同一条�
   }, { times: 1 })
   await page.getByRole('button', { name: '确认预约', exact: true }).click()
   await expect(page.getByText(/暂未确认预约结果/)).toBeVisible()
-  await expect(page.getByRole('spinbutton', { name: '参与人数', exact: true })).toBeDisabled()
-  await expect(page.getByRole('spinbutton', { name: '参与人数', exact: true })).toHaveValue('2')
+  await expect(page.getByRole('spinbutton', { name: '同行人数', exact: true })).toBeDisabled()
+  await expect(page.getByRole('spinbutton', { name: '同行人数', exact: true })).toHaveValue('2')
   await expect(page.getByLabel('联系人姓名', { exact: true })).toBeDisabled()
   await expect(page.getByTitle(`选择日期: ${slot.visitDate}`, { exact: true })).toBeDisabled()
   await page.route('**/api/v1/appointment-slots', route => route.fulfill({
@@ -232,7 +232,7 @@ test('购物车改量锁定结算，丢失支付响应后恢复唯一已支付�
   await productCard.getByRole('button', { name: '加入购物车', exact: true }).click()
   const cart = page.getByRole('complementary', { name: '购物袋' })
   const quantity = cart.getByRole('group', { name: `${product.name} 数量` })
-  await expect(quantity.locator('b')).toHaveText('1')
+  await expect(quantity.locator('[aria-live="polite"]')).toHaveText('1')
 
   let releaseMutation!: () => void
   const mutationGate = new Promise<void>(resolve => { releaseMutation = resolve })
@@ -250,7 +250,7 @@ test('购物车改量锁定结算，丢失支付响应后恢复唯一已支付�
     await expect(cart.getByRole('button', { name: '确认并模拟支付' })).toBeDisabled()
     await expect(quantity.getByRole('button', { name: '增加数量' })).toBeDisabled()
   } finally { releaseMutation() }
-  await expect(quantity.locator('b')).toHaveText('2')
+  await expect(quantity.locator('[aria-live="polite"]')).toHaveText('2')
   await expect(cart.locator('.cart-order-total dd')).toHaveText('¥ 39.00')
   await cart.getByLabel(/订单通知邮箱/).fill(visitor.email)
 
@@ -288,6 +288,7 @@ test('后台草稿保存、发布、公开检索及撤回形成闭环', async ({
   const adminToken = await tokenFor(request, qualityEnvironment.admin)
   await login(page, qualityEnvironment.admin, '/admin')
   await page.getByRole('tab', { name: '文章', exact: true }).click()
+  await page.getByTestId('admin-open-create-drawer').click()
   const form = page.locator('.admin-create form')
   await form.getByLabel('标题', { exact: true }).fill(title)
   await form.getByLabel('标题', { exact: true }).press('Tab')

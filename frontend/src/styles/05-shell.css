@@ -1,4 +1,4 @@
-/* Heluo Editorial 2.0 — Global Shell (Header, 3-Column Museum Footer, Mobile Tab Bar) */
+/* Heluo Editorial 3.0 — Global Shell (Header, Ambient Gallery Backdrop, 3-Column Museum Footer, Mobile Tab Bar) */
 @layer components {
   .app-shell {
     position: relative;
@@ -9,12 +9,136 @@
     background-color: var(--surface-canvas);
     background-image:
       var(--surface-skylight-wash),
-      var(--surface-paper-grain),
       var(--pattern-veil-gauze),
       var(--pattern-yunlei);
-    background-repeat: no-repeat, repeat, no-repeat, repeat;
-    background-size: 100% 100%, 240px 240px, 100% 100%, 72px 72px;
+    background-repeat: no-repeat, no-repeat, repeat;
+    background-size: 100% 100%, 100% 100%, 72px 72px;
     color: var(--ink-secondary);
+  }
+
+  .app-shell--admin-content,
+  .app-shell--admin-operations {
+    background-image: none;
+  }
+
+  /* ── Restrained Ambient Gallery Backdrop (Luoshui diffuse skylight + 0.5px Heluo armillary rings) ── */
+  .ambient-backdrop {
+    --backdrop-shift: 0px;
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+    contain: strict;
+  }
+
+  .ambient-backdrop__wash {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    transform: translate3d(0, var(--backdrop-shift), 0);
+  }
+
+  .ambient-backdrop__wash--luo {
+    top: -18vh;
+    right: -12vw;
+    width: min(76vw, 960px);
+    height: min(76vw, 960px);
+    background: radial-gradient(
+      circle at 50% 50%,
+      oklch(86% 0.018 220 / 0.22) 0%,
+      oklch(92% 0.012 186 / 0.09) 42%,
+      transparent 72%
+    );
+    animation: heluo-luo-drift 42s ease-in-out infinite alternate;
+  }
+
+  .ambient-backdrop__wash--gold {
+    bottom: -24vh;
+    left: -14vw;
+    width: min(68vw, 840px);
+    height: min(68vw, 840px);
+    background: radial-gradient(
+      circle at 50% 50%,
+      oklch(88% 0.028 80 / 0.20) 0%,
+      oklch(92% 0.016 74 / 0.07) 44%,
+      transparent 72%
+    );
+    animation: heluo-gold-drift 52s ease-in-out infinite alternate;
+  }
+
+  html[data-theme="dark"] .ambient-backdrop__wash--luo {
+    background: radial-gradient(
+      circle at 50% 50%,
+      oklch(42% 0.044 218 / 0.16) 0%,
+      oklch(34% 0.036 184 / 0.08) 44%,
+      transparent 72%
+    );
+  }
+
+  html[data-theme="dark"] .ambient-backdrop__wash--gold {
+    background: radial-gradient(
+      circle at 50% 50%,
+      oklch(54% 0.048 76 / 0.11) 0%,
+      oklch(38% 0.032 72 / 0.04) 46%,
+      transparent 74%
+    );
+  }
+
+  .ambient-backdrop__armillary {
+    position: absolute;
+    top: clamp(4rem, 11vh, 8rem);
+    right: clamp(-14rem, -8vw, -4rem);
+    width: clamp(460px, 52vw, 760px);
+    height: clamp(460px, 52vw, 760px);
+    color: var(--accent-bronze);
+    opacity: 0.12;
+    transform: translate3d(0, calc(var(--backdrop-shift) * 0.65), 0);
+  }
+
+  html[data-theme="dark"] .ambient-backdrop__armillary {
+    color: var(--accent-jade);
+    opacity: 0.10;
+  }
+
+  .ambient-backdrop__ring--outer {
+    transform-origin: 400px 400px;
+    animation: heluo-armillary-cw 160s linear infinite;
+  }
+
+  .ambient-backdrop__ring--inner {
+    transform-origin: 400px 400px;
+    animation: heluo-armillary-ccw 220s linear infinite;
+  }
+
+  @keyframes heluo-luo-drift {
+    0% { transform: translate3d(0, var(--backdrop-shift), 0) scale(1); }
+    100% { transform: translate3d(-2.5vw, calc(var(--backdrop-shift) + 3vh), 0) scale(1.06); }
+  }
+
+  @keyframes heluo-gold-drift {
+    0% { transform: translate3d(0, var(--backdrop-shift), 0) scale(1); }
+    100% { transform: translate3d(3vw, calc(var(--backdrop-shift) - 2.5vh), 0) scale(1.05); }
+  }
+
+  @keyframes heluo-armillary-cw {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  @keyframes heluo-armillary-ccw {
+    from { transform: rotate(360deg); }
+    to { transform: rotate(0deg); }
+  }
+
+  @media (prefers-reduced-motion: reduce), (prefers-contrast: more), (forced-colors: active) {
+    .ambient-backdrop {
+      display: none;
+    }
+  }
+
+  html[data-performance-tier="constrained"] .ambient-backdrop {
+    display: none;
   }
 
   /* Calm, wide architectural light wash behind content (subtle, never jumpy) */
@@ -30,8 +154,8 @@
       var(--pattern-yunlei-lit),
       radial-gradient(
         520px circle at var(--ambient-x) var(--ambient-y),
-        oklch(99% 0.014 86 / 0.24) 0%,
-        oklch(92% 0.028 84 / 0.06) 50%,
+        oklch(99.5% 0.008 86 / 0.24) 0%,
+        oklch(93% 0.018 84 / 0.06) 50%,
         transparent 82%
       );
     background-size: 72px 72px, 100% 100%;
@@ -56,8 +180,8 @@
       var(--pattern-yunlei-lit),
       radial-gradient(
         520px circle at var(--ambient-x) var(--ambient-y),
-        oklch(82% 0.040 78 / 0.06) 0%,
-        oklch(66% 0.032 74 / 0.02) 50%,
+        oklch(82% 0.044 78 / 0.06) 0%,
+        oklch(62% 0.040 188 / 0.025) 50%,
         transparent 82%
       );
   }
@@ -273,9 +397,76 @@
     display: none;
   }
 
+  .site-header .notebook-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    min-width: var(--control-min);
+    min-height: var(--control-min);
+    height: 36px;
+    padding: 0 0.65rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: var(--ink-secondary);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color var(--duration-ui) var(--ease-curatorial),
+                color var(--duration-ui) var(--ease-curatorial);
+  }
+
+  .site-header .notebook-toggle:hover {
+    background: color-mix(in oklch, var(--ink-primary) 6%, transparent);
+    color: var(--ink-primary);
+  }
+
+  .site-header .notebook-toggle svg {
+    width: 15px;
+    height: 15px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex: 0 0 15px;
+  }
+
+  .site-header .notebook-toggle__count {
+    padding: 0.1rem 0.38rem;
+    border-radius: var(--radius-pill);
+    background: color-mix(in oklch, var(--accent-bronze) 20%, transparent);
+    color: var(--accent-bronze);
+    font-size: var(--text-xs);
+    font-weight: 600;
+  }
+
+  .site-footer__journal-btn {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .site-footer__journal-btn:hover {
+    color: var(--ink-on-dark);
+  }
+
+  @media (max-width: 900px) {
+    .site-header .notebook-toggle {
+      display: none;
+    }
+  }
+
   .site-header .login-link {
     margin-left: 0.25rem;
-    padding: 0 0.85rem;
+    padding: 0 1rem;
     border-color: var(--border-strong);
     color: var(--ink-primary);
     font-weight: 600;
@@ -284,6 +475,92 @@
   .site-header .login-link:hover {
     border-color: var(--accent-bronze);
     background: color-mix(in oklch, var(--accent-bronze) 10%, transparent);
+  }
+
+  /* Light-mode translucent porcelain glass + cinnabar seal + antique bronze accent + ink pill */
+  html:not([data-theme="dark"]) .site-header {
+    background: linear-gradient(
+      180deg,
+      oklch(99.3% 0.004 86 / 0.90) 0%,
+      oklch(97.8% 0.006 84 / 0.84) 100%
+    );
+    border-bottom-color: oklch(84% 0.016 82 / 0.56);
+    box-shadow:
+      inset 0 1px 0 oklch(100% 0 0 / 0.88),
+      0 1px 0 oklch(82% 0.018 80 / 0.24);
+  }
+
+  html:not([data-theme="dark"]) .site-header.is-scrolled {
+    background: oklch(98.9% 0.004 85 / 0.95);
+    border-bottom-color: oklch(80% 0.020 80 / 0.64);
+    box-shadow:
+      inset 0 1px 0 oklch(100% 0 0 / 0.92),
+      0 8px 24px oklch(22% 0.012 80 / 0.06);
+  }
+
+  html:not([data-theme="dark"]) .site-header .brand-seal {
+    color: var(--accent-seal);
+  }
+
+  html:not([data-theme="dark"]) .site-header .brand-copy b {
+    color: var(--ink-primary);
+  }
+
+  html:not([data-theme="dark"]) .site-header .brand-copy small {
+    color: var(--accent-bronze);
+  }
+
+  html:not([data-theme="dark"]) .site-header > nav a {
+    padding: 0 0.7rem;
+    border-radius: var(--radius-pill);
+    color: var(--ink-secondary);
+  }
+
+  html:not([data-theme="dark"]) .site-header > nav a:hover {
+    background: oklch(93.8% 0.012 84 / 0.72);
+    color: var(--ink-primary);
+  }
+
+  html:not([data-theme="dark"]) .site-header > nav a.router-link-active,
+  html:not([data-theme="dark"]) .site-header > nav a[aria-current="page"] {
+    color: var(--ink-primary);
+  }
+
+  html:not([data-theme="dark"]) .site-header > nav a::after {
+    left: 0.7rem;
+    right: 0.7rem;
+    bottom: 5px;
+    background: linear-gradient(90deg, var(--accent-seal) 0%, var(--accent-bronze) 100%);
+  }
+
+  html:not([data-theme="dark"]) .site-header :is(.theme-toggle, .locale-toggle, .notebook-toggle, .audio-toggle) {
+    border-radius: var(--radius-pill);
+    color: var(--ink-secondary);
+  }
+
+  html:not([data-theme="dark"]) .site-header :is(.theme-toggle, .locale-toggle, .notebook-toggle, .audio-toggle):hover {
+    background: oklch(93.8% 0.012 84 / 0.76);
+    border-color: oklch(84% 0.016 82 / 0.56);
+    color: var(--ink-primary);
+  }
+
+  html:not([data-theme="dark"]) .site-header .notebook-toggle__count {
+    background: var(--accent-seal);
+    color: oklch(99% 0.003 86);
+  }
+
+  html:not([data-theme="dark"]) .site-header .login-link {
+    border-radius: var(--radius-pill);
+    border-color: var(--accent-jade);
+    background: var(--accent-jade);
+    color: var(--accent-jade-ink);
+    box-shadow: 0 2px 8px oklch(20% 0.014 238 / 0.14);
+  }
+
+  html:not([data-theme="dark"]) .site-header .login-link:hover {
+    border-color: oklch(27% 0.018 238);
+    background: oklch(27% 0.018 238);
+    color: oklch(99% 0.003 86);
   }
 
   /* ── 2. Structured 3-Column Museum Footer (Architectural Graphite Anchor — Plan A) ── */
@@ -505,8 +782,8 @@
     }
 
     html[data-theme="dark"] .mobile-tab-bar {
-      background: oklch(15% 0.004 82 / 0.88);
-      box-shadow: 0 -6px 24px oklch(0% 0 0 / 0.42);
+      background: oklch(13.2% 0.007 238 / 0.90);
+      box-shadow: 0 -6px 24px oklch(0% 0 0 / 0.48);
     }
 
     .mobile-tab-bar a {
@@ -591,6 +868,10 @@
   }
 
   @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+    html:not([data-theme="dark"]) .site-header {
+      background: var(--surface-canvas);
+    }
+
     .mobile-tab-bar {
       background: var(--surface-elevated);
       backdrop-filter: none;

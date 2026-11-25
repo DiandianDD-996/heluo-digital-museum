@@ -9,6 +9,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { gsap } from 'gsap'
 import { ShoppingBag } from '@element-plus/icons-vue'
 import { apiGet, apiRequest } from '../lib/api'
+import { localizeProductName, localizeProductSummary } from '../lib/contentLocale'
 import { resolveProductPresentation } from '../lib/productPresentation'
 import { mediaSizes, mediaSrcset } from '../lib/responsiveMedia'
 import { createGsapContext, revealFigures, revealSequence, shouldRunGsapReveal } from '../lib/gsap'
@@ -16,18 +17,23 @@ import { useAuthStore } from '../stores/auth'
 import { useLocale } from '../stores/locale'
 import { audioSystem } from '../lib/audioSystem'
 import BottomSheet from '../components/BottomSheet.vue'
-import CartPanelContent from '../components/CartPanelContent.vue'
+import CartPanelContent, { type CompletedOrderReceipt } from '../components/CartPanelContent.vue'
 import FluidButton from '../components/FluidButton.vue'
 import InlineStatus from '../components/InlineStatus.vue'
+import ProductProvenanceDrawer from '../components/ProductProvenanceDrawer.vue'
 
 interface Product {
   id: number
   slug: string
   name: string
+  nameEn?: string | null
   summary: string
+  summaryEn?: string | null
   price: string
   availableStock: number
   coverImageUrl: string
+  categoryCode?: string | null
+  inspirationArtifactSlug?: string | null
 }
 
 interface CartItem {
@@ -56,6 +62,8 @@ interface PendingCheckout {
   checkoutKey: string
   paymentKey: string
   order?: Order
+  itemsSnapshot?: Array<{ name: string; slug?: string; quantity: number; price: string }>
+  totalSnapshot?: string
 }
 
 const auth = useAuthStore()
@@ -64,8 +72,14 @@ const router = useRouter()
 const products = ref<Product[]>([])
 type ProductCategory = 'all' | 'objects' | 'textiles' | 'paper'
 const activeCategory = ref<ProductCategory>('all')
-const productCategory = (product: Product): ProductCategory => product.slug === 'heluo-silk-scarf' ? 'textiles' : product.slug === 'river-map-notebook' ? 'paper' : 'objects'
+const productCategory = (product: Product): ProductCategory => {
+  if (product.categoryCode === 'TEXTILE' || product.slug === 'heluo-silk-scarf') return 'textiles'
+  if (product.categoryCode === 'STATIONERY' || product.slug === 'river-map-notebook') return 'paper'
+  return 'objects'
+}
 const visibleProducts = computed(() => activeCategory.value === 'all' ? products.value : products.value.filter(product => productCategory(product) === activeCategory.value))
+const provenanceProduct = ref<Product | null>(null)
+const provenanceOpen = computed(() => provenanceProduct.value !== null)
 const cart = ref<CartItem[]>([])
 const loading = ref(true)
 const productError = ref('')
@@ -77,6 +91,7 @@ const email = ref('')
 const mobileCartOpen = ref(false)
 const mobileCartSnapPoint = ref<'medium' | 'full'>('medium')
 const checkoutState = ref<'idle' | 'loading' | 'success' | 'error'>('idle')
+const completedReceipt = ref<CompletedOrderReceipt | null>(null)
 const addingProductId = ref<number | null>(null)
 const pendingCheckout = ref<PendingCheckout | null>(null)
 const pendingAddResumeHandled = ref(false)
@@ -128,25 +143,20 @@ const shopCopy = computed(() => locale.value === 'en-US' ? {
   lowStock: '余量紧张',
 })
 
-const productImageNotes = computed<Record<string, string>>(() => locale.value === 'en-US' ? {
-  'river-line-teacup-set': 'Follow the river into a quieter tea ritual.',
-  'heluo-silk-scarf': 'Flowing rivers translated into deep-jade textiles.',
-  'river-map-notebook': 'Bring Heluo patterns into everyday notes and ideas.',
-} : {
-  'river-line-teacup-set': '以河流为线，盛装日常茶事，也盛放山水之思。',
-  'heluo-silk-scarf': '以河流的流线和深墨绿为灵感的原创概念丝巾。',
-  'river-map-notebook': '把河洛图纹带进每天的记录与灵感。',
-})
-
-const productEnglish: Record<string, { name: string; summary: string }> = {
-  'river-line-teacup-set': { name: 'River-pattern Teacup Set', summary: 'Keep a sense of the river in the everyday ritual of tea.' },
-  'heluo-silk-scarf': { name: 'Heluo River-system Scarf', summary: 'An original concept scarf inspired by flowing rivers and deep jade green.' },
-  'river-map-notebook': { name: 'River-map Pattern Notebook', summary: 'Bring Heluo patterns into everyday notes and ideas.' },
-}
-
 const displayProduct = (product: Product) => {
   const normalized = resolveProductPresentation(product)
-  return locale.value === 'en-US' && productEnglish[product.slug] ? { ...normalized, ...productEnglish[product.slug] } : normalized
+  return {
+    ...normalized,
+    name: localizeProductName(product, locale.value),
+    summary: localizeProductSummary(product, locale.value) || normalized.summary,
+  }
+}
+
+function syncRouteProvenanceItem() {
+  const requestedSlug = typeof route?.query?.item === 'string' ? route.query.item.trim() : ''
+  if (!requestedSlug) return
+  const matched = products.value.find((item) => item.slug === requestedSlug)
+  if (matched) provenanceProduct.value = matched
 }
 
 function useFallbackProductImage(event: Event, product: Product) {
@@ -166,7 +176,10 @@ async function loadProducts() {
   productError.value = ''
   try {
     const result = await apiGet<Product[]>('/products')
-    if (requestId === productRequestId) products.value = result
+    if (requestId === productRequestId) {
+      products.value = result
+      syncRouteProvenanceItem()
+    }
     if (requestId === productRequestId && result.length && !storefrontCued) {
       storefrontCued = true
       void audioSystem.playNarrative('discovery', { volume: 0.22 })
@@ -184,6 +197,13 @@ async function closeCartForBrowsing() {
   mobileCartOpen.value = false
   await nextTick()
   document.getElementById('shop-products')?.focus({ preventScroll: true })
+}
+
+async function openProfileOrders() {
+  mobileCartOpen.value = false
+  if (router && typeof router.push === 'function') {
+    await router.push('/profile')
+  }
 }
 
 async function loadCart() {
@@ -264,6 +284,7 @@ async function add(product: Product) {
       cart.value = await apiRequest<CartItem[]>('/cart/items', 'POST', { productId: product.id, quantity: 1 }, auth.token)
     })
     cartError.value = ''
+    completedReceipt.value = null
     message.value = locale.value === 'en-US' ? `${displayProduct(product).name} was added to your bag.` : `已将“${product.name}”加入购物袋。`
     if (!checkoutInProgress()) checkoutState.value = 'idle'
   } catch (reason) {
@@ -342,6 +363,13 @@ async function checkout() {
       notificationEmail: email.value,
       checkoutKey: crypto.randomUUID(),
       paymentKey: crypto.randomUUID(),
+      itemsSnapshot: cart.value.map((item) => ({
+        name: item.name,
+        slug: item.slug,
+        quantity: item.quantity,
+        price: item.price,
+      })),
+      totalSnapshot: total.value,
     }
     persistPendingCheckout(attempt)
   }
@@ -356,7 +384,14 @@ async function checkout() {
     persistPendingCheckout(attempt)
     cart.value = []
     await apiRequest(`/orders/${order.id}/mock-payment`, 'POST', undefined, auth.token, { 'Idempotency-Key': attempt.paymentKey })
+    const receiptSnapshot: CompletedOrderReceipt = {
+      orderNo: order.orderNo,
+      total: order.payableAmount || attempt.totalSnapshot || '0.00',
+      issuedAt: new Date().toISOString(),
+      items: attempt.itemsSnapshot ?? [],
+    }
     clearPendingCheckout()
+    completedReceipt.value = receiptSnapshot
     cartError.value = ''
     message.value = locale.value === 'en-US' ? `Mock payment completed. Order: ${order.orderNo}` : `模拟支付成功，订单号：${order.orderNo}`
     checkoutState.value = 'success'
@@ -366,7 +401,14 @@ async function checkout() {
       try {
         const serverOrder = await apiGet<Order>(`/orders/${attempt.order.id}`, auth.token)
         if (serverOrder.status === 'PAID' || serverOrder.status === 'COMPLETED') {
+          const receiptSnapshot: CompletedOrderReceipt = {
+            orderNo: serverOrder.orderNo,
+            total: serverOrder.payableAmount || attempt.totalSnapshot || '0.00',
+            issuedAt: new Date().toISOString(),
+            items: attempt.itemsSnapshot ?? [],
+          }
           clearPendingCheckout()
+          completedReceipt.value = receiptSnapshot
           cart.value = []
           cartError.value = ''
           message.value = locale.value === 'en-US' ? `Mock payment completed. Order: ${serverOrder.orderNo}` : `模拟支付成功，订单号：${serverOrder.orderNo}`
@@ -480,6 +522,7 @@ onBeforeUnmount(() => gsapContext?.revert())
           <article v-for="(product, index) in visibleProducts" :key="product.id" class="product-card">
             <div v-pointer-surface="{ kind: 'product', maxTilt: 0.6 }" class="product-image">
               <img
+                class="product-image__primary"
                 :src="displayProduct(product).coverImageUrl"
                 :srcset="mediaSrcset(displayProduct(product).coverImageUrl)"
                 :sizes="mediaSizes"
@@ -489,10 +532,31 @@ onBeforeUnmount(() => gsapContext?.revert())
                 decoding="async"
                 @error="useFallbackProductImage($event, product)"
               />
+              <img
+                v-if="displayProduct(product).detailImageUrl"
+                class="product-image__detail"
+                :src="displayProduct(product).detailImageUrl"
+                :srcset="mediaSrcset(displayProduct(product).detailImageUrl)"
+                :sizes="mediaSizes"
+                alt=""
+                aria-hidden="true"
+                loading="lazy"
+                decoding="async"
+              />
               <span class="product-number font-mono" data-glass="compact">0{{ index + 1 }}</span>
               <span v-if="product.availableStock === 0" class="product-stock-badge product-stock-badge--out">{{ shopCopy.soldOut }}</span>
               <span v-else-if="product.availableStock <= 5" class="product-stock-badge">{{ shopCopy.lowStock }}</span>
-              <p v-if="productImageNotes[product.slug]" class="product-image__note">{{ productImageNotes[product.slug] }}</p>
+              <button
+                v-if="displayProduct(product).inspirationArtifactThumb"
+                type="button"
+                class="product-motif-chip"
+                data-glass="dark"
+                :aria-label="locale === 'en-US' ? `Open provenance: ${displayProduct(product).inspirationLabelEn}` : `查看溯源：${displayProduct(product).inspirationLabelZh}`"
+                @click="provenanceProduct = product"
+              >
+                <img :src="displayProduct(product).inspirationArtifactThumb" alt="" aria-hidden="true" loading="lazy" decoding="async" />
+                <span>{{ locale === 'en-US' ? displayProduct(product).inspirationLabelEn : displayProduct(product).inspirationLabelZh }}</span>
+              </button>
             </div>
 
             <div class="product-copy">
@@ -510,6 +574,15 @@ onBeforeUnmount(() => gsapContext?.revert())
               >
                 {{ addingProductId === product.id ? shopCopy.adding : pendingCheckout ? shopCopy.pending : t.shopText.add }}
               </FluidButton>
+              <button
+                type="button"
+                class="product-provenance-btn"
+                data-testid="open-provenance-btn"
+                @click="provenanceProduct = product"
+              >
+                <span>{{ locale === 'en-US' ? 'Object Provenance & Notes' : '器物纹样溯源 · 策展手记' }}</span>
+                <i aria-hidden="true">→</i>
+              </button>
             </div>
           </article>
         </div>
@@ -532,6 +605,7 @@ onBeforeUnmount(() => gsapContext?.revert())
           :email="email"
           :checkout-state="checkoutState"
           :pending-order="pendingOrder"
+          :completed-receipt="completedReceipt"
           :pending-checkout="hasPendingCheckout"
           :message="message"
           :error="cartPanelError"
@@ -546,6 +620,7 @@ onBeforeUnmount(() => gsapContext?.revert())
           @change="change"
           @remove="remove"
           @checkout="checkout"
+          @view-orders="openProfileOrders"
         />
       </aside>
     </div>
@@ -565,6 +640,7 @@ onBeforeUnmount(() => gsapContext?.revert())
         :email="email"
         :checkout-state="checkoutState"
         :pending-order="pendingOrder"
+        :completed-receipt="completedReceipt"
         :pending-checkout="hasPendingCheckout"
         :message="message"
         :error="cartPanelError"
@@ -580,8 +656,18 @@ onBeforeUnmount(() => gsapContext?.revert())
         @change="change"
         @remove="remove"
         @checkout="checkout"
+        @view-orders="openProfileOrders"
       />
     </BottomSheet>
+
+    <ProductProvenanceDrawer
+      :open="provenanceOpen"
+      :product="provenanceProduct"
+      :adding="provenanceProduct !== null && addingProductId === provenanceProduct.id"
+      :disabled="pendingCheckout !== null || (addingProductId !== null && addingProductId !== provenanceProduct?.id)"
+      @close="provenanceProduct = null"
+      @add="add"
+    />
   </section>
 </template>
 
@@ -718,15 +804,74 @@ onBeforeUnmount(() => gsapContext?.revert())
   box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.16), inset 0 -1px 0 oklch(12% 0.01 72 / 0.12);
 }
 
-.product-image img {
+.product-image img.product-image__primary,
+.product-image img.product-image__detail {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 460ms var(--ease-curatorial);
+  transition: transform 480ms var(--ease-curatorial), opacity 340ms var(--ease-curatorial);
 }
 
-.product-card:hover .product-image img {
+.product-image img.product-image__detail {
+  opacity: 0;
+  transform: scale(1.04);
+  pointer-events: none;
+}
+
+.product-card:hover .product-image img.product-image__primary {
   transform: scale(1.03);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .product-card:hover .product-image img.product-image__detail,
+  .product-card:focus-within .product-image img.product-image__detail {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.product-motif-chip {
+  position: absolute;
+  left: var(--space-3);
+  bottom: var(--space-3);
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  max-width: calc(100% - var(--space-6));
+  min-height: 36px;
+  padding: 0.25rem 0.65rem 0.25rem 0.3rem;
+  border-radius: var(--radius-pill);
+  color: var(--ink-on-dark);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-curatorial),
+              transform var(--duration-fast) var(--ease-curatorial);
+}
+
+.product-motif-chip:hover {
+  border-color: var(--accent-bronze);
+  transform: translateY(-1px);
+}
+
+.product-motif-chip img {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  object-fit: contain;
+  border-radius: 50%;
+  padding: 2px;
+  background: var(--surface-vitrine);
+}
+
+.product-motif-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .product-number {
@@ -876,6 +1021,36 @@ onBeforeUnmount(() => gsapContext?.revert())
 }
 
 /* ── Mobile Bag Bar (Docked in Flow / Sticky Subheader — Zero Card Occlusion) ── */
+.product-provenance-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 0.875rem;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  color: var(--ink-secondary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-curatorial),
+              color var(--duration-fast) var(--ease-curatorial),
+              background-color var(--duration-fast) var(--ease-curatorial);
+}
+
+.product-provenance-btn:hover {
+  border-color: var(--accent-bronze);
+  color: var(--ink-primary);
+  background: color-mix(in oklab, var(--accent-bronze) 8%, var(--surface-subtle));
+}
+
+.product-provenance-btn i {
+  font-style: normal;
+  color: var(--accent-bronze);
+}
+
 .shop-mobile-bar {
   display: none;
 }

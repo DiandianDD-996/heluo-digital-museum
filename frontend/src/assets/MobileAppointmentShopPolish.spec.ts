@@ -6,9 +6,9 @@ const appointment = readFileSync(resolve(process.cwd(), 'src/views/AppointmentVi
 const shop = readFileSync(resolve(process.cwd(), 'src/views/ShopView.vue'), 'utf8')
 
 describe('mobile appointment and shop polish (Heluo Editorial 2.0)', () => {
-  it('uses a clean 4-column calendar grid and responsive step track on mobile booking', () => {
+  it('uses a clean 7-column monthly calendar grid and responsive step track on mobile booking', () => {
     const mobile = appointment.slice(appointment.lastIndexOf('@media (max-width: 760px)'))
-    expect(mobile).toMatch(/\.appointment-dates[\s\S]*grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/)
+    expect(mobile).toMatch(/\.appointment-dates[\s\S]*grid-template-columns:\s*repeat\(7, minmax\(0, 1fr\)\)/)
     expect(appointment).toContain('class="appointment-progress"')
   })
 

@@ -8,6 +8,10 @@ export interface ProductPresentationSource {
 interface ProductFallback {
   summary: string
   coverImageUrl: string
+  detailImageUrl?: string
+  inspirationArtifactThumb?: string
+  inspirationLabelZh?: string
+  inspirationLabelEn?: string
 }
 
 const defaultProductFallback: ProductFallback = {
@@ -19,14 +23,26 @@ const productFallbacks: Record<string, ProductFallback> = {
   'river-line-teacup-set': {
     summary: '让日常饮茶也保留一段关于河流的想象。',
     coverImageUrl: '/media/products/river-line-teacup-set.webp',
+    detailImageUrl: '/media/products/river-line-teacup-set-detail.webp',
+    inspirationArtifactThumb: '/media/editorial/explore-painted-pottery-jar-user-v2.webp',
+    inspirationLabelZh: '灵感源自 · 彩陶水纹壶',
+    inspirationLabelEn: 'Inspired by · Painted Pottery Jar',
   },
   'heluo-silk-scarf': {
     summary: '以河流的流线和深墨绿为灵感的原创概念丝巾。',
     coverImageUrl: '/media/products/heluo-silk-scarf.webp',
+    detailImageUrl: '/media/products/heluo-silk-scarf-detail.webp',
+    inspirationArtifactThumb: '/media/editorial/explore-water-bird-bronze-user-v2.webp',
+    inspirationLabelZh: '灵感源自 · 河洛水鸟纹铜器',
+    inspirationLabelEn: 'Inspired by · Water-bird Bronze',
   },
   'river-map-notebook': {
     summary: '把河洛图纹带进每天的记录与灵感。',
     coverImageUrl: '/media/products/river-map-notebook.webp',
+    detailImageUrl: '/media/products/river-map-notebook-detail.webp',
+    inspirationArtifactThumb: '/media/editorial/explore-river-map-stone-user-v2.webp',
+    inspirationLabelZh: '灵感源自 · 河洛图纹石板',
+    inspirationLabelEn: 'Inspired by · River Map Stone',
   },
 }
 
@@ -48,11 +64,19 @@ export function fallbackProductCover(source: ProductPresentationSource): string 
 export function resolveProductPresentation<T extends ProductPresentationSource>(source: T): T & {
   summary: string
   coverImageUrl: string
+  detailImageUrl: string
+  inspirationArtifactThumb: string
+  inspirationLabelZh: string
+  inspirationLabelEn: string
 } {
   const fallback = productFallback(source)
   return {
     ...source,
     summary: source.summary?.trim() || fallback?.summary || '',
     coverImageUrl: source.coverImageUrl?.trim() || fallback?.coverImageUrl || '',
+    detailImageUrl: fallback?.detailImageUrl || '',
+    inspirationArtifactThumb: fallback?.inspirationArtifactThumb || '',
+    inspirationLabelZh: fallback?.inspirationLabelZh || '',
+    inspirationLabelEn: fallback?.inspirationLabelEn || '',
   }
 }
