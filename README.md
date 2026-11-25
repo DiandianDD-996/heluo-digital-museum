@@ -33,14 +33,14 @@
 **河洛数字博物馆**是一座面向当代文化探索者的双语（`zh-CN` / `en-US`）数字博物馆系统。它从「浏览器物」出发，把馆藏检索、策展式长文阅读、可交互 3D 青铜展厅、R4 展馆声景、AI 策展向导「洛笙」，以及线下预约、文创商城（模拟支付）与后台运营工作台串联成一条完整体验路径。
 
 > [!NOTE]
-> 独立部署的[线上演示站](https://heluo.pocketbay.app/)不一定与仓库最新提交同步；体验最新 **Heluo Editorial 2.0** 视觉系统、**R4 四乐章声景**与**洛笙 AI 向导 v2**，建议按[本地启动](#本地启动)章节运行。
+> 截图来自本地展厅，不是[线上演示站](https://heluo.pocketbay.app/)截图。要复现 **Heluo Editorial 3.0**，请在包含本版变更的分支按[本地启动](#本地启动)说明运行。常规页面使用默认 Docker 部署；洛笙图来自单独开启向导的本地实例。
 
 <div align="center">
   <a href="docs/showcase/home-light-en.png">
-    <img src="docs/showcase/hero-light-preview.png" alt="河洛数字博物馆英文浅色首页：缃色暖黄古宣展厅、青铜鼎展廊与十二律吕声景控件" width="100%" />
+    <img src="docs/showcase/hero-light-preview.png" alt="英文浅色首页：顶光照亮青铜鼎，展厅入口位于首屏" width="100%" />
   </a>
   <br />
-  <sub>河洛数字博物馆 · 浅色「缃色暖黄古宣」展厅首屏（点击查看完整长图）</sub>
+  <sub>入馆第一眼：宣白展墙上的青铜鼎。点击首屏可查看完整首页。</sub>
 </div>
 
 ---
@@ -50,12 +50,12 @@
 <table>
   <tr>
     <td width="50%" valign="top">
-      <h3>Heluo Editorial 2.0 视觉系统</h3>
+      <h3>Heluo Editorial 3.0 视觉系统</h3>
       <p>以当代亚洲博物馆画册与静谧展厅为蓝本，建立 8 层 <code>@layer</code> CSS 架构与 OKLCH 双色令牌：</p>
       <ul>
-        <li><strong>双主题质感</strong>：浅色「缃色暖黄古宣 · 鎏金松烟」与深色「曜石暗房 · 丝绸钛金」。</li>
+        <li><strong>两种展厅光线</strong>：前台可在宣白展墙与冷夜玄青之间切换；后台采用独立的中性白灰与深色工作台。</li>
         <li><strong>浑仪磁阵光点场</strong>：首屏 <code>PointerDotField</code> 结合空间避让遮罩、弹簧阻尼彗尾与星轨连线。</li>
-        <li><strong>零外部字体下载</strong>：依托系统衬线与等宽数字排印，全站可见字号 <code>&gt;= 12px</code>，触控热区 <code>&gt;= 44px</code>。</li>
+        <li><strong>器物档案</strong>：用系统衬线字排印长文；打开器物图版，可用放大镜查看纹饰细节。</li>
       </ul>
     </td>
     <td width="50%" valign="top">
@@ -83,7 +83,7 @@
       <p>从前台文化发现到后台内容治理，覆盖数字博物馆第一版完整业务链路：</p>
       <ul>
         <li><strong>双语发现</strong>：藏品、文化专题（含《参观与数字导览须知》）与文创商品统一接入中英搜索链路。</li>
-        <li><strong>到访与文创</strong>：未来 14 天预约时段查询与预约管理、个人中心「文创账簿」、购物袋与模拟结算。</li>
+        <li><strong>到访与文创</strong>：可查询从今天起 365 天内的开放时段；实际能否预约以余量为准。商城提供购物袋和模拟结算，不发生真实扣款。</li>
         <li><strong>后台工作台</strong>：内容、3D 展项、商品、预约时段与订单、用户、基础统计与操作日志统一管理。</li>
       </ul>
     </td>
@@ -111,7 +111,7 @@
 
 ## 页面掠影
 
-以下页面截图于 `2026-11-24` 采集自本地最新 `Heluo Editorial 2.0` Docker Compose 构建（`1440px` / `1680px` 桌面视口，采集说明见 [截图来源说明](docs/showcase/SOURCES.md)）。点击任意图片可查看原尺寸。
+以下是本地展厅的桌面浏览器截图。前台以访客身份浏览，后台使用本地管理员登录。点击图片可查看大图；各批次的运行环境、页面路径和实测尺寸见[截图来源说明](docs/showcase/SOURCES.md)。
 
 ### 同一座展馆，两种光线
 
@@ -128,7 +128,7 @@
 
 ### 全链路文化体验（浅色主视觉 · 2×2 矩阵）
 
-从馆藏检索、数字展厅入口，到未来 14 天线下预约与文创商城，所有页面均采用 `16:10` 对齐预览（点击任意图片可查看完整长图）。
+四张首屏分别通往馆藏、展厅、预约和文创商城。点击预览可查看对应的完整页面。
 
 <table>
   <tr>
@@ -137,17 +137,33 @@
   </tr>
   <tr>
     <td><a href="docs/showcase/explore-light-en.png"><img src="docs/showcase/explore-light-preview.png" alt="英文浅色 Explore 页面预览：馆藏检索与双栏画册" /></a></td>
-    <td><a href="docs/showcase/gallery-light-preview.png"><img src="docs/showcase/gallery-light-preview.png" alt="英文浅色 3D 数字展厅入口" /></a></td>
+    <td><a href="docs/showcase/gallery-light-en.png"><img src="docs/showcase/gallery-light-preview.png" alt="英文浅色数字展厅入口：展项列表" /></a></td>
   </tr>
   <tr>
-    <td width="50%" align="center"><strong>Visit Booking · 未来 14 天线上预约</strong></td>
+    <td width="50%" align="center"><strong>Visit Booking · 365 天预约日历</strong></td>
     <td width="50%" align="center"><strong>Museum Store · 河洛文创商城（模拟结算）</strong></td>
   </tr>
   <tr>
-    <td><a href="docs/showcase/booking-light-en.png"><img src="docs/showcase/booking-light-preview.png" alt="英文浅色线上预约参观页面：14 天时段与电子入馆凭证" /></a></td>
+    <td><a href="docs/showcase/booking-light-en.png"><img src="docs/showcase/booking-light-preview.png" alt="英文浅色预约页面：按月选择参观日期和开放时段" /></a></td>
     <td><a href="docs/showcase/shop-light-en.png"><img src="docs/showcase/shop-light-preview.png" alt="英文浅色文创商城页面预览：商品展示与购物袋" /></a></td>
   </tr>
 </table>
+
+### 跟着点云看一件鼎：三步微导览 × 洛笙
+
+鼎口两侧的立耳是什么样的？下图把两种观察方式放在了同一个展柜里：左侧微导览停在第一步，从上方看双耳与口沿；右侧洛笙回答关于立耳的问题，并给出「在 3D 展柜俯视双耳」按钮。是否切换视角，由观众决定。
+
+[![点云微导览与洛笙同屏：左侧俯看双耳，右侧显示关于立耳的问答](docs/showcase/ding-tour-with-luosheng.png)](docs/showcase/ding-tour-with-luosheng.png)
+
+| 01 · 俯看双耳与口沿 | 02 · 正看器腹兽面纹带 | 03 · 从背面比较三足 |
+| :---: | :---: | :---: |
+| [![第一步：俯视点云中的双立耳](docs/showcase/pointcloud-tour-ear.png)](docs/showcase/pointcloud-tour-ear.png) | [![第二步：正面近观器腹纹带与扉棱](docs/showcase/pointcloud-tour-motif.png)](docs/showcase/pointcloud-tour-motif.png) | [![第三步：比较三根柱足及器底分范线](docs/showcase/pointcloud-tour-feet.png)](docs/showcase/pointcloud-tour-feet.png) |
+
+| 问洛笙：立耳能用来提举吗？ | 展开「依据与边界」：这段解释来自哪张卡？ |
+| :---: | :---: |
+| [![洛笙的馆藏回答与可点击的 3D 观察动作](docs/showcase/luosheng-ding-answer.png)](docs/showcase/luosheng-ding-answer.png) | [![展开后的 LS-DING-EARS v3 证据卡与解读边界](docs/showcase/luosheng-ding-sources.png)](docs/showcase/luosheng-ding-sources.png) |
+
+三步导览取自默认 Docker 展厅；带洛笙的三张图取自启用向导的本地隔离实例。截图里的「馆藏资料直出」是读取已签核资料后的真实回答，**不是外部模型生成**。
 
 ### 亮点特写 · 3D 展厅多模态观察与器物档案
 
@@ -160,7 +176,7 @@
   </tr>
   <tr>
     <td><a href="docs/showcase/digital-exhibit-light-en.png"><img src="docs/showcase/digital-exhibit-light-en.png" alt="英文浅色 3D 展厅：已加载实体模型与控制面板" /></a></td>
-    <td><a href="docs/showcase/digital-exhibit-pointcloud.png"><img src="docs/showcase/digital-exhibit-pointcloud.png" alt="3D 青铜鼎展厅点云模式：鎏金粒子点阵与底部十二律吕声景控制栏" /></a></td>
+    <td><a href="docs/showcase/digital-exhibit-pointcloud.png"><img src="docs/showcase/digital-exhibit-pointcloud.png" alt="英文深色展柜：青铜鼎已从实体模型切换为点云" /></a></td>
   </tr>
   <tr>
     <td width="50%" align="center"><strong>器物档案与策展详情（点击看长卷）</strong></td>
@@ -205,6 +221,8 @@
 </table>
 
 </details>
+
+更多英文深色全页：[入馆首页](docs/showcase/home-dark-en.png) · [探索馆藏](docs/showcase/explore-dark-en.png) · [文创商城](docs/showcase/shop-dark-en.png)。
 
 ---
 
@@ -253,6 +271,14 @@ docker compose --env-file deploy\.env -f deploy\compose.yaml ps
 
 - **前台展厅**：<http://localhost:8088>
 - **健康检查**：<http://localhost:8088/api/v1/health>
+- **数据库就绪**：<http://localhost:8088/api/v1/ready>（与健康检查均应返回 HTTP 200、`data.status=UP`）
+
+已有部署更新代码后，保留 `deploy/.env`，在仓库根目录运行以下命令即可更新应用镜像并沿用 MySQL 数据卷：
+
+```bash
+docker compose --env-file deploy/.env -f deploy/compose.yaml build frontend backend
+docker compose --env-file deploy/.env -f deploy/compose.yaml up -d --no-deps backend frontend
+```
 
 管理员初始账号由本机 `deploy/.env` 中的 `MUSEUM_BOOTSTRAP_ADMIN_*` 变量决定（`deploy/.env` 已被 Git 忽略，切勿提交）。如需开启洛笙 AI 向导，可在构建/运行环境中设置 `VITE_GUIDE_ENABLED=true` 与 `MUSEUM_GUIDE_ENABLED=true` 并注入模型密钥。
 
@@ -282,7 +308,7 @@ mvn test
 ## 项目文档
 
 - [项目当前状态与下一步](PROJECT_STATUS.md)
-- [设计系统规范（Heluo Editorial 2.0）](design.md)
+- [设计系统规范（Heluo Editorial 3.0）](design.md)
 - [洛笙 AI 向导 v2（唯一事实入口）](docs/luosheng/README.md)
 - [需求追踪表](docs/01-requirements-traceability.md)
 - [数据模型与权限边界](docs/04-data-and-permissions.md)

@@ -12,6 +12,10 @@
 
 ## 最近完成（2026-11-25）
 
+- **README 互动亮点补拍**：在原 26 张基础上新增点云微导览三步、洛笙问答、证据卡和导览同屏共 6 张。[截图来源](docs/showcase/SOURCES.md#点云与洛笙亮点)区分 8088 展厅与关闭外部模型的隔离向导；不改变公网和模型验收状态。
+
+- **本地 Docker 与仓库首页**：8088 已切换到重建的前后端镜像，原 MySQL 卷保留，Flyway 到 V31；首页 HTTP 200，健康与数据库就绪均为 UP。README 的 26 张基础截图与散列已核对，见[图库来源](docs/showcase/SOURCES.md)及[本轮验证](docs/plans/2026-11-25-docker-readme-refresh.md)。仓库首页更新不发布镜像，也不更新公网展厅。
+
 - **浅色首页 1:1 顶光主视觉与浅色瓷白导航栏精修（Round 6，2026-11-25）**：彻底移除 [HomeView.vue](frontend/src/views/HomeView.vue) 中的假 CSS 射灯组件，以 `home-hero-dark-v3.webp` 为 1:1 构图与顶光参考重新生成微暖石灰石展墙照片级主视觉并导出 4 档 lossy WebP，使柔光锥形顶光束自然融于画面且保持冷银灰「水银沁」青铜质感（不发绿、不发棕）；在 [05-shell.css](frontend/src/styles/05-shell.css) 中将浅色顶部导航栏重构为通透瓷白毛玻璃 + 朱砂印章 + 古铜副标 + 墨玉黑登录胶囊（14 份旧 `-backup.webp` 备份图已无损迁至 `artifacts/media-v2-backups/`，不污染构建与版本库）。
 
 - **全站馆舍实景图统一、未来 365 天全年预约开放与洛笙 AI 向导聊天框升级（Round 5，2026-11-25）**：① **全站遗留旧图统一**：将 [ProfileView.vue](frontend/src/views/ProfileView.vue) 个人档案封面、[AppointmentView.vue](frontend/src/views/AppointmentView.vue) 场馆概念图、[ExploreView.vue](frontend/src/views/ExploreView.vue) 导览专题图全面切换为登录页同款双主题高清馆舍实景 `login-pavilion-{light|dark}-v3`（含 `640w`/`960w` 响应式候选、光学暗角压暗与磨砂玻璃角标），并将 [musicCatalog.ts](frontend/src/lib/musicCatalog.ts) `bronze` 曲目封面同步为 `explore-bronze-ding-user-v2.webp`；② **未来一年（365 天）全量可预约日历**：后端 `AppointmentController`、`AppointmentSlotController`、`GuideToolExecutor`、`GuideDeterministicFallback` 及 `BootstrapDataInitializer` 统一切换至 `365` 天滚动窗口，单次批量写入周二至周日每日 4 个无冲突标准时段（`09:00` / `10:30` / `13:30` / `15:15`，跳过周一），前台 [publicSlotDate.ts](frontend/src/lib/publicSlotDate.ts) 与 `AppointmentView.vue` 升级为全年 12 个月 7 列日历（支持上下翻月、月份下拉跳转、回本月与周一闭馆标识）；③ **洛笙聊天框体验升级**：[guidePresets.ts](frontend/src/lib/guidePresets.ts) 与 [LuoshengSiteGuide.vue](frontend/src/components/LuoshengSiteGuide.vue) 新增 `Alt+L`/`Ctrl+/` 快捷键、`420px ↔ 560px` 宽屏记忆、实时上下文条与对话中途可开关「灵感提问」抽屉、输入框上方分路由「快捷意图芯片坞」、自适应多行输入框 + 字数/快捷键提示、回答「复制 / 重新生成」工具条、非重复气泡「重试发送」与上滑阅读「回到底部 ↓」胶囊。

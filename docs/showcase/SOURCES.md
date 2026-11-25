@@ -1,67 +1,71 @@
 # README 截图来源
 
-最近更新日期：2026-11-24（基于本地最新 `Heluo Editorial 2.0` Docker Compose 构建 `http://127.0.0.1:8088` 通过 Playwright Edge 无头模式整页采集）。图片仅作为项目展示素材，不代表完整业务验收。
+2026-11-25，使用 Windows 上的 Playwright / Microsoft Edge 从 `http://127.0.0.1:8088` 实拍 **Heluo Editorial 3.0**。这是本地工作区重建的 Docker 展厅，不是线上 PocketBay、设计稿或实体手机照片。
 
-| 文件 | 页面与模式 | 原始尺寸 |
+| 采集基线 | 实测值 |
+| --- | --- |
+| 前端镜像 | `deploy-frontend:latest` · `bd3734075057` |
+| 后端镜像 | `deploy-backend:latest` · `3445c47dbd0d` |
+| 页面入口脚本 | `index-C6fZmYPP.js` |
+| 服务与数据库 | 首页 HTTP 200；health / ready 均为 UP；MySQL 8.4 原数据卷，Flyway V31 |
+| 浏览器视口 | 普通页面 1440 × 900；后台及 3D 展柜 1680 × 1050；设备像素比 1 |
+
+前台以访客身份打开，不提交预约、订单或支付。预约截图在可用日期上点击后采集；后台通过本地管理员登录，只拍内容、商品与 3D 展项。3D 实体图在 WebGL 就绪后拍摄，点云图通过展柜切换按钮进入并等待点云就绪。采集会话启用减少动态效果，滚动加载图片、等待解码，再回到顶部拍首屏或整页。不修改页面文案或合成界面。
+
+## 文件与校验
+
+本页收录 32 张实拍：下表为基础图库 26 张，另有[点云与洛笙亮点 6 张](#点云与洛笙亮点)。文件名中的 `preview` 表示固定视口首屏。SHA-256 用于核对本批文件，以后重拍的渲染帧可能不同。
+
+| 图片 | 页面 | 主题 / 语言 | 实测尺寸 | SHA-256 |
+| --- | --- | --- | --- | --- |
+| [admin-content-dark-zh.png](admin-content-dark-zh.png) | `/admin` | 深 / zh-CN | 1680 × 1140 | `ad4cd542b1fd2dfb959dbe0320b42022901d1528e47d237a885fc31f754d68c5` |
+| [admin-content-light-zh.png](admin-content-light-zh.png) | `/admin` | 浅 / zh-CN | 1680 × 1140 | `19974eb211c0f8800ad274f53b2d9c27aeb682ec065e7861afe00732ada85275` |
+| [admin-exhibits-dark-zh.png](admin-exhibits-dark-zh.png) | `/admin/operations` | 深 / zh-CN | 1680 × 1534 | `9446c9e2b12c3b237a0df949d88c6f6d1f66dbd96d3209bad34e734ada9a6c4f` |
+| [admin-products-dark-zh.png](admin-products-dark-zh.png) | `/admin/operations` | 深 / zh-CN | 1680 × 1534 | `44a9002b192f5ce5bd442d11458d47ed5e3bd089cfe85bcd1c33a93891660ad2` |
+| [artifact-detail-light-en.png](artifact-detail-light-en.png) | `/artifacts/heluo-bronze-ding` | 浅 / en-US | 1440 × 2338 | `346edf87534403089e9185445fd86c6403c42a4950942d4d7e70f1719ea00bdb` |
+| [artifact-detail-light-preview.png](artifact-detail-light-preview.png) | `/artifacts/heluo-bronze-ding` | 浅 / en-US | 1440 × 900 | `7782a57ae10515bb734dc400d6aa28d1c92cc183b3fde5384544804c9c72c537` |
+| [booking-dark-en.png](booking-dark-en.png) | `/appointment` | 深 / en-US | 1440 × 2517 | `86dd31e804c6c0e6f25cc138cd35b871b1370f7b286ba4ecaa84b55a629becb3` |
+| [booking-light-en.png](booking-light-en.png) | `/appointment` | 浅 / en-US | 1440 × 2517 | `5027b8e9e02ff92a995553e65bd1c1a108b7586313e7f1c89b82e826a650884f` |
+| [booking-light-preview.png](booking-light-preview.png) | `/appointment` | 浅 / en-US | 1440 × 900 | `c68e0c5aa9822adac705003f114e7ebeb74661522a2e38bd3693e2247596193b` |
+| [digital-exhibit-dark-en.png](digital-exhibit-dark-en.png) | `/exhibits/heluo-bronze-ding-3d` | 深 / en-US | 1680 × 1050 | `8472f8fa5075527dc669e814d39735c3fde718cfd900bbe96c5067b991c1db11` |
+| [digital-exhibit-light-en.png](digital-exhibit-light-en.png) | `/exhibits/heluo-bronze-ding-3d` | 浅 / en-US | 1680 × 1050 | `7cd0bb5a821a3285d9c16838956982b39fb4678a1a64b8a56a2f1301f5cb001c` |
+| [digital-exhibit-pointcloud.png](digital-exhibit-pointcloud.png) | `/exhibits/heluo-bronze-ding-3d` | 深 / en-US | 1680 × 1050 | `777db55974168397ea5457c5dafba00802f1a03caf4816009a35c164c462d6be` |
+| [explore-dark-en.png](explore-dark-en.png) | `/explore` | 深 / en-US | 1440 × 3541 | `eff7088719df88e76d727e658bc64eecac4da939d368d80a18942f1fd2854c9d` |
+| [explore-light-en.png](explore-light-en.png) | `/explore` | 浅 / en-US | 1440 × 3541 | `176f3830ebc5a0e66f70bda3ef27db07ca1e77838bbbac94b6c95c00f2f0d331` |
+| [explore-light-preview.png](explore-light-preview.png) | `/explore` | 浅 / en-US | 1440 × 900 | `2073a89d2cc6c8c0c8b3f21b121e04cfd0d7bd292846dce15dd57a629823bbf9` |
+| [gallery-dark-en.png](gallery-dark-en.png) | `/exhibits` | 深 / en-US | 1440 × 2079 | `f74e5a9f6804fda6c14f606a4e76122161cc8088fca2844d76e45f43c9dfd87c` |
+| [gallery-light-en.png](gallery-light-en.png) | `/exhibits` | 浅 / en-US | 1440 × 2079 | `753fb85c310ea310d3b85ca6656a28c3ceb663d2c8e65bdd209de72ac14542bf` |
+| [gallery-light-preview.png](gallery-light-preview.png) | `/exhibits` | 浅 / en-US | 1440 × 900 | `23a8d006eaf69f8c6347c4eac78e80edf7cafe2d3d808a97ab07085c2c5eaf97` |
+| [hero-light-preview.png](hero-light-preview.png) | `/` | 浅 / en-US | 1440 × 900 | `39996bacd2b149cca7b778797971729e145b9ee0b66f562407104b994dff8b8c` |
+| [home-dark-en.png](home-dark-en.png) | `/` | 深 / en-US | 1440 × 3352 | `1ddc8d6b278331f4073c326e1272d321c920a58cc5f0cfd85780222e49e6edbd` |
+| [home-dark-zh.png](home-dark-zh.png) | `/` | 深 / zh-CN | 1440 × 3302 | `f8bbe7ef1d43b1c5fb4af3e30f0c13ecc476ff58c0340071d4fd062d7d84d849` |
+| [home-light-en.png](home-light-en.png) | `/` | 浅 / en-US | 1440 × 3352 | `0fbadff02736de91110f97e5459d1925700256c6c5be07d03d9de7d05fc676b5` |
+| [home-light-zh.png](home-light-zh.png) | `/` | 浅 / zh-CN | 1440 × 3302 | `86e72d43409a7ef2c68667ab1afbf6f270271ac17cf1a2239b2c835d0c6f95f1` |
+| [shop-dark-en.png](shop-dark-en.png) | `/shop` | 深 / en-US | 1440 × 1530 | `07949b452021931dea9e46de04c50af15b187ff126817e24bc05d84ae8593447` |
+| [shop-light-en.png](shop-light-en.png) | `/shop` | 浅 / en-US | 1440 × 1530 | `fc36061dfb461122a47af85ae1c165616943c650b5ba40e75fa7c294a8366a37` |
+| [shop-light-preview.png](shop-light-preview.png) | `/shop` | 浅 / en-US | 1440 × 900 | `00dd55c4a1fb66a000b4a90ad9f30312dc7a90ddab9610b1e31a03486fd5797e` |
+
+## 点云与洛笙亮点
+
+以下均为中文深色、1680 × 1050 的 Edge 浏览器截图，路径为 `/exhibits/heluo-bronze-ding-3d`。三步图在原 8088 Docker 展厅切换点云、开始并暂停微导览后逐步前进拍摄。带洛笙的三张来自 14173 的本地 Vite 生产预览（`/assets/index--ND1OdHf.js`），代理至 18180 的同版 Docker 后端，使用独立 H2 临时库和项目签核证据；模型关闭，未连接线上站点或模型服务。
+
+| 图 | 实际界面状态 | SHA-256 |
 | --- | --- | --- |
-| home-dark-en.png | 首页 · 英文深色 | 1440 × 2312 |
-| home-dark-zh.png | 首页 · 中文深色 | 1440 × 2312 |
-| home-light-zh.png | 首页 · 中文浅色 | 1440 × 2312 |
-| hero-light-preview.png | 首页首屏 · 英文浅色（16:10 预览） | 1440 × 900 |
-| explore-light-preview.png | Explore 首屏 · 英文浅色（16:10 预览） | 1440 × 900 |
-| gallery-light-preview.png | 展厅入口 · 英文浅色（16:10 预览） | 1440 × 900 |
-| booking-light-preview.png | 预约首屏 · 英文浅色（16:10 预览） | 1440 × 900 |
-| booking-light-en.png | 预约完整页 · 英文浅色、已登录 | 1440 × full |
-| shop-light-preview.png | 商城首屏 · 英文浅色（16:10 预览） | 1440 × 900 |
-| artifact-detail-light-preview.png | 器物档案首屏 · 英文浅色（16:10 预览） | 1440 × 900 |
-| artifact-detail-light-en.png | 器物档案完整页 · 英文浅色 | 1440 × full |
-| explore-dark-en.png | Explore · 英文深色 | 1440 × 3487 |
-| explore-light-en.png | Explore · 英文浅色 | 1440 × 3487 |
-| home-light-en.png | 首页 · 英文浅色 | 1440 × 3157 |
-| shop-dark-en.png | 商城 · 英文深色、已登录 | 1680 × 1443 |
-| shop-light-en.png | 商城 · 英文浅色、已登录 | 1680 × 1443 |
-| gallery-dark-en.png | 展厅入口 · 英文深色 | 1680 × 1376 |
-| digital-exhibit-dark-en.png | 3D 实体模型 · 英文深色 | 1680 × 1100 |
-| digital-exhibit-light-en.png | 3D 实体模型 · 英文浅色 | 1680 × 1100 |
-| digital-exhibit-pointcloud.png | 3D 点云重构模式 · 英文 | 1680 × 1100 |
-| booking-dark-en.png | 预约 · 英文深色、已登录 | 1680 × 1494 |
-| admin-content-dark-zh.png | 内容管理 · 中文深色 | 1680 × 1725 |
-| admin-content-light-zh.png | 内容管理 · 中文浅色 | 1680 × 1728 |
-| admin-products-dark-zh.png | 商品管理 · 中文深色 | 1680 × 1061 |
-| admin-exhibits-dark-zh.png | 3D 展项管理 · 中文深色 | 1680 × 1061 |
+| [ding-tour-with-luosheng.png](ding-tour-with-luosheng.png) | 01 / 03 · 馆藏资料直出 | `495c0fa9ac4e94c5df60215b58e10bf39eaf68a04745e690a797e423e89071b2` |
+| [luosheng-ding-answer.png](luosheng-ding-answer.png) | 馆藏资料直出 | `49e04ab4ee7815aface74e4836c040db898ace361e2ad05c197014f4008e1463` |
+| [luosheng-ding-sources.png](luosheng-ding-sources.png) | LS-DING-EARS · v3 | `fb7fc0d516811b61285d5df5976130c6cb804f62ca3f553eacf0173037b5ed47` |
+| [pointcloud-tour-ear.png](pointcloud-tour-ear.png) | 立耳对称轮廓 | `f475f28f7b3f14c82e32d2d2b69782dda9f4f917dd624bc3b9c34147fe2b4f89` |
+| [pointcloud-tour-feet.png](pointcloud-tour-feet.png) | 三足承重柱体 | `b5cba129fb4caa3cceab912807c7cabc1f3bc7fd55e313df4aa2d3c56d679fb9` |
+| [pointcloud-tour-motif.png](pointcloud-tour-motif.png) | 器腹兽面纹带 | `02f0900844a86d313253eb42ef94a7e91872a2ecd2b952b91c0186c6d8277484` |
 
-通过 Playwright / Edge 打开公开入口，再读取站点实际嵌入的 `https://heluo--e.pocketbay.app/` 页面。首页使用线上 `home-corridor-light-user-v2.webp` / `home-corridor-dark-user-v2.webp`；采集时主脚本为 `index-CRsUH_LY.js`。
+亮点采集脚本：`node frontend/scripts/capture-readme-highlights.mjs tour` 只依赖 8088；参数 `guide` 使用上述隔离实例。后者需以 `VITE_GUIDE_ENABLED=true` 构建前端，后端启用演示数据和向导、设置签核卡路径并令 `MUSEUM_GUIDE_MODEL_ENABLED=false`。图片及原始记录先生成在被忽略的 `artifacts/readme-highlights/`。
 
-等待字体、图片和滚动加载完成，首页/Explore 在 1440 × 900 外层视口采集，其余为 1680 × 1100。长页面以重叠滚动截图无缩放拼接；后台和预约通过增高浏览器视口一次拍完整页，避免固定侧栏重复。保留完整内容，固定导航只出现一次；无 footer 的页面按实际内容边界验收。关闭平台反馈气泡，并在截图会话中隐藏残留的平台浮层，不修改网站部署或应用内容。英文界面中缺少译文的条目按网站实际情况保留中文。
+## 再次采集
 
-登录使用现有线上演示管理员，凭据只从 Git 忽略的配置中读取，令牌只保留在浏览器会话内存。商城沿用现有购物袋，未新增商品或提交订单；预约未提交，后台只切换展示模块。图片中的 `admin@example.test` 是演示占位邮箱，不展示用户、订单或日志明细。3D 截图已实际启动并观察到实体模型，不以封面代替。
-
-复现命令（需安装项目开发依赖及 Edge，PowerShell 拼接依赖 Windows System.Drawing）：
+先按[仓库 README](../../README.md#本地启动)启动 8088 的 MySQL 多容器方案，安装 Microsoft Edge 和前端开发依赖。在仓库根目录执行：
 
 ```powershell
-node frontend/scripts/capture-readme-home.mjs
-powershell -NoProfile -ExecutionPolicy Bypass -File frontend/scripts/stitch-readme-home.ps1
+node frontend/scripts/capture-readme-docker.mjs
 ```
 
-补拍登录后的商城与后台：通过环境变量 `HELUO_CAPTURE_CREDENTIAL_FILE` 指向获授权的本地部署 properties 文件，再运行 `node frontend/scripts/capture-readme-home.mjs --authenticated`。补拍展厅及预约使用 `--authenticated --supplement`。最后重新运行拼接脚本。勿将凭据文件或令牌上传。
-
-原始分段与采集记录保存在被忽略的 `artifacts/readme-live-home/`，不作为发布素材提交。
-
-## SHA-256
-
-```text
-home-light-zh.png 58413741930409B079198119535BD08D96FA3B4633D53C0DE2DCCF51A87CE6DF
-home-dark-zh.png 7EBC90096ABD0C7BD255B61953BFB07C91CBA320D0D4A936C31E2F6A3C5FDBD4
-home-dark-en.png 87ECAF4BFA54C5EF5ED03C59A9D52CDE4B447EC7C710063E950E5C2CE894F13D
-explore-dark-en.png D9B833D3D876CF339071D5AC334DA9F470C3E88EF9E57CBEF2D517598937702A
-shop-dark-en.png FA37D5F1822D82AF1F3C414D3D56AFB36C57898306ADF29AE9BA8C99856D6914
-admin-content-dark-zh.png AB6B5AE79A402E6111EBB5C59E37B566AE867B368FEE010D92BE4273B5285EB0
-admin-content-light-zh.png 15D736FF606DA49B1F52FECE16DACF4655643C730B0166B83314DF6DE0EF543D
-admin-products-dark-zh.png E0D932C7A45CACB5A69180C0129AE7323CBA0019036758934873EE5D2DCCA619
-admin-exhibits-dark-zh.png 0EB0FBF16968555A3871FFE5483D79D29B6DDC4C4293CF4618FC28E2B26DEAAA
-gallery-dark-en.png A8C5A751D936ADA4AC21A1DB81B904B806C837E42710E97AF714E2DCB283814B
-digital-exhibit-dark-en.png 5C2A17ACA0B2A9AE9E39D5EC43C35F199C89E2AEF1C4D88188C55A4B0BF62C1F
-booking-dark-en.png 9DA1FEBD68E632EA603E08F67BB5EE74B78B3DC6C18C6CBE7BEFF78FEA27289B
-```
-
-`digital-exhibit.png` 为此前已入库的历史版本 3D 展厅图，保留文件但不再由 README 引用。器物素材来源及授权继续以项目资产台账与展项说明为准。
+脚本只连接本地固定入口；后台凭据取自 Git 忽略的 `deploy/.env`，不输出令牌。每张 PNG 与尺寸、入口脚本、散列记录先写入被忽略的 `artifacts/readme-docker/`。核对完整性及画面后再替换展示文件并更新上表。旧版 `digital-exhibit.png` 和 `gallery-score-r3.png` 是历史素材，不属于本轮图库，仓库首页不引用。
