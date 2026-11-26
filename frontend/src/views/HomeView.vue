@@ -1,20 +1,33 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import { RouterLink } from 'vue-router'
-import { ArrowRight, Calendar, DataBoard } from '@element-plus/icons-vue'
 import { useLocale } from '../stores/locale'
 import { useTheme } from '../stores/theme'
 import { audioSystem } from '../lib/audioSystem'
 import { claimHomeEntrance } from '../lib/homeEntrance'
-import PointerDotField from '../components/PointerDotField.vue'
-import HeluoPattern from '../components/HeluoPattern.vue'
-import AcousticRuler from '../components/AcousticRuler.vue'
+import HomeActionIcon from '../components/HomeActionIcon.vue'
+
+type HeluoPatternComponent = typeof import('../components/HeluoPattern.vue')['default']
 
 const { locale } = useLocale()
 const { isDark } = useTheme()
+const PointerDotField = defineAsyncComponent({
+  loader: () => import('../components/PointerDotField.vue'),
+  suspensible: false,
+})
+const AcousticRuler = defineAsyncComponent({
+  loader: () => import('../components/AcousticRuler.vue'),
+  suspensible: false,
+})
+const showRuler = ref(document.documentElement.dataset.performanceTier !== 'constrained')
+const rulerSlot = ref<HTMLElement | null>(null)
+let rulerObserver: IntersectionObserver | undefined
+const hoverPointer = window.matchMedia?.('(pointer: fine) and (hover: hover)')
+const showPointerField = ref(hoverPointer?.matches ?? false)
+const syncPointerField = () => { showPointerField.value = hoverPointer?.matches ?? false }
 const root = ref<HTMLElement | null>(null)
-const heluoPattern = ref<InstanceType<typeof HeluoPattern> | null>(null)
-const showPattern = ref(false)
+const heluoPattern = ref<InstanceType<HeluoPatternComponent> | null>(null)
+const patternComponent = shallowRef<HeluoPatternComponent | null>(null)
 const activeObservation = ref(0)
 const closeupZoomed = ref(true)
 const observationParts = ['ear', 'motif', 'feet'] as const
@@ -148,14 +161,14 @@ function shouldLoadHomeGsap() {
 async function revealHome() {
   const scope = root.value
   if (!scope || !shouldLoadHomeGsap()) return
-  const gsapModule = await import('gsap').catch(() => undefined)
-  if (!gsapModule) return
-  const { gsap } = gsapModule
+  const entrance = await Promise.all([import('gsap'), import('../components/HeluoPattern.vue')]).catch(() => undefined)
+  if (!entrance) return
   if (unmounted || root.value !== scope || !shouldLoadHomeGsap()) return
 
   if (!claimHomeEntrance()) return
 
-  showPattern.value = true
+  const [{ gsap }, { default: Pattern }] = entrance
+  patternComponent.value = Pattern
   await nextTick()
   if (unmounted || root.value !== scope) return
 
@@ -216,7 +229,7 @@ async function revealHome() {
         duration: 0.6,
         ease: 'power2.in',
         onStart: () => void audioSystem.playTransition('reveal', { volume: 0.3 }),
-        onComplete: () => { showPattern.value = false },
+        onComplete: () => { patternComponent.value = null },
       }, 0.8)
       .from('.corridor-home__hero-media', { scale: 1.02, duration: 0.65, ease: 'power2.out' }, 0)
       .from('[data-motion="intro-eyebrow"]', {
@@ -256,11 +269,29 @@ function clearAmbientSurface(event: PointerEvent) {
 }
 
 onMounted(async () => {
+  hoverPointer?.addEventListener?.('change', syncPointerField)
+  if (!showRuler.value) {
+    // On mobile, an element behind the fixed navigation is not yet usable.
+    // Keep the header audio control available while the canvas is offscreen.
+    if (rulerSlot.value && typeof IntersectionObserver === 'function' && window.matchMedia('(max-width: 760px)').matches) {
+      rulerObserver = new IntersectionObserver(([entry]) => {
+        if (!unmounted && entry?.intersectionRatio >= 0.5) {
+          showRuler.value = true
+          rulerObserver?.disconnect()
+        }
+      }, { rootMargin: '0px 0px -60px', threshold: 0.5 })
+      rulerObserver.observe(rulerSlot.value)
+    } else {
+      showRuler.value = true
+    }
+  }
   await nextTick()
   void revealHome()
 })
 
 onBeforeUnmount(() => {
+  rulerObserver?.disconnect()
+  hoverPointer?.removeEventListener?.('change', syncPointerField)
   unmounted = true
   gsapContext?.revert()
 })
@@ -270,7 +301,7 @@ onBeforeUnmount(() => {
   <section ref="root" class="corridor-home museum-home" data-motion-page="home" aria-labelledby="home-title">
     <!-- Section 1: Full-Bleed Curatorial Cover -->
     <section class="home-cover">
-      <picture>
+      <picture class="home-cover__picture">
         <source media="(max-width: 760px)" :srcset="heroMedia.mobileSrcset" sizes="100vw" />
         <img
           class="corridor-home__hero-media"
@@ -299,8 +330,8 @@ onBeforeUnmount(() => {
           <ellipse cx="320" cy="320" rx="244" ry="86" transform="rotate(-18 320 320)" />
         </g>
       </svg>
-      <HeluoPattern v-if="showPattern" ref="heluoPattern" />
-      <PointerDotField variant="image" />
+      <component :is="patternComponent" v-if="patternComponent" ref="heluoPattern" />
+      <PointerDotField v-if="showPointerField" variant="image" />
 
       <div class="home-cover__masthead" data-motion="intro-eyebrow" aria-hidden="true">
         <div class="home-cover__masthead-left">
@@ -326,11 +357,11 @@ onBeforeUnmount(() => {
           <div class="home-cover__actions" data-motion="intro-cta">
             <RouterLink class="home-primary" to="/explore">
               <span>{{ copy.explore }}</span>
-              <ArrowRight aria-hidden="true" />
+              <HomeActionIcon name="next" />
             </RouterLink>
             <RouterLink class="home-ghost" to="/exhibits">
               <span>{{ copy.gallery }}</span>
-              <ArrowRight aria-hidden="true" />
+              <HomeActionIcon name="next" />
             </RouterLink>
           </div>
         </div>
@@ -347,14 +378,14 @@ onBeforeUnmount(() => {
           <span>{{ copy.scrollHint }}</span>
         </div>
         <RouterLink class="home-foot-link" to="/appointment">
-          <Calendar aria-hidden="true" />
+          <HomeActionIcon name="calendar" />
           <span>{{ copy.visit }}</span>
-          <ArrowRight aria-hidden="true" />
+          <HomeActionIcon name="next" />
         </RouterLink>
       </div>
 
-      <div class="home-cover__ruler">
-        <AcousticRuler variant="hero" default-track="home" />
+      <div ref="rulerSlot" class="home-cover__ruler">
+        <AcousticRuler v-if="showRuler" variant="hero" default-track="home" />
       </div>
     </section>
 
@@ -429,16 +460,16 @@ onBeforeUnmount(() => {
 
         <div class="home-closeup__actions">
           <RouterLink class="home-inline-primary" to="/artifacts/heluo-bronze-ding">
-            <DataBoard aria-hidden="true" />
+            <HomeActionIcon name="exhibit" />
             <span>{{ copy.closeAction }}</span>
-            <ArrowRight aria-hidden="true" />
+            <HomeActionIcon name="next" />
           </RouterLink>
           <RouterLink
             class="home-inline-link"
             :to="{ path: '/exhibits/heluo-bronze-ding-3d', query: { focus: activeObservationPart } }"
           >
             <span>{{ copy.close3dAction }}</span>
-            <ArrowRight aria-hidden="true" />
+            <HomeActionIcon name="next" />
           </RouterLink>
         </div>
       </div>
@@ -488,7 +519,7 @@ onBeforeUnmount(() => {
             <h3>{{ card.title }}</h3>
             <p>{{ card.text }}</p>
           </div>
-          <ArrowRight class="home-theme__arrow" aria-hidden="true" />
+          <HomeActionIcon name="next" class="home-theme__arrow" />
         </RouterLink>
       </div>
     </section>
@@ -501,9 +532,9 @@ onBeforeUnmount(() => {
           <p>{{ copy.visitText }}</p>
         </div>
         <RouterLink class="home-visit__cta" to="/appointment">
-          <Calendar aria-hidden="true" />
+          <HomeActionIcon name="calendar" />
           <span>{{ copy.visitCta }}</span>
-          <ArrowRight aria-hidden="true" />
+          <HomeActionIcon name="next" />
         </RouterLink>
       </div>
     </section>
@@ -631,6 +662,26 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
+.home-chapter-folio:lang(en) :is(.home-chapter-folio__glyphs, .home-chapter-folio__index) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 560px) {
+  .home-chapter-folio:lang(en) {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .home-chapter-folio:lang(en) :is(.home-chapter-folio__glyphs, .home-chapter-folio__index) {
+    letter-spacing: 0.1em;
+  }
+
+  .home-chapter-folio:lang(en) .home-chapter-folio__rule {
+    width: 100%;
+  }
+}
+
 .home-cover :deep(.pointer-dot-field) {
   z-index: 1;
   mask-image: linear-gradient(to bottom, oklch(0% 0 0) 76%, transparent 100%);
@@ -670,6 +721,19 @@ onBeforeUnmount(() => {
   background: color-mix(in oklch, var(--accent-bronze) 65%, transparent);
 }
 
+.home-cover__masthead-left:lang(en) {
+  min-inline-size: 0;
+}
+
+.home-cover__masthead:lang(en) {
+  flex-wrap: wrap;
+}
+
+.home-cover__masthead-no:lang(en) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .home-cover__masthead-meta {
   display: inline-flex;
   align-items: center;
@@ -677,6 +741,12 @@ onBeforeUnmount(() => {
   letter-spacing: 0.08em;
   color: var(--ink-muted);
   white-space: nowrap;
+}
+
+.home-cover__masthead-meta:lang(en) {
+  flex-wrap: wrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .home-cover__masthead-sep {
@@ -829,6 +899,7 @@ onBeforeUnmount(() => {
   z-index: 3;
   width: min(calc(100% - 4rem), var(--container-max));
   padding-right: 7.5rem;
+  pointer-events: none;
 }
 
 .home-cover__venue {
@@ -972,6 +1043,13 @@ onBeforeUnmount(() => {
   font-size: var(--text-xs);
   letter-spacing: 0.04em;
   cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .home-closeup__zoom-pill {
+    min-block-size: var(--control-min);
+    min-inline-size: var(--control-min);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1376,6 +1454,12 @@ onBeforeUnmount(() => {
   }
 }
 
+@media (max-width: 960px) and (max-height: 430px) {
+  .home-cover__masthead-meta {
+    display: none;
+  }
+}
+
 @media (max-width: 760px) {
   .home-content,
   .home-cover__masthead,
@@ -1385,78 +1469,207 @@ onBeforeUnmount(() => {
   }
 
   .home-cover {
-    min-height: 0;
+    min-height: calc(100svh + 12px);
+    justify-content: flex-start;
+    align-items: center;
+    padding: 0 0 var(--space-5);
+    background: var(--surface-subtle);
   }
 
-  .home-cover__masthead {
-    margin-top: var(--space-6);
-    padding-bottom: var(--space-2);
+  .home-cover__masthead,
+  .home-cover__intro,
+  .home-foot-link {
+    display: none;
   }
 
-  .home-cover__armillary {
-    width: 280px;
-    height: 280px;
-    top: 38%;
-    right: -12%;
-    opacity: 0.12;
+  .home-cover__picture {
+    display: contents;
   }
 
   .corridor-home__hero-media {
-    object-position: center 46%;
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+    transform: none;
   }
 
   .home-cover__veil {
+    display: block;
     background: linear-gradient(
       180deg,
-      color-mix(in oklch, var(--surface-canvas) 94%, transparent) 0%,
-      color-mix(in oklch, var(--surface-canvas) 82%, transparent) 30%,
-      transparent 58%,
-      color-mix(in oklch, var(--surface-canvas) 95%, transparent) 96%
+      color-mix(in oklch, var(--surface-canvas) 42%, transparent) 0%,
+      transparent 16%,
+      transparent 68%,
+      color-mix(in oklch, var(--surface-canvas) 82%, transparent) 84%,
+      var(--surface-canvas) 96%
     );
   }
 
+  .home-cover__armillary {
+    width: 260px;
+    height: 260px;
+    top: 40%;
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, -50%);
+    opacity: 0.08;
+  }
+
   .home-cover__inner {
-    padding-top: var(--space-8);
-    padding-bottom: var(--space-4);
+    width: min(calc(100% - 2rem), 360px);
+    min-height: calc(100svh - 178px);
+    margin: 0 auto;
+    padding: clamp(1rem, 3.6svh, 2rem) 0 0;
+    display: flex;
+    flex-direction: column;
+    text-align: center;
   }
 
-  .home-cover h1,
+  .home-cover__inner:lang(en) {
+    min-height: calc(100svh - 208px);
+  }
+
+  .home-cover__copy {
+    flex: 1 1 auto;
+    max-width: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .home-eyebrow {
+    margin-bottom: 0.45rem;
+    font-size: var(--text-xs);
+    letter-spacing: 0.16em;
+    color: var(--accent-bronze);
+  }
+
+  .home-eyebrow:lang(en) {
+    letter-spacing: 0.08em;
+  }
+
+  .home-cover h1 {
+    font-size: clamp(1.625rem, 6.8vw, 2rem);
+    line-height: 1.24;
+    letter-spacing: 0.1em;
+  }
+
   .home-cover h1.is-english {
-    font-size: 2.35rem;
-    line-height: 1.15;
+    font-size: clamp(1.45rem, 5.8vw, 1.75rem);
+    line-height: 1.22;
+    letter-spacing: 0.01em;
   }
 
-  .home-cover__intro {
-    margin: var(--space-4) 0;
-    font-size: var(--text-base);
+  .home-title-line,
+  .home-title-line > span {
+    display: inline;
+    overflow: visible;
+  }
+
+  .home-cover h1.is-english .home-title-line + .home-title-line::before {
+    content: ' ';
   }
 
   .home-cover__actions {
-    padding-top: 184px;
-    padding-bottom: var(--space-4);
+    margin-top: auto;
+    padding-top: var(--space-4);
+    padding-bottom: 0;
+    justify-content: center;
+    gap: 0.625rem;
   }
 
   .home-primary,
   .home-ghost {
-    padding: 0 1.125rem;
+    min-height: 46px;
+    padding: 0 1.25rem;
+    border-radius: var(--radius-pill);
     font-size: var(--text-sm);
   }
 
+  .home-ghost {
+    padding: 0 1.15rem;
+    background: color-mix(in oklch, var(--surface-elevated) 72%, transparent);
+    border-color: var(--border-strong);
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
   .home-cover__foot {
-    grid-template-columns: 1fr;
-    gap: var(--space-2);
-    margin-bottom: 3.6rem;
-    padding-block: var(--space-3);
+    display: flex;
+    justify-content: center;
+    width: min(calc(100% - 2rem), 360px);
+    margin: 0.75rem auto 0;
+    padding: 0;
+    border-top: 0;
+  }
+
+  .home-cover__venue {
+    justify-content: center;
+    gap: 0.4rem;
+    font-size: var(--text-xs);
+    font-weight: 400;
+    color: var(--ink-muted);
+    text-align: center;
+  }
+
+  .home-cover__hours {
+    color: var(--ink-muted);
   }
 
   .home-cover__ruler {
+    position: relative;
+    left: auto;
+    bottom: auto;
+    transform: none;
     width: calc(100% - 2rem);
-    bottom: 10px;
-    padding-right: 60px;
+    margin: 84px auto 0;
+    min-block-size: 44px;
+    padding-right: 56px;
+  }
+
+  .home-chapter-folio {
+    padding-top: var(--space-8);
+  }
+
+  .home-closeup {
+    grid-template-columns: 1fr;
+    gap: var(--space-5);
+    padding-block: var(--space-6) var(--space-10);
+  }
+
+  .home-closeup__stage {
+    aspect-ratio: 5 / 4;
+    max-height: 280px;
+    padding: var(--space-5);
+  }
+
+  .home-closeup__plaque {
+    padding: var(--space-3) var(--space-4);
+    justify-content: center;
+  }
+
+  .home-closeup__plaque-meta {
+    display: none;
+  }
+
+  .home-closeup__copy h2 {
+    margin: 0 0 var(--space-3);
+    font-size: 1.5rem;
+    line-height: 1.28;
+  }
+
+  .home-closeup__text {
+    display: none;
   }
 
   .home-closeup__prompts {
     gap: var(--space-2) var(--space-4);
+    margin-bottom: var(--space-3);
   }
 
   .home-closeup__chip {
@@ -1465,36 +1678,45 @@ onBeforeUnmount(() => {
     justify-content: center;
   }
 
-  .home-foot-link {
-    justify-self: start;
+  .home-closeup__prompt-detail {
+    min-height: 2.8em;
+    margin-bottom: var(--space-5);
   }
 
-  .home-closeup {
-    grid-template-columns: 1fr;
-    gap: var(--space-8);
-    padding-block: var(--space-10);
+  .home-closeup__actions {
+    gap: var(--space-3);
   }
 
-  .home-closeup__stage {
-    aspect-ratio: 4 / 3;
+  .home-themes {
+    margin-bottom: var(--space-8);
+    padding-block: var(--space-8);
   }
 
   .home-section-heading {
     flex-direction: column;
     align-items: flex-start;
-    gap: var(--space-3);
+    gap: var(--space-2);
+    margin-bottom: var(--space-5);
+  }
+
+  .home-section-heading h2 {
+    font-size: 1.5rem;
+  }
+
+  .home-section-heading > p {
+    display: none;
   }
 
   .home-themes__grid {
     grid-template-columns: 1fr;
-    gap: var(--space-5);
+    gap: var(--space-4);
   }
 
   .home-theme {
     grid-template-columns: 112px minmax(0, 1fr) 20px;
     align-items: center;
     gap: var(--space-4);
-    padding-bottom: var(--space-5);
+    padding-bottom: var(--space-4);
     border-bottom: 1px solid var(--border-hairline);
   }
 
@@ -1515,22 +1737,116 @@ onBeforeUnmount(() => {
   }
 
   .home-theme__copy h3 {
-    font-size: var(--text-lg);
+    font-size: var(--text-md);
+    margin-bottom: 0.125rem;
+  }
+
+  .home-theme__copy p {
+    font-size: var(--text-xs);
+    line-height: 1.55;
   }
 
   .home-theme__arrow {
     margin-top: 0;
   }
 
+  .home-visit-wrap {
+    padding-bottom: var(--space-10);
+  }
+
   .home-visit {
     flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-5);
-    padding: var(--space-6);
+    align-items: center;
+    text-align: center;
+    gap: var(--space-4);
+    padding: var(--space-6) var(--space-4);
+    border-top: 1px solid var(--border-hairline);
+  }
+
+  .home-visit__copy h2 {
+    font-size: 1.375rem;
+    margin: 0 0 var(--space-2);
+  }
+
+  .home-visit__copy p:last-child {
+    font-size: var(--text-xs);
+    line-height: 1.65;
+    max-width: 34ch;
+    margin-inline: auto;
   }
 
   .home-visit__cta {
     width: 100%;
+    max-width: 280px;
+    border-radius: var(--radius-pill);
+  }
+}
+
+@media (max-width: 760px) and (max-height: 620px) {
+  .home-cover {
+    min-height: calc(100svh + 36px);
+  }
+
+  .corridor-home__hero-media {
+    object-position: center 36%;
+  }
+
+  .home-cover__inner {
+    min-height: calc(100svh - 154px);
+    padding-top: var(--space-3);
+  }
+
+  .home-cover h1 {
+    font-size: 1.5rem;
+  }
+
+  .home-cover h1.is-english {
+    font-size: 1.375rem;
+  }
+
+  .home-cover__actions {
+    flex-wrap: nowrap;
+    padding-top: 0.5rem;
+    gap: 0.375rem;
+  }
+
+  .home-cover__actions:lang(en) {
+    flex-wrap: wrap;
+  }
+
+  .home-primary,
+  .home-ghost {
+    min-height: 44px;
+    padding: 0 0.75rem;
+    font-size: var(--text-xs);
+    white-space: nowrap;
+  }
+
+  .home-cover__foot {
+    margin-top: 0.5rem;
+  }
+
+  .home-cover__ruler {
+    margin-top: 108px;
+  }
+}
+
+@media (max-width: 760px) and (max-height: 480px) {
+  .home-cover {
+    min-height: auto;
+    padding-block: var(--space-4);
+  }
+
+  .home-cover__inner {
+    min-height: 290px;
+  }
+
+  .home-cover__foot {
+    margin-bottom: 0;
+  }
+
+  .home-cover__ruler {
+    margin-top: var(--space-8);
   }
 }
 
@@ -1627,11 +1943,16 @@ html[data-theme="dark"] .museum-home .home-cover__veil {
   html[data-theme="dark"] .museum-home .home-cover__veil {
     background: linear-gradient(
       180deg,
-      oklch(11.6% 0.006 238 / 0.90) 0%,
-      oklch(11.6% 0.006 238 / 0.72) 32%,
-      transparent 58%,
+      oklch(12.2% 0.006 238 / 0.45) 0%,
+      transparent 16%,
+      transparent 68%,
+      oklch(12.2% 0.006 238 / 0.85) 84%,
       var(--surface-canvas) 96%
     );
+  }
+
+  html[data-theme="dark"] .museum-home .home-cover__armillary {
+    opacity: 0.16;
   }
 }
 </style>

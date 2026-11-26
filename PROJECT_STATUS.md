@@ -2,19 +2,67 @@
 
 > 本文件只记录**当下状态、风险与下一步**（硬上限 150 行）。完整历史记录已归档至 [docs/archive/status-2026.md](docs/archive/status-2026.md)。
 
-## 当前总览（2026-11-25）
+## 当前总览（2026-11-26）
+
+本机隔离 H2 已补验后台手动开放时段到匿名移动端选中，连续两次通过。正式排班仍待管理员登录核对。
 
 | 模块 | 当前状态 | 说明 |
 | --- | --- | --- |
-| 数字博物馆主体（前后端 + 3D + 预约 + 商城模拟支付 + 后台） | **已完成并开放未来 365 天全年可约时段** | F-01～F-14、A-01～A-02、N-01～N-06 均已达成；开放未来 365 天（周二至周日每日 4 场，周一闭馆） |
+| 数字博物馆主体（前后端 + 3D + 预约 + 商城模拟支付 + 后台） | **移动应用内候选已修；公网预约与宿主待验** | 隔离环境预约闭环通过；本轮后台页自动拉起应用后，外层与内层 ready 均为 200/UP，但未来 7 天公开预约仍为空；M01 根因待后台聚合，F-06、N-03 不关闭 |
 | 前端审美跃迁与多模态策展体验 3.0（Heluo Editorial 3.0） | **已完成全量门禁与本地提交** | 基线已封存至 `codex/backup-2026-11-24-baseline`，当前工作分支 `codex/feat-curatorial-masterpiece-v3`；计划见 [2026-11-25-curatorial-masterpiece-v3-upgrade.md](docs/plans/2026-11-25-curatorial-masterpiece-v3-upgrade.md)，规范见 [design.md](design.md) |
 | 洛笙 AI 向导 v2（可选扩展） | **v2.3 聊天抽屉便捷度与 365 天工具窗口已升级** | 支持 `Alt+L` / `Ctrl+/`、`420px ↔ 560px` 宽屏切换、上下文条与随时灵感提问、快捷意图芯片坞、复制/重生成/错误重试；[洛笙说明](docs/luosheng/README.md)、[ADR-010](docs/decisions/ADR-010-luosheng-v2-museum-agent.md) |
 
 ## 最近完成（2026-11-25）
 
+- **移动端首页无边框全出血构图与降噪精修（N-03 / N-06，2026-11-26）**：从桌面高清原图无痕重制 `483×941` 竖屏主视觉（[light](frontend/public/media/editorial/home-hero-light-v3-portrait.webp) / [dark](frontend/public/media/editorial/home-hero-dark-v3-portrait.webp)）缩小青铜鼎占比并延展顶光与地面，重构 [HomeView.vue](frontend/src/views/HomeView.vue) `<= 760px` 无边框全出血排布（含 `<= 620px` 单行按钮矮屏约束与英文排版，隐去冗余眉栏/导语/脚链与下屏副文，桌面 `> 760px` 零改动），补齐 [HomeView.spec.ts](frontend/src/test/HomeView.spec.ts) 契约。验证：`vue-tsc -b`、`vitest run` **81/81（449/449）**、`test:e2e:types`、`vite build` + 双预算（首屏 JS `76,060 / 81,638 B`、`woff2=0`）、`impeccable detect` `[]`、本地 `vite preview` 下 `mobile-remediation.e2e.ts` 首页/壳层 **9/9** 及 `320/375/390/1440` 与内置浏览器 `390×844` 实机演示通过。见[精修计划](docs/plans/2026-11-26-mobile-home-curatorial-refinement.md)。
+- **N-03 / N-06 默认构建独立门禁（2026-11-26）**：`index-C4l_snwb.js` 同镜像 Chromium/API **58/58**、Windows WebKit 票根 **1/1**；本地冷启动 LCP 中位 **2.472s**、TBT **35ms**、三次 CLS **0**。与显式构建开关版本分别签核，未发布，远端产物、正式入口和真机仍待验。见[方案 §8.43](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#843-发布准备默认构建产物的独立回归门禁)。
+- **N-03 / N-06 PocketBay 默认构建参数复核（2026-11-26）**：同一默认构建镜像三配置证明，运行时开关能显示洛笙，但不配置证据包路径时中英卡各 0；配置三条路径后各 **9**，移动输入专项 **2/2**。产物入口 `index-C4l_snwb.js` 与主候选不同，不继承其全量和性能门禁。未改生产，公网匿名 GET 仍 `204 / sleeping`。见[方案 §8.42](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#842-发布准备缺省构建参数与洛笙运行时开关)。
+- **N-03 / N-06 本地发布包（2026-11-26）**：从 446 文件的源码 ZIP 解包重建，JAR **698/698** 条目与最新候选逐项一致，入口/洛笙签核资料一致；新镜像 ready 为 UP、隔离预约 7/30/365 天返回 **24/104/1252** 条，预约与洛笙浏览器专项 **2/2**。未上传或发布，PocketBay 远端构建参数和正式入口仍待验。见[方案 §8.41](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#841-发布准备可校验的本地源码包)。
+- **N-03 / M09 展开态无障碍（2026-11-26）**：最终镜像的购物袋、预约与展项抽屉中英双主题 **12 状态 axe 0 violations**；中文购物袋两处待人工判断的文字样本已复验，最低 **5.64:1**。浏览器强制颜色 **6/6** 有焦点环、可点关闭、Tab/Escape 回焦；不替代系统模式、实体设备或读屏。见[方案 §8.39](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#839-阶段-d最终原生抽屉的展开态无障碍检查)。
+- **F-06 / N-03 电子票根焦点交接（2026-11-26）**：旧票根弹层无初始焦点。原生模态补齐背景隔离、双向 Tab、Escape/遮罩关闭、回焦和滚动锁。最新同镜像 `index-RfRkSJAB.js` Chromium/API **58/58**、Windows WebKit 票根 **1/1**、单测 **449/449**、类型/构建/预算通过；本地 LCP 中位 **2.472s**、TBT **40.5ms**、三次 CLS 均 0。未发布；公网、真机、微信和读屏仍待验。见[方案 §8.40](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#840-阶段-d预约成功后电子票根的焦点交接)。
+- **M09 共享底部抽屉（2026-11-26）**：旧购物袋可聚焦背景；修为原生模态、明确双向焦点顺序与退场滚动解锁。最终 `index-BRuZ4Z6y.js` 同镜像 Chromium/API **58/58**，另有 Windows WebKit 抽屉、Chrome 竖横屏、类型/构建、单测 **449/449**。三次馆首页封面 LCP 中位 **2.489s**、TBT **51ms**、CLS 均 0。本地容器已停，未发布；公网、真机与读屏仍待验。见[方案 §8.37](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#837-m09共享底部抽屉的背景焦点与滚动)。
+- **移动文创登录续加与购物袋拖动（2026-11-26）**：同一 Docker 候选的 390×844 触屏 Chromium 实走首页→文创→访客加购→实际登录，只加入 1 件；上拖展开、下拖关闭、重开及刷新均不丢件或重复加购。专项 1/1、业务套件 9/9、E2E 类型通过；未发布，宿主与真机不关闭。见[方案 §8.36](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#836-移动购物袋登录续加与触屏拖动)。
+- **M02 洛笙输入法组合键（2026-11-26）**：移除绕过组合态保护的局部 Escape；短屏与组合键专项 2/2，草稿横竖切换可用，普通 Escape 回焦。前端 450/450、类型和构建预算通过；最新镜像同样通过，真机待验。见[方案 §8.34](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#834-m02合成中文输入法按键与多行草稿)。
+- **公网 M03 表单命中（2026-11-26）**：390×844 下，反馈展开或折叠都可在滚动后拦截用户名右缘（约 9.5×16.7px 重叠）；实点右缘不聚焦，中心可聚焦。访客空袋的关闭和登录链接两态采样未被拦截，实际可进入登录页。未登录或提交，M03 保持开放。见[方案 §8.33](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#833-m03正式入口购物袋与登录表单命中)。
+- **预约余量竞争回归（2026-11-26）**：隔离候选中用真实 API 先占满原时段；移动表单提交收到 409、不产生记录、保留联系方式和人数，换同日时段后仅生成一条预约。预约专项 3/3、E2E 类型通过；未发布。公开平台协议未说明浮层/外层路由配置，ADB 无设备。见[方案 §8.32](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#832-m01移动预约余量竞争与改选)。
+- **公网 M08 已复现（2026-11-26）**：实点馆藏、分类、锚点、检索、预约、青铜鼎详情和商城登录门禁，外层始终是 `/`；刷新外层或把详情时的外层地址放到新标签都打开首页。商城 `/shop` 与 `/login?returnTo=/shop` 的一次浏览器返回、前进均正确恢复内层，未实际登录。线上 `index-DVvv2KEz.js` 与本地候选不同，未发布或修改宿主。见[方案 §8.24](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#824-m08在正式入口复现外层地址与刷新丢失)及[§8.27](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#827-m08器物详情分享与浏览器历史往返)。
+- **M08 外层直达与站内同步分离（2026-11-26）**：当前线上用完整外层地址可直达并刷新保留青铜分类锚点或器物详情。器物页实点预约后外层保留旧器物地址，刷新确实回器物；不只是首页场景。未发现已验证的内层到外层同步机制，见[方案 §8.29](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#829-m08完整外层深链接可直达站内跳转仍不更新)。
+- **公网 M03 已复现（2026-11-26）**：390×844 CSS px 下，PocketBay 反馈展开条 12×40px、收起按钮 18×18px；折叠容器仍拦截条外落点。实际打开青铜鼎高清暗房后，外层反馈按钮拦截同一坐标的暗房图片。宿主能力及表单、购物袋、真机复验待确认；未提交反馈或改平台设置。见[方案 §8.25](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#825-m03正式入口反馈热区与高清暗房命中)。
+- **公网 M04 三次基线未达标（2026-11-26）**：当前线上 `index-DVvv2KEz.js` 每次 CLS 0.874848，主位移是 iframe 内应用页脚。外层 LCP 中位 2.738s（节点为宿主启动标识，非首页封面），TBT 中位 146.5ms。三次均加载真实 iframe 与封面；本地候选未发布，仍需同入口复验。见[方案 §8.26](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#826-m04当前线上版本三次独立冷缓存基线)。
+
+- **公网 M01 就绪态复核（2026-11-26）**：正式入口 GET 200、ready 200/UP，但匿名预约查询对未来 7/30/365 天窗口均为 **200 / data: []**。确认预约不可用在应用 ready 时仍存在；公开结果无法区分缺行、关闭、满额或时间过滤。未登录、写生产或发布。需 PocketBay #329 授权只读时段状态/余量聚合，见[方案 §8.23](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#823-公网就绪与预约可用性复核)。
+- **M01 授权诊断已备（2026-11-26）**：[PocketBay 默认 H2 查询](docs/testing/appointment-availability-diagnostics-h2.sql)与[MySQL 查询](docs/testing/appointment-availability-diagnostics.sql)均通过各自隔离库的空表、日期及容量边界；H2 额外验证只读打开和跨会话时区。实际驱动与生产聚合未验证，等 #329 运维仅返回三行汇总与去敏版本信息，见[方案 §8.30](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#830-m01默认-pocketbay-h2-诊断路径)。
+- **公网 M01 休眠态复查（2026-11-26 01:44）**：匿名 GET 的首页、ready、指南和 7/30/365 天预约查询返回 204，首页和 ready 响应头为 sleeping。未得到应用数据，既不能当成时段为空，也不改变先前就绪态的空时段证据。见[方案 §8.38](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#838-m01公网休眠响应不能替代就绪态诊断)。
+
+- **本地洛笙向导启用（2026-11-26）**：8088 已启用首页入口与聊天 API，项目签核证据以只读方式挂载；实问鼎耳后返回“馆藏资料直出”及 `LS-DING-EARS · v3` 引文。外部模型仍明确关闭。见[实施与验证](docs/plans/2026-11-26-enable-local-luosheng.md)。
+
+- **触控取消恢复合成回归（2026-11-26）**：新增独立图纹石板罗盘浏览器专项，验证 pointercancel 后迟到的 pointermove 不继续拖动，下一次独立触摸手势恢复；隔离 H2 E2E **1/1**、E2E 类型检查通过。该结果是合成事件，不等同真机手势。正式入口只读观测与未关闭项目见[移动审查方案 §8.21–8.22](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#822-手势取消后的合成触控恢复专项)。
+
+- **正式入口冷启动只读复查（2026-11-26）**：公开入口本次先显示 PocketBay 外层启动页，数秒后自动挂载真实 `pb-host-frame` iframe 首页；外层地址停在 heluo.pocketbay.app，应用内层为 heluo--e.pocketbay.app。HTTP HEAD 的 `/`、ready 和 2026-11-26 至 2026-12-03 预约时段查询仍返回 `204 / sleeping / DYNAMIC`，与浏览器本次可进入并存，不能据此推断源站、活动版本或生产数据。iframe 链接自动化无法稳定点中，未记公网路由结论；ADB 无设备，未登录、写入、点击唤醒、改配置或发布。M01、M03/M08、正式性能、真机仍待验；需 PocketBay 授权只读运行状态/日志与时段聚合，详见 [方案 §8.21](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#821-公开入口冷启动及外层路由诊断)。
+
+- **登录照片对比度与声景语义（N-03）**：登录照片文案加入局部渐暗层，Chromium 与 Windows WebKit 双语双主题采样的金色小标题/大标题最小 **6.96:1 / 10.76:1**；声景只在展开时引用存在的设置分组，键盘打开及 Escape 回焦通过。前端全量 **450/450**、隔离浏览器 **46/46**、axe **44 个状态 0 violations**。最新本地三次 CLS 0、LCP 中位 **2.490s**、TBT 中位 **58ms**。未替代未抽样对比度、真机、读屏和正式入口。见[复验证据](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#820-阶段-d图片对比度与声景展开语义)。
+
 - **README 互动亮点补拍**：在原 26 张基础上新增点云微导览三步、洛笙问答、证据卡和导览同屏共 6 张。[截图来源](docs/showcase/SOURCES.md#点云与洛笙亮点)区分 8088 展厅与关闭外部模型的隔离向导；不改变公网和模型验收状态。
 
 - **本地 Docker 与仓库首页**：8088 已切换到重建的前后端镜像，原 MySQL 卷保留，Flyway 到 V31；首页 HTTP 200，健康与数据库就绪均为 UP。README 的 26 张基础截图与散列已核对，见[图库来源](docs/showcase/SOURCES.md)及[本轮验证](docs/plans/2026-11-25-docker-readme-refresh.md)。仓库首页更新不发布镜像，也不更新公网展厅。
+
+- **商城溯源与最新移动候选复验（N-03 / F-09）**：资料加载失败时，原生抽屉仍可用键盘进入、滚动、关闭并回焦；隔离 Chromium **45/45**、双主题双语 axe **44 个状态 0 violations**、双引擎 **30/30** 个输入样本为 16px。独立 Vitest **450/450**（并行首轮两个 3D 时序用例失败）；最新构建本地 Lighthouse 三次 CLS 均 0、LCP 中位 **2.467s**、TBT 中位 **131.5ms**，按约定门槛通过。正式入口仍报告 204 / sleeping；未替代公网性能、真机、读屏或未决对比度验收。见[复验证据](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#819-阶段-d文创溯源抽屉键盘复验)。
+
+- **站内地址恢复（N-03 / M08）**：分类 hash、中文搜索、青铜鼎详情、预约及商城加购转登录，从真实站内入口点入后可刷新或在干净上下文打开，返回及前进各两次无额外历史项。Vite 与 Spring 内嵌前端的隔离环境专项各 **3/3**，隔离 Chromium 移动、业务及双语 **44/44**；未改应用或宿主，公网 iframe 外层仍待验。见[复验证据](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#818-m08应用内刷新分享与历史往返)。
+
+- **移动首页冷启动本地达标（N-03 / M04）**：粗指针不启动桌面光标，浏览器切换到精细指针后仍可按需启用。`index-D6QjFWA_.js` 两组三次 LCP 中位分别 **2.490 / 2.485s**（门槛 2.50s）；六次 CLS 均 0，TBT 中位 40.5 / 45ms。隔离 Chromium **43/43**、Vitest **450/450**、应用及 E2E 类型、生产构建和资源预算通过。正式入口仍报告 204 / sleeping，未部署，公网性能和真机待验。见[复验证据](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#817-m04触屏首页不启动桌面光标)。
+
+- **暗房导航与背景滚动（N-03 / M09）**：应用内 Chromium 从首页经馆藏开暗房，浏览器返回及前进各两次通过，无额外历史项；暗房开启时滚轮与模拟触摸不滚动背景，Escape 关闭后恢复原位置、焦点及滚动。暗房专项重复 **9/9**，隔离移动、业务及双语 **42/42**。未改应用代码；外层历史、真机手势及读屏待验。见[复验证据](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#816-m09暗房浏览器历史与背景滚动复验)。
+
+- **首页减重（N-03 / M04）**：去掉移动首页非必要的共享图标包，桌面入场纹样按需下载。候选 `index-CVdHh779.js` 比上一版少传 6,500 B 必需 JS/CSS；三次模拟 LCP 中位 **2.65s**（原 2.73s，仍未达 2.50s），TBT 53ms，CLS 均为 0。隔离 Chromium **40/40**、默认单测 **450/450**。正式入口仍报告 204 / sleeping，未部署。见[实验和证据](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#815-m04首页移除非必要共享图标与入场纹样依赖)。
+
+- **首屏性能定位（N-03 / M04）**：合并移动首页两次首次布局未改善 Lighthouse LCP，且 TBT 上升，已撤回。原候选 `index-VGG93Lsy.js` 完成重建，首页冷启动、预载、导航和布局相关 6 条 Chromium 回归通过。独立浏览器实际限速测得 LCP 中位 1.904s，但不替代 Lighthouse 模拟中位 2.73s（未达 2.50s）、正式入口或真机验证。见[性能诊断](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#814-m04合并移动首页首次布局实验)。
+
+- **英文放大布局（N-03 / M07）**：顶部拿掉随字号放大的结构间距，窄底栏用可辨识短标签并保留完整可访问名称，英文编号及章节可换行。Chromium 与 Windows WebKit 在 100%/200% 根字号共 24 个引擎与视口组合通过文本边界核验，320px 底栏实点馆藏与预约通过。正式入口、真机及系统级无障碍仍未验。见[实施与证据](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#813-m07英文放大后的重排与跨引擎复验)。
+
+- **移动触控补漏（N-03 / M06）**：文创缩略溯源与预约助手从 36px 修至触屏 44px，桌面仍 36px；39 个页面或展开状态复扫未发现抽样范围内剩余尺寸、中心命中缺陷，320px 竖屏与 844px 横屏实际边缘点按通过。见[实施与证据](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#811-m06补齐文创溯源与预约助手触点)。
+
+- **移动端修复候选（2026-11-25）**：预约空态/失败与最近日期、洛笙短屏、首屏预留、3D 紧凑工具与 WebGL 降级/恢复、触控与双语布局、暗房焦点已定点实施。隔离 H2 实查 1,248 个未来时段；后端 109/109、MySQL 8.4 迁移专项 18/18。V31 仅修参观指南文案，保留馆员编辑及预约记录，未发布或修改生产。PocketBay 公开就绪接口仍报告 sleeping；下一步需只读核对运行版本、时段汇总和宿主能力，再补正式入口及真机验收。见[审查与修复方案 §8](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#8-实施与复验2026-11-25)。
 
 - **浅色首页 1:1 顶光主视觉与浅色瓷白导航栏精修（Round 6，2026-11-25）**：彻底移除 [HomeView.vue](frontend/src/views/HomeView.vue) 中的假 CSS 射灯组件，以 `home-hero-dark-v3.webp` 为 1:1 构图与顶光参考重新生成微暖石灰石展墙照片级主视觉并导出 4 档 lossy WebP，使柔光锥形顶光束自然融于画面且保持冷银灰「水银沁」青铜质感（不发绿、不发棕）；在 [05-shell.css](frontend/src/styles/05-shell.css) 中将浅色顶部导航栏重构为通透瓷白毛玻璃 + 朱砂印章 + 古铜副标 + 墨玉黑登录胶囊（14 份旧 `-backup.webp` 备份图已无损迁至 `artifacts/media-v2-backups/`，不污染构建与版本库）。
 
@@ -53,12 +101,16 @@
 
 ## 当前风险与运维注意
 
+0. **公网预约与宿主风险**：2026-11-26 后台页访问触发 PocketBay 自动拉起后，外层与内层 ready 均为 200/UP，但未来 7 天公开预约仍为 `data: []`。访客接口不能区分缺行、关闭、满额或时间过滤；运营后台要求管理员登录，实际 H2 时段聚合和排班待完成。外层浮层与历史记录能力仍待确认。见[方案 §8.23](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#823-公网就绪与预约可用性复核)及[§8.44](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#844-后台页拉起后的公网预约复核)。
+
 1. **生产开启安全阀**：部署站开启 `VITE_GUIDE_ENABLED=true`、`MUSEUM_GUIDE_ENABLED=true` 时，密钥仅经服务端环境变量注入（`MUSEUM_GUIDE_MODEL_KEY` 或 `DEEPSEEK_API_KEY`），默认日额度 `200` 次/天、最大并发 `4`，异常时可通过 `MUSEUM_GUIDE_PAUSE_PATH` 热暂停或置 `MUSEUM_GUIDE_MODEL_ENABLED=false` 无缝切换至馆藏直出模式。
 2. **Nginx 生产实机流式验证**：`frontend/nginx.conf` 与 `deploy/compose.yaml` 已完成 SSE 关缓冲配置，建议在 Docker Compose 实机部署时抽检一次逐字流式首包延迟。
 3. **移动旧版 Chrome 3D 既有问题**：Android V2366HA Chrome 133 存在 WebGL `contextlost`（同机 vivo 浏览器可用），无 WebGL 时 `ExhibitDetailView` 已自动温和降级至静态 3 看点图版。
 4. **旧 Mailpit 仍在运行**：本机先前已有 `deploy-mailpit-1` 绑定 `0.0.0.0:8025`；新配置不会关停旧实例，本轮未触碰该部署。正式发布前先确认归属并获准关闭暴露的测试收件箱，再复验真实 SMTP、公开 HTTPS、代理链和生产 SSE。洛笙模式、限额及缓存为进程内状态，多副本部署前需另行设计。
 
 ## 下一步
+
+0. 完成 PocketBay 只读诊断，明确 P0 恢复措施及授权范围。候选发布后从正式入口复验性能与宿主导航，并补真机与读屏测试。
 
 1. 已于工作分支 `codex/feat-curatorial-masterpiece-v3` 完成前后端全量门禁校验与本地提交（未推送远程）；后续可按需合并并确认宿主机旧容器 `deploy-mailpit-1` 的运维关停窗口。
 2. 正式公网发布前，在目标部署环境完成外层 HTTPS/反向代理下的真实 SMTP、SSE 首包流式表现与文件热暂停最终核验。
