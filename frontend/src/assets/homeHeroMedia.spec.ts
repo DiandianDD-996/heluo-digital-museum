@@ -67,8 +67,8 @@ describe('home hero high-density media contract', () => {
 
   it('ships portrait mobile candidates and responsive card thumbnails', () => {
     for (const [file, width, height] of [
-      ['home-hero-light-v3-portrait.webp', 483, 941],
-      ['home-hero-dark-v3-portrait.webp', 483, 941],
+      ['home-hero-light-v4-portrait.webp', 483, 941],
+      ['home-hero-dark-v4-portrait.webp', 483, 941],
     ] as const) {
       const dimensions = readLossyWebpDimensions(resolve(mediaDir, file))
       expect(dimensions).toEqual({ width, height })

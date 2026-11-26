@@ -162,7 +162,7 @@ function warmOppositeThemeHero() {
   const target = isDark.value ? 'light' : 'dark'
   const mobile = window.innerWidth <= 760
   const url = mobile
-    ? `/media/editorial/home-hero-${target}-v3-portrait.webp`
+    ? `/media/editorial/home-hero-${target}-v4-portrait.webp`
     : `/media/editorial/home-hero-${target}-v3-1280w.webp`
   warmImageUrl(url)
 }
@@ -275,6 +275,7 @@ watchEffect(() => {
           :aria-label="isDark ? (locale === 'zh-CN' ? '切换到浅色模式' : 'Switch to light mode') : (locale === 'zh-CN' ? '切换到深色模式' : 'Switch to dark mode')"
           :aria-pressed="isDark"
           @pointerenter="warmOppositeThemeHero"
+          @pointerdown="warmOppositeThemeHero"
           @focus="warmOppositeThemeHero"
           @click="toggleTheme($event)"
         >

@@ -38,6 +38,36 @@ function resolveOrigin(origin?: ThemeTransitionOrigin): { x: number; y: number }
   return { x: window.innerWidth * 0.85, y: 32 }
 }
 
+function waitForHeroDecode(timeoutMs = 260): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(resolve, timeoutMs)
+    const done = () => {
+      window.clearTimeout(timer)
+      resolve()
+    }
+    requestAnimationFrame(() => {
+      const img = document.querySelector<HTMLImageElement>('.corridor-home__hero-media')
+      if (!img) {
+        done()
+        return
+      }
+      const decodeImg = () => {
+        if (typeof img.decode === 'function') {
+          img.decode().catch(() => undefined).finally(done)
+        } else {
+          done()
+        }
+      }
+      if (img.complete) {
+        decodeImg()
+      } else {
+        img.addEventListener('load', decodeImg, { once: true })
+        img.addEventListener('error', done, { once: true })
+      }
+    })
+  })
+}
+
 export function useTheme() {
   const isDark = computed(() => current.value === 'dark')
 
@@ -65,7 +95,10 @@ export function useTheme() {
       document.documentElement.classList.add('is-theme-transitioning')
 
       try {
-        const transition = document.startViewTransition(applyState)
+        const transition = document.startViewTransition(async () => {
+          applyState()
+          await waitForHeroDecode()
+        })
         transition.finished
           .catch(() => undefined)
           .finally(() => {

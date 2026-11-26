@@ -131,12 +131,12 @@ const heroMedia = computed(() => isDark.value
   ? {
       src: '/media/editorial/home-hero-dark-v3.webp',
       srcset: '/media/editorial/home-hero-dark-v3-640w.webp 640w, /media/editorial/home-hero-dark-v3-1280w.webp 1280w, /media/editorial/home-hero-dark-v3.webp 1672w',
-      mobileSrcset: '/media/editorial/home-hero-dark-v3-portrait.webp 483w',
+      mobileSrcset: '/media/editorial/home-hero-dark-v4-portrait.webp 483w',
     }
   : {
       src: '/media/editorial/home-hero-light-v3.webp',
       srcset: '/media/editorial/home-hero-light-v3-640w.webp 640w, /media/editorial/home-hero-light-v3-1280w.webp 1280w, /media/editorial/home-hero-light-v3.webp 1672w',
-      mobileSrcset: '/media/editorial/home-hero-light-v3-portrait.webp 483w',
+      mobileSrcset: '/media/editorial/home-hero-light-v4-portrait.webp 483w',
     })
 
 const featureCards = computed(() => locale.value === 'zh-CN'
