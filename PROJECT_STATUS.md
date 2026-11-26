@@ -14,6 +14,8 @@
 
 ## 最近完成（2026-11-25）
 
+- **移动端首页双主题青铜鼎 `v4` 像素级对齐与 PocketBay `#329` 上线（2026-11-26）**：对深/浅色竖屏青铜鼎执行亚像素对齐并导出 [light-v4](frontend/public/media/editorial/home-hero-light-v4-portrait.webp) / [dark-v4](frontend/public/media/editorial/home-hero-dark-v4-portrait.webp) 破除不可变静态缓存，[theme.ts](frontend/src/stores/theme.ts) `startViewTransition` 接入首屏图解码等待、`App.vue` 主题按钮按压预热；`vue-tsc -b`、`vitest run` **81/81（449/449）**、`test:e2e:types`、`vite build` + 双预算、`impeccable detect` `[]`、`mobile-remediation.e2e.ts` 首页/壳层 **9/9** 通过。已部署至 PocketBay `#329`（`heluo`，deployment `17680`，`https://heluo.pocketbay.app` 容器与 HTTP 就绪通过）。
+
 - **移动端首页无边框全出血构图与降噪精修（N-03 / N-06，2026-11-26）**：从桌面高清原图无痕重制 `483×941` 竖屏主视觉（[light](frontend/public/media/editorial/home-hero-light-v3-portrait.webp) / [dark](frontend/public/media/editorial/home-hero-dark-v3-portrait.webp)）缩小青铜鼎占比并延展顶光与地面，重构 [HomeView.vue](frontend/src/views/HomeView.vue) `<= 760px` 无边框全出血排布（含 `<= 620px` 单行按钮矮屏约束与英文排版，隐去冗余眉栏/导语/脚链与下屏副文，桌面 `> 760px` 零改动），补齐 [HomeView.spec.ts](frontend/src/test/HomeView.spec.ts) 契约。验证：`vue-tsc -b`、`vitest run` **81/81（449/449）**、`test:e2e:types`、`vite build` + 双预算（首屏 JS `76,060 / 81,638 B`、`woff2=0`）、`impeccable detect` `[]`、本地 `vite preview` 下 `mobile-remediation.e2e.ts` 首页/壳层 **9/9** 及 `320/375/390/1440` 与内置浏览器 `390×844` 实机演示通过。见[精修计划](docs/plans/2026-11-26-mobile-home-curatorial-refinement.md)。
 - **N-03 / N-06 默认构建独立门禁（2026-11-26）**：`index-C4l_snwb.js` 同镜像 Chromium/API **58/58**、Windows WebKit 票根 **1/1**；本地冷启动 LCP 中位 **2.472s**、TBT **35ms**、三次 CLS **0**。与显式构建开关版本分别签核，未发布，远端产物、正式入口和真机仍待验。见[方案 §8.43](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#843-发布准备默认构建产物的独立回归门禁)。
 - **N-03 / N-06 PocketBay 默认构建参数复核（2026-11-26）**：同一默认构建镜像三配置证明，运行时开关能显示洛笙，但不配置证据包路径时中英卡各 0；配置三条路径后各 **9**，移动输入专项 **2/2**。产物入口 `index-C4l_snwb.js` 与主候选不同，不继承其全量和性能门禁。未改生产，公网匿名 GET 仍 `204 / sleeping`。见[方案 §8.42](docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#842-发布准备缺省构建参数与洛笙运行时开关)。
@@ -112,5 +114,5 @@
 
 0. 完成 PocketBay 只读诊断，明确 P0 恢复措施及授权范围。候选发布后从正式入口复验性能与宿主导航，并补真机与读屏测试。
 
-1. 已于工作分支 `codex/feat-curatorial-masterpiece-v3` 完成前后端全量门禁校验与本地提交（未推送远程）；后续可按需合并并确认宿主机旧容器 `deploy-mailpit-1` 的运维关停窗口。
+1. 已将 `codex/feat-curatorial-masterpiece-v3` 合并至 `main` 并推送 GitHub 远端；后续可按需补充公网真机与读屏复验，并确认宿主机旧容器 `deploy-mailpit-1` 的运维关停窗口。
 2. 正式公网发布前，在目标部署环境完成外层 HTTPS/反向代理下的真实 SMTP、SSE 首包流式表现与文件热暂停最终核验。
