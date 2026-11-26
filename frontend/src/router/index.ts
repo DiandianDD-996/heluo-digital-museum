@@ -30,7 +30,7 @@ const routes = [
   { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('../views/NotFoundView.vue'), meta: { title: '页面不存在' } },
 ]
 
-export const ROUTE_TRANSITION_MS = 240
+export const ROUTE_TRANSITION_MS = 16
 export const routeScrollBehavior: RouterScrollBehavior = (to, from, savedPosition) => {
   if (savedPosition) return savedPosition
   if (to.hash) return { el: to.hash, top: 96, behavior: 'auto' }

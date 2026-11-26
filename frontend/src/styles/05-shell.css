@@ -206,6 +206,11 @@
     min-width: 0;
   }
 
+  /* The footer must start outside the first viewport even before the route chunk resolves. */
+  :is(.app-shell--unknown, .app-shell--home) .route-frame {
+    min-block-size: calc(100svh - var(--header-height));
+  }
+
   /* ── 1. Global Header (72px -> 60px smooth scroll shrink) ── */
   .site-header {
     position: sticky;
@@ -270,6 +275,10 @@
     letter-spacing: 0.04em;
     color: var(--ink-primary);
     white-space: nowrap;
+  }
+
+  .site-header .brand-copy .brand-copy__short {
+    display: none;
   }
 
   .site-header .brand-copy small {
@@ -712,9 +721,14 @@
 
   /* Tablet & Mobile breakpoints */
   @media (max-width: 960px) {
+    :is(.app-shell--unknown, .app-shell--home) .route-frame {
+      min-block-size: calc(100svh - 64px);
+    }
+
     .site-header {
       grid-template-columns: minmax(0, 1fr) auto;
-      gap: var(--space-3);
+      gap: 12px;
+      padding-inline: clamp(16px, 3vw, 32px);
       height: 64px;
     }
 
@@ -726,8 +740,22 @@
       display: none;
     }
 
+    .site-header .brand {
+      container: site-brand / inline-size;
+      column-gap: 12px;
+    }
+
+    .site-utilities {
+      gap: 8px;
+    }
+
     .site-header .brand-copy small {
       display: none;
+    }
+
+    .site-header .brand-copy b {
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .site-header .audio-control .audio-toggle span,
@@ -745,6 +773,11 @@
       padding: 0;
     }
 
+    .site-header .locale-toggle {
+      width: auto;
+      padding-inline: 3px;
+    }
+
     .site-footer__inner {
       grid-template-columns: 1fr;
       gap: var(--space-8);
@@ -760,6 +793,11 @@
       padding-block: 0.25rem;
     }
 
+    .site-footer__links .site-footer__journal-btn {
+      min-block-size: var(--control-min);
+      min-inline-size: var(--control-min);
+    }
+
     .mobile-tab-bar {
       position: fixed;
       left: 0;
@@ -767,7 +805,8 @@
       bottom: 0;
       z-index: 70;
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      container: mobile-tabs / inline-size;
+      grid-template-columns: minmax(min-content, 1fr) repeat(4, minmax(0, 1fr));
       align-items: center;
       min-height: calc(60px + env(safe-area-inset-bottom, 0px));
       padding: 4px 4px calc(4px + env(safe-area-inset-bottom, 0px));
@@ -799,6 +838,10 @@
       font-weight: 500;
       line-height: 1.2;
       transition: color var(--duration-fast) var(--ease-curatorial);
+    }
+
+    .mobile-tab-label--compact {
+      display: none;
     }
 
     .mobile-tab-bar a::before {
@@ -843,13 +886,42 @@
     }
   }
 
+  @container site-brand (width < calc(42px + 10rem)) {
+    .site-header .brand-copy .brand-copy__full--english {
+      display: none;
+    }
+
+    .site-header .brand-copy .brand-copy__short--english {
+      display: block;
+    }
+  }
+
+  @container mobile-tabs (width < 18rem) {
+    .mobile-tab-bar:lang(en) a:has(.mobile-tab-label--compact) .mobile-tab-label {
+      display: none;
+    }
+
+    .mobile-tab-bar:lang(en) .mobile-tab-label--compact {
+      display: block;
+    }
+  }
+
   @media (max-width: 420px) {
+    .site-header .brand-copy .brand-copy__full--english {
+      display: none;
+    }
+
+    .site-header .brand-copy .brand-copy__short--english {
+      display: block;
+    }
+
     .site-header {
-      padding-inline: 0.75rem;
+      padding-inline: 8px;
+      column-gap: 4px;
     }
 
     .site-header .brand {
-      gap: 0.5rem;
+      gap: 4px;
     }
 
     .site-header .brand-seal {
@@ -863,7 +935,31 @@
     }
 
     .site-utilities {
-      gap: 4px;
+      gap: 2px;
+    }
+
+    .mobile-tab-bar {
+      padding-inline: 2px;
+    }
+  }
+
+  @media (max-width: 375px) {
+    .site-header .brand-copy .brand-copy__full--chinese {
+      display: none;
+    }
+
+    .site-header .brand-copy .brand-copy__short--chinese {
+      display: block;
+    }
+  }
+
+  @media (max-width: 340px) {
+    .site-header {
+      padding-inline: 6px;
+    }
+
+    .site-header .brand-copy b.brand-copy__short {
+      font-size: var(--text-xs);
     }
   }
 

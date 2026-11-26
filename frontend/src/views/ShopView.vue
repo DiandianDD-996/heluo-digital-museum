@@ -9,6 +9,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { gsap } from 'gsap'
 import { ShoppingBag } from '@element-plus/icons-vue'
 import { apiGet, apiRequest } from '../lib/api'
+import { readPrefetchCache, writePrefetchCache } from '../lib/prefetch'
 import { localizeProductName, localizeProductSummary } from '../lib/contentLocale'
 import { resolveProductPresentation } from '../lib/productPresentation'
 import { mediaSizes, mediaSrcset } from '../lib/responsiveMedia'
@@ -172,10 +173,19 @@ let storefrontCued = false
 
 async function loadProducts() {
   const requestId = ++productRequestId
-  loading.value = true
+  const cached = readPrefetchCache<Product[]>('/products')
   productError.value = ''
+  if (cached) {
+    products.value = cached
+    syncRouteProvenanceItem()
+    loading.value = false
+  } else {
+    loading.value = true
+  }
+
   try {
     const result = await apiGet<Product[]>('/products')
+    writePrefetchCache('/products', result)
     if (requestId === productRequestId) {
       products.value = result
       syncRouteProvenanceItem()
@@ -185,7 +195,9 @@ async function loadProducts() {
       void audioSystem.playNarrative('discovery', { volume: 0.22 })
     }
   } catch (reason) {
-    if (requestId === productRequestId) productError.value = reason instanceof Error ? reason.message : '商品加载失败。'
+    if (!cached && requestId === productRequestId) {
+      productError.value = reason instanceof Error ? reason.message : '商品加载失败。'
+    }
   } finally {
     if (requestId === productRequestId) loading.value = false
   }
@@ -441,16 +453,17 @@ function setupEntrance() {
   if (!shouldRunGsapReveal() || !root.value) return
   gsapContext?.revert()
   gsapContext = createGsapContext(root.value, () => {
-    revealSequence('[data-motion="shop-intro"] > *', { stagger: 0.06 })
-    revealSequence('[data-motion="shop-panel"] > *', { stagger: 0.05, delay: 0.14 })
+    revealSequence('[data-motion="shop-intro"] > *', { stagger: 0.03 })
+    revealSequence('[data-motion="shop-panel"] > *', { stagger: 0.03, delay: 0.04 })
   })
 }
 
 onMounted(async () => {
   setupEntrance()
+  const productsPromise = loadProducts()
   await auth.initialize()
   restorePendingCheckout()
-  await Promise.all([loadProducts(), loadCart()])
+  await Promise.all([productsPromise, loadCart()])
   await resumePendingAdd()
 })
 
@@ -527,7 +540,7 @@ onBeforeUnmount(() => gsapContext?.revert())
                 :srcset="mediaSrcset(displayProduct(product).coverImageUrl)"
                 :sizes="mediaSizes"
                 :alt="displayProduct(product).name"
-                :loading="index === 0 ? 'eager' : 'lazy'"
+                :loading="index < 3 ? 'eager' : 'lazy'"
                 :fetchpriority="index === 0 ? 'high' : 'auto'"
                 decoding="async"
                 @error="useFallbackProductImage($event, product)"
@@ -554,7 +567,15 @@ onBeforeUnmount(() => gsapContext?.revert())
                 :aria-label="locale === 'en-US' ? `Open provenance: ${displayProduct(product).inspirationLabelEn}` : `查看溯源：${displayProduct(product).inspirationLabelZh}`"
                 @click="provenanceProduct = product"
               >
-                <img :src="displayProduct(product).inspirationArtifactThumb" alt="" aria-hidden="true" loading="lazy" decoding="async" />
+                <img
+                  :src="displayProduct(product).inspirationArtifactThumb"
+                  :srcset="mediaSrcset(displayProduct(product).inspirationArtifactThumb)"
+                  sizes="48px"
+                  alt=""
+                  aria-hidden="true"
+                  loading="lazy"
+                  decoding="async"
+                />
                 <span>{{ locale === 'en-US' ? displayProduct(product).inspirationLabelEn : displayProduct(product).inspirationLabelZh }}</span>
               </button>
             </div>
@@ -851,6 +872,13 @@ onBeforeUnmount(() => gsapContext?.revert())
   cursor: pointer;
   transition: border-color var(--duration-fast) var(--ease-curatorial),
               transform var(--duration-fast) var(--ease-curatorial);
+}
+
+@media (pointer: coarse) {
+  .product-motif-chip {
+    min-block-size: var(--control-min);
+    min-inline-size: var(--control-min);
+  }
 }
 
 .product-motif-chip:hover {

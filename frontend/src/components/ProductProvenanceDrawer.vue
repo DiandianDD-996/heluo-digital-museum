@@ -70,6 +70,7 @@ const artifactCache = new Map<string, ArtifactOriginDto>()
 const productDetail = ref<ProductDetailDto | null>(null)
 const originArtifact = ref<ArtifactOriginDto | null>(null)
 const loadingDetail = ref(false)
+const dialogRef = ref<HTMLDialogElement | null>(null)
 
 const FALLBACK_INSPIRATION_SLUGS: Record<string, string> = {
   'river-line-teacup-set': 'painted-pottery-water-jar',
@@ -84,6 +85,7 @@ const copy = computed(() => locale.value === 'en-US' ? {
   editionFrame: 'STORE EDITION',
   bridgeTag: 'MOTIF TRANSLATION',
   designNotes: 'Curatorial Design Notes',
+  contentRegion: 'Provenance details',
   boundaryTitle: 'Transparent Edition Boundary',
   boundaryBody: 'Original museum concept merchandise created for curatorial demonstration. Checkout uses simulated payment only.',
   inspectArtifact: 'Read Source Object Archive →',
@@ -101,6 +103,7 @@ const copy = computed(() => locale.value === 'en-US' ? {
   editionFrame: '当代文创转译',
   bridgeTag: '纹样转译',
   designNotes: '策展设计手记',
+  contentRegion: '器物溯源正文',
   boundaryTitle: '概念文创说明',
   boundaryBody: '本品为河洛数字博物馆原创概念文创，材质规格仅作策展设计呈现，当前商城流程采用模拟支付演示。',
   inspectArtifact: '阅读灵感母本档案 →',
@@ -197,19 +200,33 @@ async function fetchProvenance(item: ProvenanceProductSummary) {
   }
 }
 
-function handleKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape' && props.open) {
-    emit('close')
+function closeDialog(element: Element) {
+  const dialog = element as HTMLDialogElement
+  dialog.inert = true
+  if (dialog.open) dialog.close()
+}
+
+function containTab(event: KeyboardEvent) {
+  if (event.key !== 'Tab' || !dialogRef.value) return
+  const controls = dialogRef.value.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], [tabindex="0"]')
+  const first = controls[0]
+  const last = controls[controls.length - 1]
+  if (document.activeElement === (event.shiftKey ? first : last)) {
+    event.preventDefault()
+    ;(event.shiftKey ? last : first)?.focus()
   }
 }
+
+watch(dialogRef, (dialog) => {
+  if (dialog && !dialog.open) {
+    dialog.inert = false
+    dialog.showModal()
+  }
+}, { flush: 'post' })
 
 watch(
   () => [props.open, props.product?.slug] as const,
   ([isOpen, slug]) => {
-    if (typeof window !== 'undefined') {
-      if (isOpen) window.addEventListener('keydown', handleKeydown)
-      else window.removeEventListener('keydown', handleKeydown)
-    }
     if (isOpen && props.product && slug) {
       void fetchProvenance(props.product)
     }
@@ -218,27 +235,24 @@ watch(
 )
 
 onBeforeUnmount(() => {
-  if (typeof window !== 'undefined') {
-    window.removeEventListener('keydown', handleKeydown)
-  }
+  if (dialogRef.value?.open) dialogRef.value.close()
 })
 </script>
 
 <template>
   <Teleport to="body">
-    <Transition name="provenance-fade">
-      <div
+    <Transition name="provenance-fade" @before-leave="closeDialog">
+      <dialog
         v-if="open && product && displayProduct"
+        ref="dialogRef"
         class="provenance-backdrop"
         data-testid="product-provenance-drawer"
+        :aria-label="displayProduct.name"
+        @cancel.prevent="emit('close')"
+        @keydown="containTab"
         @click.self="emit('close')"
       >
-        <aside
-          class="provenance-drawer"
-          role="dialog"
-          aria-modal="true"
-          :aria-label="displayProduct.name"
-        >
+        <div class="provenance-drawer">
           <header class="provenance-drawer__head">
             <div>
               <p class="eyebrow">{{ copy.eyebrow }}</p>
@@ -249,13 +263,14 @@ onBeforeUnmount(() => {
               class="provenance-drawer__close"
               data-testid="provenance-close"
               :aria-label="copy.closeAria"
+              autofocus
               @click="emit('close')"
             >
               ×
             </button>
           </header>
 
-          <div class="provenance-drawer__body">
+          <div class="provenance-drawer__body" role="region" :aria-label="copy.contentRegion" tabindex="0">
             <!-- 1:1 Side-by-Side Motif Provenance Diptych -->
             <section class="provenance-diptych" :aria-label="copy.bridgeTag">
               <article v-if="displayOrigin" class="provenance-frame provenance-frame--source">
@@ -333,8 +348,8 @@ onBeforeUnmount(() => {
               {{ product.availableStock === 0 ? copy.soldOut : adding ? copy.adding : `${copy.addToBag} · ¥ ${product.price}` }}
             </FluidButton>
           </footer>
-        </aside>
-      </div>
+        </div>
+      </dialog>
     </Transition>
   </Teleport>
 </template>
@@ -344,11 +359,30 @@ onBeforeUnmount(() => {
   position: fixed;
   inset: 0;
   z-index: 95;
-  display: flex;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
   justify-content: flex-end;
   background: oklch(11% 0.006 238 / 0.56);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+}
+
+.provenance-backdrop[open],
+.provenance-backdrop.provenance-fade-leave-active {
+  display: flex;
+}
+
+.provenance-backdrop::backdrop {
+  background: transparent;
+}
+
+:global(html:has(.provenance-backdrop[open])) {
+  overflow: hidden;
 }
 
 .provenance-drawer {
@@ -399,10 +433,15 @@ onBeforeUnmount(() => {
 
 .provenance-drawer__body {
   overflow-y: auto;
+  overscroll-behavior-y: contain;
   display: grid;
   align-content: start;
   gap: var(--space-5);
   padding: var(--space-5) var(--space-6);
+}
+
+.provenance-drawer__body:focus-visible {
+  outline-offset: -2px;
 }
 
 .provenance-diptych {

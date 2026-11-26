@@ -7,9 +7,9 @@ import { describe, expect, it } from 'vitest'
 const readView = (name: string) => readFileSync(resolve(process.cwd(), `src/views/${name}.vue`), 'utf8')
 
 describe('pointer dot field page mapping', () => {
-  it('mounts exactly once in each approved heading and nowhere in the 3D detail', () => {
+  it('places one pointer field in each approved heading and none in the 3D detail', () => {
     const mappings = [
-      ['HomeView', /<section class="home-cover">[\s\S]*?<PointerDotField variant="image" \/>/],
+      ['HomeView', /<section class="home-cover">[\s\S]*?<PointerDotField v-if="showPointerField" variant="image" \/>/],
       ['ExhibitsView', /<section class="exhibits-intro"[\s\S]*?<PointerDotField \/>/],
       ['AppointmentView', /<header class="appointment-heading"[\s\S]*?<PointerDotField variant="heading" \/>/],
     ] as const

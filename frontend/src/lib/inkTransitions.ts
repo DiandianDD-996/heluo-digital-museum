@@ -59,11 +59,13 @@ export function installInkTransitions(router: Router): void {
   let domTimeout: number | undefined
 
   router.beforeResolve((to, from) => {
-    if (to.path === from.path || !shouldTransition()) return true
+    if (to.path === from.path || !activeArtifactSlug.value || !shouldTransition()) return true
 
     document.documentElement.style.setProperty('--ink-x', lastClickX)
     document.documentElement.style.setProperty('--ink-y', lastClickY)
-    void audioSystem.playTransition('pageChange', { volume: 0.12 })
+    if (audioSystem.isSfxEnabled()) {
+      void audioSystem.playTransition('pageChange', { volume: 0.12 })
+    }
 
     return new Promise((resolve) => {
       const transition = document.startViewTransition!(() => {

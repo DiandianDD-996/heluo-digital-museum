@@ -147,7 +147,7 @@ public class BootstrapDataInitializer implements CommandLineRunner {
                 "河洛数字博物馆");
         insertArticle(adminId, "RIVER", "参观与数字导览须知：规划你的河洛博物馆之旅", "visit-and-digital-guide",
                 "/media/exhibits/painted-pottery-jar-cover.webp", "IMG-EXHIBIT-POTTERY-JAR",
-                "一文了解未来 14 天公开预约窗口、单笔 1–30 人规则、3D 展厅操作与推荐游览动线。",
+                "一文了解未来 365 天预约查询窗口、单笔 1–30 人规则、3D 展厅操作与推荐游览动线。",
                 "河洛数字博物馆");
     }
 

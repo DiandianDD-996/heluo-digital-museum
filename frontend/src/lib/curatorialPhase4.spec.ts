@@ -48,20 +48,37 @@ describe('Phase 4 curatorial flow: prefetch LRU, shared-element plate, optical l
     expect(isActiveArtifactPlate('heluo-bronze-ding')).toBe(false)
   })
 
-  it('opens fullscreen darkroom zoom in ArtifactLoupeStage and closes on Escape', async () => {
+  it('opens the native darkroom dialog and closes on its cancel event', async () => {
+    // JSDOM has no dialog top layer; the browser test covers focus and inertness.
+    const prototype = window.HTMLDialogElement.prototype
+    const methods = {
+      showModal(this: HTMLDialogElement) { this.setAttribute('open', '') },
+      close(this: HTMLDialogElement) { this.removeAttribute('open') },
+    }
+    const descriptors = Object.getOwnPropertyDescriptors(prototype)
+    for (const key of Object.keys(methods) as (keyof typeof methods)[]) {
+      Object.defineProperty(prototype, key, { configurable: true, value: methods[key] })
+    }
     const wrapper = mount(ArtifactLoupeStage, {
+      attachTo: document.body,
       props: { src: '/media/editorial/explore-jade-bi-user-v2.webp', alt: '河图玉璧' },
-      global: { stubs: { Teleport: true } },
     })
 
-    expect(wrapper.find('[data-testid="artifact-loupe-lightbox"]').exists()).toBe(false)
-    await wrapper.get('[data-testid="artifact-fullscreen-btn"]').trigger('click')
-    expect(wrapper.find('[data-testid="artifact-loupe-lightbox"]').exists()).toBe(true)
-
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
-    await wrapper.vm.$nextTick()
-    expect(wrapper.find('[data-testid="artifact-loupe-lightbox"]').exists()).toBe(false)
-    wrapper.unmount()
+    try {
+      const dialog = document.body.querySelector<HTMLDialogElement>('[data-testid="artifact-loupe-lightbox"]')!
+      expect(dialog.open).toBe(false)
+      await wrapper.get('[data-testid="artifact-fullscreen-btn"]').trigger('click')
+      expect(dialog.open).toBe(true)
+      dialog.dispatchEvent(new Event('cancel', { cancelable: true }))
+      expect(dialog.open).toBe(false)
+    } finally {
+      wrapper.unmount()
+      for (const key of Object.keys(methods) as (keyof typeof methods)[]) {
+        const original = descriptors[key]
+        if (original) Object.defineProperty(prototype, key, original)
+        else Reflect.deleteProperty(prototype, key)
+      }
+    }
   })
 
   it('renders hover miniature plaque preview cards for cross-referenced artifacts in PlainTextLinks', () => {

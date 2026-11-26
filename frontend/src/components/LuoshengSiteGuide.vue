@@ -624,7 +624,6 @@ onBeforeUnmount(() => {
         role="dialog"
         aria-modal="false"
         :aria-label="strings.title"
-        @keydown.esc="closePanel"
       >
         <header class="luosheng-drawer__header">
           <div class="luosheng-drawer__identity">
@@ -673,28 +672,14 @@ onBeforeUnmount(() => {
             <b>{{ strings.contextPrefix }}</b> · {{ contextLabel }}
           </span>
           <button
-            v-if="hasMessages"
             type="button"
             class="luosheng-context-bar__ideas"
+            :class="{ 'luosheng-context-bar__ideas--welcome': !hasMessages }"
             data-testid="luosheng-ideas-toggle"
             :aria-expanded="showIdeas"
             @click="showIdeas = !showIdeas"
           >
             {{ showIdeas ? strings.ideasClose : strings.ideasToggle }}
-          </button>
-        </div>
-
-        <!-- On-demand Prompt Ideas Pop-down Mid-Conversation -->
-        <div v-if="hasMessages && showIdeas" class="luosheng-ideas-drawer" data-testid="luosheng-ideas-drawer">
-          <button
-            v-for="starter in preset.starters"
-            :key="starter"
-            type="button"
-            class="luosheng-starter-chip"
-            :disabled="streaming"
-            @click="sendMessage(starter)"
-          >
-            {{ starter }}
           </button>
         </div>
 
@@ -710,7 +695,7 @@ onBeforeUnmount(() => {
             <!-- Welcome & route-tailored starter pills -->
             <div v-if="!hasMessages" class="luosheng-welcome">
               <p class="luosheng-welcome__lead">{{ preset.welcome }}</p>
-              <div class="luosheng-starters">
+              <div class="luosheng-starters luosheng-starters--welcome">
                 <button
                   v-for="starter in preset.starters"
                   :key="starter"
@@ -926,6 +911,17 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
+          <div v-if="showIdeas" class="luosheng-ideas-drawer" data-testid="luosheng-ideas-drawer">
+            <button
+              v-for="starter in preset.starters"
+              :key="starter"
+              type="button"
+              class="luosheng-starter-chip"
+              :disabled="streaming"
+              @click="sendMessage(starter)"
+            >{{ starter }}</button>
+          </div>
+
           <button
             v-if="hasMessages && !isNearBottom"
             type="button"
@@ -1088,6 +1084,17 @@ onBeforeUnmount(() => {
   transition: width 220ms var(--ease-curatorial);
 }
 
+.luosheng-drawer__header,
+.luosheng-context-bar,
+.luosheng-quick-intents,
+.luosheng-composer {
+  flex-shrink: 0;
+}
+
+.luosheng-context-bar__ideas--welcome {
+  display: none;
+}
+
 .luosheng-drawer.is-wide {
   width: min(560px, calc(100vw - 2rem));
 }
@@ -1154,9 +1161,13 @@ onBeforeUnmount(() => {
 }
 
 .luosheng-ideas-drawer {
+  position: absolute;
+  z-index: 2;
+  inset: 0 0 auto;
   display: grid;
   gap: 0.4rem;
-  max-height: 152px;
+  max-height: min(152px, 100%);
+  overscroll-behavior: contain;
   overflow-y: auto;
   padding: 0.65rem 0.85rem;
   border-bottom: 1px solid var(--border-hairline);
@@ -1240,8 +1251,9 @@ onBeforeUnmount(() => {
 /* ── Chat Log ── */
 .luosheng-log {
   flex: 1 1 auto;
-  min-height: 220px;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 1rem;
   display: flex;
   flex-direction: column;
@@ -1796,7 +1808,7 @@ onBeforeUnmount(() => {
 }
 
 /* ── Mobile Bottom Sheet & Compact Seal Trigger (< 768px) ── */
-@media (max-width: 767px) {
+@media (max-width: 767px), (pointer: coarse) and (max-height: 520px) {
   .luosheng-root {
     right: var(--space-3);
     bottom: calc(66px + env(safe-area-inset-bottom, 0px) + var(--space-2));
@@ -1847,6 +1859,54 @@ onBeforeUnmount(() => {
     border-right: 0;
     border-bottom: 0;
     padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) and (max-width: 960px) {
+  .luosheng-root.is-exhibit-stage {
+    bottom: calc(146px + env(safe-area-inset-bottom, 0px));
+    right: max(var(--space-3), env(safe-area-inset-right, 0px));
+  }
+}
+
+@media (max-height: 550px) {
+  .luosheng-drawer,
+  .luosheng-drawer.is-wide {
+    height: min(26rem, 94dvh);
+    max-height: calc(100dvh - max(var(--space-2), env(safe-area-inset-top, 0px)));
+  }
+
+  .luosheng-drawer__header,
+  .luosheng-composer {
+    padding-block: var(--space-2);
+  }
+
+  .luosheng-starters--welcome,
+  .luosheng-composer__hint {
+    display: none;
+  }
+
+  .luosheng-context-bar__ideas--welcome {
+    display: inline-flex;
+  }
+
+  .luosheng-input {
+    max-height: clamp(48px, 19dvh, 88px);
+  }
+}
+
+@media (pointer: coarse) {
+  .luosheng-drawer :is(.luosheng-header-btn, .luosheng-context-bar__ideas, .luosheng-intent-chip, .luosheng-send) {
+    min-inline-size: var(--control-min);
+    min-block-size: var(--control-min);
+  }
+
+  .luosheng-drawer :is(.luosheng-input, .luosheng-send) {
+    min-block-size: 48px;
+  }
+
+  .luosheng-input {
+    font-size: max(16px, 1rem);
   }
 }
 

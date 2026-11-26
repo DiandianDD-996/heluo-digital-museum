@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { randomBytes, randomUUID } from 'node:crypto'
@@ -6,13 +6,26 @@ import { randomBytes, randomUUID } from 'node:crypto'
 const output = resolve('../artifacts/sitewide-quality/appointment-redesign')
 mkdirSync(output, { recursive: true })
 
+async function expectCurrentMonthCalendar(page: Page) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit',
+  }).formatToParts(new Date())
+  const year = parts.find(part => part.type === 'year')!.value
+  const month = parts.find(part => part.type === 'month')!.value
+  const lastDay = new Date(Date.UTC(Number(year), Number(month), 0)).getUTCDate()
+  const expected = Array.from({ length: lastDay }, (_, index) =>
+    `${year}-${month}-${String(index + 1).padStart(2, '0')}`)
+  await expect.poll(() => page.locator('.appointment-day').evaluateAll(days =>
+    days.map(day => day.getAttribute('data-visit-date')))).toEqual(expected)
+}
+
 test('booking text and placeholders remain readable in both themes', async ({ browser, baseURL }) => {
   for (const theme of ['light', 'dark']) {
     const context = await browser.newContext({ baseURL, viewport: { width: 1440, height: 900 } })
     const page = await context.newPage()
     await page.addInitScript(theme => localStorage.setItem('heluo.theme', theme), theme)
     await page.goto('/appointment')
-    await expect(page.locator('.appointment-day')).toHaveCount(14)
+    await expectCurrentMonthCalendar(page)
     const contrasts = await page.evaluate(() => {
       const canvas = document.createElement('canvas')
       canvas.width = canvas.height = 1
@@ -60,7 +73,7 @@ test('appointment layout remains usable across themes, languages and viewports',
           localStorage.setItem('heluo.locale', locale)
         }, { theme, locale })
         await page.goto('/appointment')
-        await expect(page.locator('.appointment-day')).toHaveCount(14)
+        await expectCurrentMonthCalendar(page)
         await page.locator('.appointment-day:not(:disabled)').first().click()
         await expect(page.locator('.appointment-time.active')).toBeVisible()
         const metrics = await page.evaluate(() => {
@@ -108,7 +121,8 @@ test('mobile contact sheet keeps values, returns focus and submits after login',
   await sheet.getByLabel('联系人手机号', { exact: true }).fill('13800000000')
   await sheet.getByLabel('联系人邮箱', { exact: true }).fill(visitor.email)
   await sheet.getByRole('button', { name: '增加参与人数', exact: true }).click()
-  await expect(sheet.getByRole('spinbutton', { name: '参与人数', exact: true })).toHaveValue('2')
+  const partySize = sheet.getByRole('spinbutton', { name: '同行人数', exact: true })
+  await expect(partySize).toHaveValue('2')
   await expect.poll(async () => (await sheet.boundingBox())?.y ?? 844).toBeLessThan(100)
   await page.screenshot({ path: resolve(output, 'mobile-contact-sheet.png') })
   await page.keyboard.press('Escape')
@@ -116,7 +130,7 @@ test('mobile contact sheet keeps values, returns focus and submits after login',
   await expect(trigger).toBeFocused()
   await trigger.click()
   await expect(sheet.getByLabel('联系人姓名', { exact: true })).toHaveValue('界面验收')
-  await expect(sheet.getByRole('spinbutton', { name: '参与人数', exact: true })).toHaveValue('2')
+  await expect(partySize).toHaveValue('2')
   await sheet.getByRole('button', { name: '确认预约', exact: true }).click()
   await expect(page).toHaveURL(/\/login\?returnTo=/)
   await expect(page.getByRole('dialog')).toHaveCount(0)
@@ -126,12 +140,42 @@ test('mobile contact sheet keeps values, returns focus and submits after login',
   await expect(page).toHaveURL(/\/appointment$/)
   await page.getByRole('button', { name: '填写预约信息', exact: true }).click()
   await expect(sheet.getByLabel('联系人手机号', { exact: true })).toHaveValue('13800000000')
-  await expect(sheet.getByRole('spinbutton', { name: '参与人数', exact: true })).toHaveValue('2')
+  await expect(partySize).toHaveValue('2')
   const submitted = page.waitForResponse(response => response.url().endsWith('/api/v1/appointments') && response.request().method() === 'POST')
   await sheet.getByRole('button', { name: '确认预约', exact: true }).click()
   const created = (await (await submitted).json()).data as { appointmentNo: string }
-  await expect(sheet.getByText(/预约已提交/)).toBeVisible()
-  await sheet.getByRole('link', { name: '查看我的预约', exact: true }).click()
+  const passDialog = page.getByTestId('museum-pass-modal')
+  const closePass = passDialog.getByRole('button', { name: '关闭电子票根弹窗' })
+  const reopenPass = page.getByTestId('reopen-museum-pass')
+  await expect(passDialog.getByText(/预约已提交/)).toBeVisible()
+  const passTag = await passDialog.evaluate(element => element.localName)
+  await page.screenshot({ path: resolve(output, `mobile-issued-pass-${passTag}-${page.context().browser()?.browserType().name()}.png`) })
+  await expect(closePass).toBeFocused()
+  await reopenPass.evaluate(element => element.focus())
+  await expect(closePass).toBeFocused()
+  await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).overflowY)).toBe('hidden')
+  const focusStops = await passDialog.evaluate(dialog =>
+    [...dialog.querySelectorAll<HTMLElement>('a[href], button, input, textarea, select, [tabindex]')]
+      .filter(element => element.tabIndex >= 0 && !element.matches(':disabled') && element.getClientRects().length > 0).length)
+  expect(focusStops).toBeGreaterThanOrEqual(3)
+  for (const key of ['Tab', 'Shift+Tab']) {
+    for (let index = 0; index < focusStops * 2; index++) {
+      await page.keyboard.press(key)
+      await expect.poll(() => passDialog.evaluate(dialog => dialog.contains(document.activeElement))).toBe(true)
+    }
+    await expect(closePass).toBeFocused()
+  }
+  await page.keyboard.press('Escape')
+  await expect(passDialog).toBeHidden()
+  await expect(reopenPass).toBeFocused()
+  await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).overflowY)).not.toBe('hidden')
+  await reopenPass.press('Enter')
+  await expect(closePass).toBeFocused()
+  await page.mouse.click(3, 3)
+  await expect(passDialog).toBeHidden()
+  await expect(reopenPass).toBeFocused()
+  await reopenPass.click()
+  await passDialog.getByRole('link', { name: '查看我的预约', exact: true }).click()
   await page.locator('.profile-records').scrollIntoViewIfNeeded()
   await expect(page.locator('.profile-record-card').filter({ hasText: created.appointmentNo })).toContainText('2 人')
 })

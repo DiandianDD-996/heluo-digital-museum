@@ -4,11 +4,19 @@
 
 模型预览由 Maven 测试入口提供，仅监听本机回环地址。启动与联调说明见[洛笙青铜鼎实时问答预览](../docs/plans/2026-11-20-luosheng-model-preview.md)。
 
-默认前后端关闭；显式开启后端 `MUSEUM_GUIDE_ENABLED` 与前端构建参数 `VITE_GUIDE_ENABLED`。候选覆盖文件 `compose.luosheng-candidate.yaml` 只读挂载 `MUSEUM_GUIDE_RELEASE_DIR`：放置已签核的 `ding.zh-CN.json`、`ding.zh-CN.sha256`、同目录 `ding.en-US.json`、`ding.en-US.sha256` 及共享的 `minimum-release-version.txt`。最低版本文件填写正整数，指纹文件填写各语言签核 SHA-256。通用部署变量见[洛笙说明](../docs/luosheng/README.md)。
+默认前后端关闭。Compose 会把仓库内 `content/luosheng` 以只读方式挂到 `/run/luosheng`，并以签核摘要和最低版本文件校验中英证据卡。若要在本地开放确定性馆藏回答，在忽略文件 `deploy/.env` 设置 `VITE_GUIDE_ENABLED=true`、`MUSEUM_GUIDE_ENABLED=true`、`MUSEUM_GUIDE_MODEL_ENABLED=false`，然后重建前端并启动服务。此模式不请求外部模型、不需要模型 API 密钥。
 
-## 当前本机演示入口（2026-09-21）
+```powershell
+docker compose --env-file deploy/.env -f deploy/compose.yaml build frontend
+docker compose --env-file deploy/.env -f deploy/compose.yaml up -d backend frontend
+Invoke-RestMethod http://localhost:8088/api/v1/ready
+```
 
-当前 `http://localhost:8088` 使用仓库根目录的 `docker-compose.yml`，项目名 `heluo-museum`，服务 `museum`，镜像 `heluo-museum:local`，容器 `heluo-museum-local`。这是打包前端的 Spring Boot/H2 演示容器，与下文 MySQL 多容器方案不同，不能同时占用 8088。
+接入模型须另行获批模型供应方，随后在受保护的运行环境中设置模型开关、端点和密钥，不要提交密钥。候选覆盖文件 `compose.luosheng-candidate.yaml` 只读挂载独立签核发布目录；通用部署变量见[洛笙说明](../docs/luosheng/README.md)。
+
+## 单容器 H2 演示方案
+
+仓库根目录的 `docker-compose.yml` 提供 Spring Boot/H2 演示容器，项目名 `heluo-museum`，服务 `museum`，镜像 `heluo-museum:local`。若同时运行下文的 MySQL 方案，需为两个入口分配不同的宿主机端口。
 
 从仓库根目录重建、启动：
 
@@ -87,3 +95,17 @@ Windows 原生 MySQL 8 隔离验收使用 `node scripts/quality-mysql-environmen
 获准在 Compose 开启候选后，显式加上 `-f deploy/compose.luosheng-candidate.yaml`。先用 `config --quiet` 验证插值，再核对证据卡、最低版本与签核指纹；配置校验本身不核验这些文件。运行时暂停可在只读挂载的宿主机目录创建 `pause` 标记，移除后恢复为管理员设置的模式。
 
 管理员可在 `/api/v1/admin/guide/overview` 查看关闭态、模型额度、并发与拦截计数；`POST /api/v1/admin/guide/cache/invalidate` 清空目录缓存，`POST /api/v1/admin/guide/runtime-mode` 可切换 `NORMAL`、`DETERMINISTIC`、`PAUSED`。文件暂停优先；应用重启会重置运行模式、应用计数与缓存，供应商实际用量以其账单为准。详细接口、评测和限制见[洛笙 v2.2 说明](../docs/luosheng/README.md#5-v22-后端加固与运行时治理2026-11-24)。
+
+### PocketBay 单镜像启用洛笙
+
+这不是 Compose 的配置方式。根目录 Dockerfile 把证据包复制到 `/app/content/luosheng`。用该镜像启用确定性导览且不调用外部模型时，应在**已授权**的运行环境设置以下非秘密配置：
+
+```dotenv
+MUSEUM_GUIDE_ENABLED=true
+MUSEUM_GUIDE_MODEL_ENABLED=false
+MUSEUM_GUIDE_PACK_PATH=/app/content/luosheng/ding.zh-CN.json
+MUSEUM_GUIDE_MINIMUM_VERSION_PATH=/app/content/luosheng/minimum-release-version.txt
+MUSEUM_GUIDE_APPROVED_DIGEST_PATH=/app/content/luosheng/ding.zh-CN.sha256
+```
+
+根 Dockerfile 默认前端构建参数为 `VITE_GUIDE_ENABLED=false`。此时 `pocketbay` profile 可通过服务端 HTML meta 启用浏览器入口；开启入口不会自动加载签核证据。实际验证应同时检查首页和器物详情的按钮，以及匿名 `GET /api/v1/guide/exhibits/heluo-bronze-ding-3d?locale=zh-CN` 和 `locale=en-US` 均返回 `data.available=true` 与预期卡数。未获准启用时保持运行开关关闭，并使用默认构建。默认构建与 `VITE_GUIDE_ENABLED=true` 构建有不同静态指纹，不混用验收结论；远端构建参数、配置注入和正式入口另需验证。见[移动审查方案 §8.42](../docs/plans/2026-11-25-production-mobile-audit-and-remediation.md#842-发布准备缺省构建参数与洛笙运行时开关)。

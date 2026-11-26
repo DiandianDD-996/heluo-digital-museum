@@ -10,6 +10,8 @@ import { useLocale } from './stores/locale'
 import { useTheme } from './stores/theme'
 import { useCuratorialBookmarks } from './stores/curatorialBookmarks'
 import { guideEnabled, useLuoshengStore } from './stores/luoshengStore'
+import { prefetchRoute, warmPublicRoutesOnIdle } from './lib/routePrefetch'
+import { warmImageUrl } from './lib/prefetch'
 import AudioControl from './components/AudioControl.vue'
 import LoadingSkeleton from './components/LoadingSkeleton.vue'
 import MuseumBrandSeal from './components/MuseumBrandSeal.vue'
@@ -21,7 +23,9 @@ const bookmarks = useCuratorialBookmarks()
 const CuratorialBookmarkSheet = defineAsyncComponent(() => import('./components/CuratorialBookmarkSheet.vue'))
 const route = useRoute()
 const router = useRouter()
-const headerScrolled = ref(false)
+// Seed before mounting shell DOM. Reading scrollY immediately after mount
+// can force a full layout while the entry route is still being resolved.
+const headerScrolled = ref(window.scrollY > 24)
 
 function updateHeaderScroll() {
   headerScrolled.value = window.scrollY > 24
@@ -99,8 +103,21 @@ const SiteGuide = guideEnabled
   : null
 const AmbientGalleryBackdrop = defineAsyncComponent(() => import('./components/AmbientGalleryBackdrop.vue'))
 const PointerCursor = defineAsyncComponent(() => import('./components/PointerCursor.vue'))
+const desktopPointer = window.matchMedia?.('(pointer: fine) and (hover: hover)')
+const loadPointerCursor = ref(desktopPointer?.matches ?? true)
+if (!loadPointerCursor.value) document.documentElement.dataset.motionTier = 'static'
+function startPointerCursor() {
+  if (!desktopPointer?.matches) return
+  loadPointerCursor.value = true
+  desktopPointer.removeEventListener?.('change', startPointerCursor)
+}
 const LightPresetSwitcher = defineAsyncComponent(() => import('./components/LightPresetSwitcher.vue'))
-const showAmbientBackdrop = computed(() => !isAdminRoute.value && route.name !== 'exhibit-detail')
+const constrained = document.documentElement.dataset.performanceTier === 'constrained'
+const showAmbientBackdrop = computed(() => !constrained && !isAdminRoute.value && route.name !== 'exhibit-detail')
+const initialMobileHome = constrained && location.pathname === '/'
+const homePainted = ref(!initialMobileHome)
+let guideFrame = 0
+let shellUnmounted = false
 const siteGuideRoutes = ['home', 'explore', 'artifact-detail', 'article-detail', 'exhibits', 'exhibit-detail', 'appointment', 'shop']
 const lightSwitcherRoutes = ['explore', 'exhibits', 'appointment', 'shop']
 const showLightDebugDock = computed(() => (
@@ -140,14 +157,46 @@ watch(() => route.fullPath, () => {
   }
 }, { immediate: true })
 
+function warmOppositeThemeHero() {
+  if (typeof window === 'undefined') return
+  const target = isDark.value ? 'light' : 'dark'
+  const mobile = window.innerWidth <= 760
+  const url = mobile
+    ? `/media/editorial/home-hero-${target}-v3-portrait.webp`
+    : `/media/editorial/home-hero-${target}-v3-1280w.webp`
+  warmImageUrl(url)
+}
+
+function handleNavIntent(event: Event) {
+  const link = (event.target as Element | null)?.closest?.('a[href]')
+  const href = link?.getAttribute('href')
+  if (href && href.startsWith('/')) prefetchRoute(href)
+}
+
 onMounted(() => {
+  if (!loadPointerCursor.value) {
+    desktopPointer?.addEventListener?.('change', startPointerCursor)
+    startPointerCursor()
+  }
   void auth.initialize()
   installInteractionSounds()
-  updateHeaderScroll()
   window.addEventListener('scroll', updateHeaderScroll, { passive: true })
+  warmPublicRoutesOnIdle()
+  if (initialMobileHome && guideEnabled) {
+    void router.isReady().then(async () => {
+      await nextTick()
+      if (shellUnmounted) return
+      guideFrame = requestAnimationFrame(() => {
+        guideFrame = requestAnimationFrame(() => { homePainted.value = true })
+      })
+    }).catch(() => { homePainted.value = true })
+  }
 })
 
 onBeforeUnmount(() => {
+  desktopPointer?.removeEventListener?.('change', startPointerCursor)
+  shellUnmounted = true
+  if (guideFrame) cancelAnimationFrame(guideFrame)
   removeInteractionSounds()
   window.removeEventListener('scroll', updateHeaderScroll)
   musicDirector.reset()
@@ -182,12 +231,18 @@ watchEffect(() => {
     <a class="skip-link" href="#main-content">{{ shellCopy.skip }}</a>
 
     <header v-if="!isAdminRoute" class="site-header" :class="{ 'is-scrolled': headerScrolled }" data-glass="light">
-      <RouterLink class="brand" to="/">
+      <RouterLink class="brand" to="/" :aria-label="shellCopy.museum">
         <MuseumBrandSeal class="brand-seal" />
-        <span class="brand-copy"><b>{{ shellCopy.museum }}</b><small>{{ shellCopy.brandSubtitle }}</small></span>
+        <span class="brand-copy">
+          <b :class="locale === 'en-US' ? 'brand-copy__full--english' : 'brand-copy__full--chinese'">{{ shellCopy.museum }}</b>
+          <b aria-hidden="true" class="brand-copy__short" :class="locale === 'en-US' ? 'brand-copy__short--english' : 'brand-copy__short--chinese'">
+            {{ locale === 'en-US' ? 'Heluo' : '河洛' }}
+          </b>
+          <small>{{ shellCopy.brandSubtitle }}</small>
+        </span>
       </RouterLink>
 
-      <nav :aria-label="shellCopy.nav">
+      <nav :aria-label="shellCopy.nav" @pointerover="handleNavIntent" @focusin="handleNavIntent" @pointerdown="handleNavIntent">
         <RouterLink to="/explore">{{ t.explore }}</RouterLink>
         <RouterLink to="/exhibits">{{ t.exhibits }}</RouterLink>
         <RouterLink to="/appointment">{{ t.appointment }}</RouterLink>
@@ -219,7 +274,9 @@ watchEffect(() => {
           type="button"
           :aria-label="isDark ? (locale === 'zh-CN' ? '切换到浅色模式' : 'Switch to light mode') : (locale === 'zh-CN' ? '切换到深色模式' : 'Switch to dark mode')"
           :aria-pressed="isDark"
-          @click="toggleTheme"
+          @pointerenter="warmOppositeThemeHero"
+          @focus="warmOppositeThemeHero"
+          @click="toggleTheme($event)"
         >
           <svg v-if="isDark" viewBox="0 0 24 24" aria-hidden="true">
             <circle cx="12" cy="12" r="4" />
@@ -293,7 +350,7 @@ watchEffect(() => {
 
         <div class="site-footer__col">
           <h2 class="site-footer__heading">{{ shellCopy.footerIndexTitle }}</h2>
-          <ul class="site-footer__links">
+          <ul class="site-footer__links" @pointerover="handleNavIntent" @focusin="handleNavIntent" @pointerdown="handleNavIntent">
             <li><RouterLink to="/explore">{{ t.explore }}</RouterLink></li>
             <li><RouterLink to="/exhibits">{{ t.exhibits }}</RouterLink></li>
             <li><RouterLink to="/appointment">{{ t.appointment }}</RouterLink></li>
@@ -321,22 +378,25 @@ watchEffect(() => {
       </div>
     </footer>
 
-    <nav v-if="showMobileTabs" class="mobile-tab-bar" data-glass="light" :aria-label="shellCopy.mobileNav">
+    <nav v-if="showMobileTabs" class="mobile-tab-bar" data-glass="light" :aria-label="shellCopy.mobileNav" @pointerover="handleNavIntent" @focusin="handleNavIntent" @pointerdown="handleNavIntent">
       <RouterLink to="/" exact-active-class="is-active">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 10 8-6 8 6v9H4zM9 19v-5h6v5" /></svg>
         <span>{{ shellCopy.mobile[0] }}</span>
       </RouterLink>
-      <RouterLink to="/explore">
+      <RouterLink to="/explore" :aria-label="locale === 'en-US' ? 'Art Collection' : undefined">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4.5 4.5" /></svg>
-        <span>{{ shellCopy.mobile[1] }}</span>
+        <span class="mobile-tab-label">{{ shellCopy.mobile[1] }}</span>
+        <span v-if="locale === 'en-US'" class="mobile-tab-label--compact" aria-hidden="true">Art</span>
       </RouterLink>
-      <RouterLink to="/exhibits">
+      <RouterLink to="/exhibits" :aria-label="locale === 'en-US' ? '3D Gallery' : undefined">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM8 9h8M8 13h5" /></svg>
-        <span>{{ shellCopy.mobile[2] }}</span>
+        <span class="mobile-tab-label">{{ shellCopy.mobile[2] }}</span>
+        <span v-if="locale === 'en-US'" class="mobile-tab-label--compact" aria-hidden="true">3D</span>
       </RouterLink>
-      <RouterLink to="/appointment">
+      <RouterLink to="/appointment" :aria-label="locale === 'en-US' ? 'Visit Booking' : undefined">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16" /></svg>
-        <span>{{ shellCopy.mobile[3] }}</span>
+        <span class="mobile-tab-label">{{ shellCopy.mobile[3] }}</span>
+        <span v-if="locale === 'en-US'" class="mobile-tab-label--compact" aria-hidden="true">Visit</span>
       </RouterLink>
       <RouterLink to="/shop">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1 12H6zM8 9V7a4 4 0 0 1 8 0v2" /></svg>
@@ -345,8 +405,8 @@ watchEffect(() => {
     </nav>
 
     <LightPresetSwitcher v-if="showLightDebugDock" />
-    <SiteGuide v-if="SiteGuide && siteGuideRoutes.includes(String(route.name))" />
+    <SiteGuide v-if="SiteGuide && (route.name !== 'home' || homePainted) && siteGuideRoutes.includes(String(route.name))" />
     <CuratorialBookmarkSheet v-if="bookmarks.sheetOpen.value" />
-    <PointerCursor />
+    <PointerCursor v-if="loadPointerCursor" />
   </div>
 </template>

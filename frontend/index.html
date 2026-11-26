@@ -7,9 +7,6 @@
     <meta name="theme-color" content="#f7faf8" />
     <meta name="description" content="河洛数字博物馆：在线探索馆藏故事、3D 数字展项并预约线下参观。" />
     <title>河洛数字博物馆</title>
-  </head>
-  <body>
-    <div id="app"></div>
     <script>
       (() => {
         try {
@@ -18,9 +15,30 @@
           document.documentElement.style.colorScheme = theme
           const meta = document.querySelector('meta[name="theme-color"]')
           if (meta) meta.setAttribute('content', theme === 'dark' ? '#12110f' : '#f7faf8')
+          // Match HomeView's mobile picture source without warming it on deep links.
+          if (location.pathname === '/' && matchMedia('(max-width: 760px)').matches) {
+            const hero = document.createElement('link')
+            hero.rel = 'preload'
+            hero.as = 'image'
+            hero.setAttribute('fetchpriority', 'high')
+            hero.href = `/media/editorial/home-hero-${theme}-v3-portrait.webp`
+            document.head.append(hero)
+            // Resolved from Vite's final build; never pull HomeView on deep links.
+            for (const [file, type] of /* mobile-home-assets */ []) {
+              const asset = document.createElement('link')
+              asset.rel = type === 'script' ? 'modulepreload' : 'preload'
+              asset.as = type
+              asset.crossOrigin = ''
+              asset.href = `/${file}`
+              document.head.append(asset)
+            }
+          }
         } catch (_) {}
       })()
     </script>
+  </head>
+  <body>
+    <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

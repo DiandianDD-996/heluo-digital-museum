@@ -471,6 +471,20 @@ async function submit() {
   color: var(--ink-on-dark);
 }
 
+/* Anchor the darkening to the text so different image crops cannot brighten its backdrop. */
+.auth-story__copy::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -1rem -2rem 0 0;
+  background: linear-gradient(180deg,
+    transparent,
+    oklch(10% 0.008 238 / 0.82) 2.5rem,
+    oklch(10% 0.008 238 / 0.35) 100%);
+  mask-image: linear-gradient(90deg, var(--ink-on-dark) calc(100% - 2rem), transparent);
+  pointer-events: none;
+}
+
 .auth-story__eyebrow {
   display: flex;
   align-items: center;
@@ -781,6 +795,22 @@ async function submit() {
 
 .auth-colophon__back:hover {
   color: var(--ink-primary);
+}
+
+@media (pointer: coarse) {
+  .auth-page :is(.auth-mode-tabs button, .password-toggle) {
+    min-block-size: var(--control-min);
+    min-inline-size: var(--control-min);
+  }
+
+  .auth-page .auth-form input {
+    min-block-size: 48px;
+    font-size: max(16px, 1rem);
+  }
+
+  .auth-page .password-field input {
+    padding-inline-end: calc(var(--control-min) + var(--space-4));
+  }
 }
 
 @media (max-width: 920px) {

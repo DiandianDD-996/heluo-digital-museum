@@ -167,8 +167,7 @@ onBeforeUnmount(() => {
       type="button"
       :aria-label="enabled ? (locale === 'zh-CN' ? '声音设置，当前已开启' : 'Sound settings, currently on') : (locale === 'zh-CN' ? '开启声音' : 'Enable sound')"
       :aria-expanded="open"
-      aria-haspopup="true"
-      aria-controls="audio-control-panel"
+      :aria-controls="open ? 'audio-control-panel' : undefined"
       @click="togglePanel"
     >
       <svg v-if="isAudible && !isPaused" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 010 7.07"/><path d="M18.5 5.5a9 9 0 010 13"/></svg>

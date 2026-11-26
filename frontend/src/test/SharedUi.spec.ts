@@ -156,30 +156,33 @@ describe('shared visual controls', () => {
     wrapper.unmount()
   })
 
-  it('exposes keyboard controls and dialog semantics on BottomSheet', async () => {
-    const wrapper = mount(BottomSheet, { props: { open: true, title: '预约信息', snapPoint: 'medium' }, attachTo: document.body })
-    expect(document.body.querySelector('[role="dialog"]')).not.toBeNull()
-    expect(document.body.querySelector('button[aria-label="展开面板"]')).not.toBeNull()
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
-    expect(wrapper.emitted('close')).toHaveLength(1)
-    wrapper.unmount()
-  })
-
-  it('keeps reverse tab inside a newly opened sheet and restores the trigger', async () => {
-    const trigger = document.createElement('button')
-    document.body.append(trigger)
-    trigger.focus()
-    const wrapper = mount(BottomSheet, { props: { open: false, title: '购物袋' }, attachTo: document.body })
-    await wrapper.setProps({ open: true })
-    const dialog = document.body.querySelector<HTMLElement>('[role="dialog"]')!
-    dialog.focus()
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, cancelable: true }))
-    expect(dialog.contains(document.activeElement)).toBe(true)
-    expect(document.activeElement).not.toBe(dialog)
-    await wrapper.setProps({ open: false })
-    expect(document.activeElement).toBe(trigger)
-    wrapper.unmount()
-    trigger.remove()
+  it('opens a named native BottomSheet modal and routes native cancellation to the parent', async () => {
+    // The browser E2E covers actual top-layer isolation, tab order and focus restoration.
+    const prototype = window.HTMLDialogElement.prototype
+    const descriptors = Object.getOwnPropertyDescriptors(prototype)
+    Object.defineProperties(prototype, {
+      showModal: { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', '') } },
+      close: { configurable: true, value(this: HTMLDialogElement) { this.removeAttribute('open') } },
+    })
+    const wrapper = mount(BottomSheet, { props: { open: false, title: '预约信息' }, attachTo: document.body })
+    try {
+      const dialog = document.body.querySelector<HTMLDialogElement>('dialog[aria-label="预约信息"]')!
+      expect(dialog.open).toBe(false)
+      await wrapper.setProps({ open: true })
+      expect(dialog.open).toBe(true)
+      expect(dialog.querySelector('button[aria-label="展开面板"]')).not.toBeNull()
+      expect(document.activeElement).toBe(dialog.querySelector('.bottom-sheet-close'))
+      const cancel = new Event('cancel', { cancelable: true })
+      dialog.dispatchEvent(cancel)
+      expect(cancel.defaultPrevented).toBe(true)
+      expect(wrapper.emitted('close')).toHaveLength(1)
+    } finally {
+      wrapper.unmount()
+      for (const name of ['showModal', 'close']) {
+        if (descriptors[name]) Object.defineProperty(prototype, name, descriptors[name])
+        else Reflect.deleteProperty(prototype, name)
+      }
+    }
   })
 
   it('labels skeleton variants as live loading regions', () => {

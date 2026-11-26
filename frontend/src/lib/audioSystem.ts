@@ -307,6 +307,11 @@ class MuseumAudioSystem {
         this.loadingPromises.delete(name)
         return audioBuffer
       })
+      .catch((error) => {
+        synthModulePromise = null
+        this.loadingPromises.delete(name)
+        throw error
+      })
 
     this.loadingPromises.set(name, loadPromise)
     return loadPromise

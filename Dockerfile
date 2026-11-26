@@ -24,6 +24,7 @@ RUN addgroup --system museum \
     && mkdir -p /data \
     && chown -R museum:museum /app /data
 COPY --from=backend-build --chown=museum:museum /workspace/backend/target/museum-api-*.jar /app/app.jar
+COPY --chown=museum:museum content/luosheng /app/content/luosheng
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod 755 /usr/local/bin/docker-entrypoint.sh
 ENV SPRING_PROFILES_ACTIVE=pocketbay

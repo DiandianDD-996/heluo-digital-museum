@@ -204,6 +204,26 @@
     -webkit-appearance: none;
   }
 
+  @media (pointer: coarse) {
+    .museum-search-field .museum-search-field__control.has-clear {
+      grid-template-columns: 40px minmax(0, 1fr) var(--control-min) auto;
+    }
+
+    .museum-search-field .museum-search-field__control input {
+      min-block-size: 48px;
+      font-size: max(16px, 1rem);
+    }
+
+    .museum-search-field .museum-search-field__submit {
+      min-block-size: 48px;
+    }
+
+    .museum-search-field .museum-search-field__clear {
+      min-inline-size: var(--control-min);
+      min-block-size: var(--control-min);
+    }
+  }
+
   .museum-search-field__clear {
     display: inline-flex;
     align-items: center;
@@ -425,11 +445,30 @@
   .bottom-sheet-root {
     position: fixed;
     inset: 0;
-    z-index: 120;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    color: inherit;
+    background: transparent;
+    overflow: visible;
+  }
+
+  html:has(.bottom-sheet-root[open]) {
+    overflow: hidden;
+  }
+
+  .bottom-sheet-root[open] {
     display: flex;
     align-items: flex-end;
     justify-content: center;
   }
+
+  .bottom-sheet-root::backdrop { background: transparent; }
+  .bottom-sheet-layer { display: contents; }
 
   .bottom-sheet-scrim {
     position: absolute;
@@ -479,6 +518,13 @@
     height: 4px;
     border-radius: var(--radius-pill);
     background: var(--border-strong);
+  }
+
+  @media (pointer: coarse) {
+    .bottom-sheet .bottom-sheet-handle {
+      min-block-size: var(--control-min);
+      touch-action: none;
+    }
   }
 
   .bottom-sheet-header {
@@ -1388,6 +1434,13 @@
     transform: translateY(-1px);
   }
 
+  @media (pointer: coarse) {
+    .acoustic-ruler--hero .acoustic-ruler__trigger {
+      min-block-size: var(--control-min);
+      min-inline-size: var(--control-min);
+    }
+  }
+
   .acoustic-ruler__dot {
     width: 7px;
     height: 7px;
@@ -1429,7 +1482,7 @@
     }
 
     .acoustic-ruler--hero .acoustic-ruler__trigger {
-      min-height: 38px;
+      min-height: var(--control-min);
       padding: 0 0.75rem;
       font-size: var(--text-xs);
     }

@@ -12,7 +12,8 @@ const tokensCss = readFileSync(resolve(process.cwd(), 'src/styles/01-tokens.css'
 describe('Heluo Editorial 2.0 curatorial motion and pointer interaction contract', () => {
   it('mounts PointerCursor in App shell to drive live PointerDotField particle waves on HomeView', () => {
     expect(appVue).toContain('<PointerCursor')
-    expect(homeVue).toContain('<PointerDotField variant="image" />')
+    expect(homeVue).toContain('<PointerDotField v-if="showPointerField" variant="image" />')
+    expect(homeVue).toContain("window.matchMedia?.('(pointer: fine) and (hover: hover)')")
     expect(motionCss).toContain('.pointer-cursor__dot')
     expect(motionCss).toContain('.pointer-cursor__halo')
     expect(motionCss).toContain('.pointer-dot-field')

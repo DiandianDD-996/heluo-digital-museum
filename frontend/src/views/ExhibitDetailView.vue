@@ -2,7 +2,7 @@
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { gsap } from 'gsap'
-import { Box, Connection, InfoFilled, VideoPlay } from '@element-plus/icons-vue'
+import { Box, Connection, InfoFilled, Setting, VideoPlay } from '@element-plus/icons-vue'
 import { qualityLabel, type PointCloudQuality } from '../lib/pointCloudQuality'
 import { getCuratorialMaterialProfile } from '../lib/curatorialSwatches'
 import { artifactPlateTransitionStyle } from '../lib/inkTransitions'
@@ -105,6 +105,8 @@ const renderQuality = ref<PointCloudQuality>('medium')
 const activeView = ref<ViewName>('front')
 const desktopDrawerOpen = ref(false)
 const mobileInfoOpen = ref(false)
+const compactToolsOpen = ref(false)
+const compactToolsButton = ref<HTMLButtonElement | null>(null)
 const mobileInfoSnapPoint = ref<'medium' | 'full'>('medium')
 const root = ref<HTMLElement | null>(null)
 const viewerRuntimeRequested = ref(false)
@@ -813,7 +815,16 @@ function zoomOutViewer() { if (!viewerInteractive.value) return; interruptGuided
 function reset() { if (!viewerInteractive.value) return; interruptGuidedTour(); focusedPart.value = null; activeView.value = 'front'; viewer.value?.resetView() }
 
 onMounted(load)
-watch(() => route.params.slug, load)
+watch(() => route.params.slug, () => {
+  compactToolsOpen.value = false
+  void load()
+})
+
+function closeCompactTools(event: KeyboardEvent) {
+  if (!compactToolsOpen.value || event.defaultPrevented) return
+  compactToolsOpen.value = false
+  compactToolsButton.value?.focus()
+}
 onBeforeUnmount(() => {
   clearGuidedTour()
   audioSystem.setSpaceAcoustic('default')
@@ -831,7 +842,7 @@ onBeforeUnmount(() => {
   </section>
 
   <section v-else-if="exhibit" ref="root" class="immersive-exhibit" data-motion-page="exhibit-detail">
-    <section class="exhibit-scene" :data-display-mode="displayMode">
+    <section class="exhibit-scene" :class="{ 'is-tools-open': compactToolsOpen, 'is-viewer-ready': viewerInteractive }" :data-display-mode="displayMode" @keydown.esc="closeCompactTools">
       <!-- Module 1: Frameless Top Floating Bar -->
       <header class="darkroom-topbar" data-motion="scene-label">
         <div class="darkroom-topbar__left">
@@ -885,7 +896,7 @@ onBeforeUnmount(() => {
             <span>{{ desktopDrawerOpen ? copy.closeDrawer : copy.openDrawer }}</span>
           </button>
           <button
-            v-if="viewerRuntimeState === 'ready'"
+            v-if="viewerInteractive || (viewerRuntimeRequested && viewerRuntimeState === 'error' && !viewerRuntimeError)"
             class="mobile-exhibit-info-trigger"
             type="button"
             aria-haspopup="dialog"
@@ -1153,6 +1164,7 @@ onBeforeUnmount(() => {
       </aside>
 
       <!-- Module 2: Centered Floating Pill Dock -->
+      <InlineStatus v-if="pointCloudFailed" kind="error" :message="copy.pointCloudFailed" class="exhibit-point-cloud-status" />
       <section class="exhibit-dock" data-glass="dark" data-motion="exhibit-dock">
         <div class="dock-section" data-motion="dock-section">
           <div
@@ -1164,6 +1176,7 @@ onBeforeUnmount(() => {
             <button
               type="button"
               :class="{ active: displayMode === 'solid' }"
+              :aria-label="displayMode === 'points' ? copy.returnSolid : copy.solidModel"
               :aria-pressed="displayMode === 'solid'"
               :disabled="!viewerInteractive"
               @click="selectMode('solid')"
@@ -1174,6 +1187,7 @@ onBeforeUnmount(() => {
             <button
               type="button"
               :class="{ active: displayMode === 'points' }"
+              :aria-label="displayMode === 'points' ? copy.pointsOn : copy.pointCloudMode"
               :aria-pressed="displayMode === 'points'"
               :aria-busy="pointCloudLoading"
               :disabled="!viewerInteractive || pointCloudLoading || (!isStoneRakingExhibit && renderQuality === 'fallback')"
@@ -1213,6 +1227,15 @@ onBeforeUnmount(() => {
           <button data-motion="exhibit-tool" type="button" :aria-label="copy.tools[2]" :title="copy.tools[2]" :disabled="!viewerInteractive" @click="zoomOutViewer">−</button>
           <button data-motion="exhibit-tool" type="button" :aria-label="copy.tools[3]" :title="copy.tools[3]" :disabled="!viewerInteractive" @click="reset">◇</button>
         </div>
+        <button
+          ref="compactToolsButton"
+          class="compact-exhibit-tools"
+          type="button"
+          data-testid="compact-exhibit-tools"
+          :aria-expanded="compactToolsOpen"
+          :aria-label="locale === 'en-US' ? 'Exhibit tools' : '展项工具'"
+          @click="compactToolsOpen = !compactToolsOpen"
+        ><Setting aria-hidden="true" /></button>
       </section>
 
       <div class="exhibit-scene__ruler">
@@ -1682,6 +1705,10 @@ onBeforeUnmount(() => {
 .viewer-tools button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.compact-exhibit-tools {
+  display: none;
 }
 
 /* ── Module 3: Collapsible Right Specimen Plaque Drawer ── */
@@ -2170,6 +2197,151 @@ onBeforeUnmount(() => {
 
   .exhibit-scene__ruler {
     bottom: 4px;
+  }
+}
+
+@media (pointer: coarse) {
+  .immersive-exhibit :is(.viewer-tools button, .view-switcher button, .dock-mode-switch button,
+    .darkroom-back, .darkroom-exhibit-switch, .darkroom-spatial-toggle, .mobile-exhibit-info-trigger,
+    .darkroom-invite__enable, .darkroom-invite__dismiss) {
+    min-inline-size: var(--control-min);
+    min-block-size: var(--control-min);
+  }
+}
+
+@media (max-width: 760px) and (max-height: 700px), (pointer: coarse) and (max-height: 500px) and (max-width: 960px) {
+  .exhibit-scene {
+    height: calc(100dvh - 64px - 68px - env(safe-area-inset-bottom, 0px));
+    min-height: 200px;
+  }
+
+  .exhibit-viewer-wrap {
+    top: 48px;
+    bottom: 62px;
+    height: auto;
+  }
+
+  .exhibit-scene:not(.is-viewer-ready) .exhibit-viewer-wrap {
+    bottom: 0;
+  }
+
+  .three-fallback--activation {
+    padding: var(--space-2);
+  }
+
+  .viewer-poster-copy {
+    gap: var(--space-2);
+    padding: var(--space-3);
+    max-width: min(100%, 380px);
+  }
+
+  .viewer-poster-copy p {
+    margin: 0;
+  }
+
+  .viewer-poster-actions {
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .viewer-poster-actions button {
+    padding-inline: var(--space-2);
+  }
+
+  .darkroom-topbar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .darkroom-title {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .darkroom-title h1 {
+    overflow: hidden;
+    font-size: var(--text-sm);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .darkroom-title :is(span, i),
+  .darkroom-exhibit-switch,
+  .darkroom-drawer-toggle,
+  .darkroom-invite,
+  .exhibit-panel-desktop,
+  .exhibit-dock .dock-divider,
+  .exhibit-scene:not(.is-tools-open) :is(.darkroom-spatial-toggle, .view-switcher, .exhibit-scene__ruler),
+  .exhibit-scene:not(.is-tools-open) .viewer-tools button:not(:last-child) {
+    display: none;
+  }
+
+  .mobile-exhibit-info-trigger,
+  .compact-exhibit-tools {
+    display: inline-grid;
+    place-items: center;
+  }
+
+  .mobile-exhibit-info-trigger {
+    display: inline-flex;
+  }
+
+  .exhibit-dock .compact-exhibit-tools {
+    flex: 0 0 var(--control-min);
+    min-block-size: var(--control-min);
+    border: 1px solid var(--glass-dark-border);
+    border-radius: var(--radius-pill);
+    background: oklch(11.6% 0.006 238 / 0.72);
+    color: var(--ink-on-dark);
+  }
+
+  .compact-exhibit-tools svg {
+    inline-size: 1rem;
+    block-size: 1rem;
+  }
+
+  .exhibit-dock {
+    inset-inline: var(--space-2);
+    bottom: var(--space-2);
+    max-width: none;
+    transform: none;
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .exhibit-scene:not(.is-viewer-ready) .exhibit-dock {
+    display: none;
+  }
+
+  .exhibit-scene.is-tools-open .exhibit-dock {
+    bottom: 46px;
+  }
+
+  .exhibit-scene.is-tools-open .darkroom-topbar__actions {
+    flex-wrap: wrap;
+  }
+
+  .exhibit-scene__ruler {
+    bottom: 4px;
+  }
+
+  .darkroom-topbar .darkroom-spatial-toggle {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 430px) and (max-height: 700px) {
+  .exhibit-scene:not(.is-tools-open) .dock-mode-switch button span {
+    display: none;
+  }
+
+  .exhibit-scene.is-tools-open .darkroom-topbar {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .exhibit-scene.is-tools-open .darkroom-topbar__actions {
+    grid-column: 1 / -1;
   }
 }
 

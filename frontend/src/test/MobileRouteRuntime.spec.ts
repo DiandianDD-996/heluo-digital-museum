@@ -52,10 +52,10 @@ describe('first-visit route runtime contract', () => {
     expect(pointerMotion).toMatch(/const rootFontSize = tierAlreadyStatic \|\| deviceMagnified[\s\S]*\? 16[\s\S]*getComputedStyle/)
   })
 
-  it('loads the home GSAP reveal only for the full performance and motion tiers', () => {
+  it('keeps the home GSAP reveal and pattern off the constrained first-visit path', () => {
     const home = read('src/views/HomeView.vue')
-    expect(home).toContain("const gsapModule = await import('gsap').catch(() => undefined)")
-    expect(home).not.toContain("from 'gsap'")
+    expect(home).toMatch(/if \(!scope \|\| !shouldLoadHomeGsap\(\)\) return\s+const entrance = await Promise\.all\(\[import\('gsap'\), import\('\.\.\/components\/HeluoPattern\.vue'\)\]\)/)
+    expect(home).not.toMatch(/from ['"](?:gsap|[^'"]*HeluoPattern\.vue|@element-plus\/icons-vue)['"]/)
     expect(home).toContain("dataset.performanceTier === 'full'")
     expect(home).toContain("dataset.motionTier === 'full'")
     expect(home).toContain("matchMedia('(prefers-reduced-motion: reduce)')")

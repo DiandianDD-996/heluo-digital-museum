@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.CacheControl;
@@ -35,11 +36,19 @@ public class DetailPageController {
     private final String template;
     private final HttpClient frontend;
     private final HttpRequest templateRequest;
+    private final boolean guideEnabled;
 
+    DetailPageController(JdbcTemplate jdbc, String baseUrl, String templateUrl) throws IOException {
+        this(jdbc, baseUrl, templateUrl, false);
+    }
+
+    @Autowired
     DetailPageController(JdbcTemplate jdbc, @Value("${museum.mail.public-base-url}") String baseUrl,
-                         @Value("${museum.seo.spa-index-url:}") String templateUrl) throws IOException {
+                         @Value("${museum.seo.spa-index-url:}") String templateUrl,
+                         @Value("${museum.guide.enabled:false}") boolean guideEnabled) throws IOException {
         this.jdbc = jdbc;
         this.origin = SiteIndexController.publicOrigin(baseUrl);
+        this.guideEnabled = guideEnabled;
         var resource = new ClassPathResource("static/index.html");
         this.template = resource.exists() ? resource.getContentAsString(StandardCharsets.UTF_8) : null;
         if (!templateUrl.isBlank()) {
@@ -81,7 +90,7 @@ public class DetailPageController {
         var page = items.get(0);
         String path = "/" + section + "/" + UriUtils.encodePathSegment(page.slug(), StandardCharsets.UTF_8);
         String tags = tags(page.title(), page.summary(), absoluteCover(page.cover()), origin + path,
-                "articles".equals(section) ? "article" : "website");
+                "articles".equals(section) ? "article" : "website", guideEnabled);
         String body = inject(index, page.title(), tags);
         return ResponseEntity.ok().contentType(HTML).cacheControl(CacheControl.noStore()).body(body);
     }
@@ -122,10 +131,11 @@ public class DetailPageController {
                 "<title>" + escape(title) + "</title>\n" + tags + "</head>"));
     }
 
-    private static String tags(String title, String summary, String cover, String url, String type) {
-        return "<meta name=\"description\" content=\"" + escape(summary) + "\">\n"
+    private static String tags(String title, String summary, String cover, String url, String type, boolean guideEnabled) {
+        String base = "<meta name=\"description\" content=\"" + escape(summary) + "\">\n"
                 + og("title", title) + og("description", summary) + og("image", cover)
                 + og("url", url) + og("type", type);
+        return guideEnabled ? base + "<meta name=\"museum-guide-enabled\" content=\"true\">\n" : base;
     }
 
     private static String og(String key, String value) {

@@ -38,6 +38,7 @@ const canvasRef = ref<HTMLCanvasElement | null>(null)
 const compassRef = ref<HTMLElement | null>(null)
 
 const webglReady = ref(false)
+const graphicsInterrupted = ref(false)
 const mode = ref<'solid' | 'points'>(props.initialMode)
 const loupeOpen = ref(false)
 const azimuthDeg = ref(34)
@@ -58,6 +59,7 @@ const copy = computed(() => locale.value === 'en-US' ? {
   compassAria: 'Drag to adjust raking-light direction and elevation',
   stageHint: 'Move cursor to sweep museum spotlight · Drag to angle raking shadows · 2.4× instant optical loupe',
   fallbackNote: 'CSS directional light preview active',
+  interruptedNote: 'Graphics interrupted · showing the stone preview',
 } : {
   azimuth: '光向',
   elevation: '掠射角',
@@ -68,6 +70,7 @@ const copy = computed(() => locale.value === 'en-US' ? {
   compassAria: '拖拽调节斜射光源方位角与仰角',
   stageHint: '移动鼠标牵引暗房聚光与刻痕阴影 · 拖拽调整掠射光角 · 开启 2.4× 零延迟放大镜',
   fallbackNote: '当前为光学渐变降级预览模式',
+  interruptedNote: '图形显示暂时中断，正在显示图板预览',
 })
 
 const formattedAzimuth = computed(() => `${String(Math.round(((azimuthDeg.value % 360) + 360) % 360)).padStart(3, '0')}°`)
@@ -139,6 +142,7 @@ let rafId = 0
 let lastFrameAt = 0
 let shaderClock = 0
 let disposed = false
+let graphicsGeneration = 0
 let draggingStage = false
 let draggingCompass = false
 let lastPointerX = 0
@@ -806,7 +810,48 @@ function loadStoneImage(src: string): Promise<HTMLImageElement> {
   })
 }
 
+function showGraphicsFallback() {
+  webglReady.value = false
+  emit('quality-change', 'fallback')
+  emit('point-cloud-state', 'ready')
+  emit('state-change', 'ready')
+}
+
+function releaseWebglStage() {
+  if (rafId !== 0) {
+    cancelAnimationFrame(rafId)
+    rafId = 0
+  }
+  resizeObserver?.disconnect()
+  resizeObserver = null
+  if (gl && !gl.isContextLost()) {
+    if (diffuseTex) gl.deleteTexture(diffuseTex)
+    if (quadBuffer) gl.deleteBuffer(quadBuffer)
+    if (program) gl.deleteProgram(program)
+  }
+  // The browser has already invalidated every handle when the context is lost.
+  gl = null
+  diffuseTex = null
+  quadBuffer = null
+  program = null
+  uniforms = null
+}
+
+function handleContextLost(event: Event) {
+  if (disposed) return
+  event.preventDefault() // Permit the browser to restore this canvas.
+  graphicsGeneration++
+  releaseWebglStage()
+  graphicsInterrupted.value = true
+  showGraphicsFallback()
+}
+
+function handleContextRestored() {
+  if (!disposed && graphicsInterrupted.value) void initWebglStage()
+}
+
 async function initWebglStage() {
+  const generation = ++graphicsGeneration
   emit('state-change', 'loading-runtime')
   const canvas = canvasRef.value
   let ctx: WebGLRenderingContext | null = null
@@ -817,11 +862,8 @@ async function initWebglStage() {
     ctx = null
   }
 
-  if (!ctx || !canvas) {
-    webglReady.value = false
-    emit('quality-change', 'fallback')
-    emit('point-cloud-state', 'ready')
-    emit('state-change', 'ready')
+  if (!ctx || !canvas || ctx.isContextLost()) {
+    showGraphicsFallback()
     return
   }
 
@@ -829,9 +871,10 @@ async function initWebglStage() {
   const fs = compileShader(ctx, ctx.FRAGMENT_SHADER, FRAGMENT_SHADER)
   const prog = ctx.createProgram()
   if (!vs || !fs || !prog) {
-    webglReady.value = false
-    emit('quality-change', 'fallback')
-    emit('state-change', 'ready')
+    if (vs) ctx.deleteShader(vs)
+    if (fs) ctx.deleteShader(fs)
+    if (prog) ctx.deleteProgram(prog)
+    showGraphicsFallback()
     return
   }
 
@@ -843,9 +886,7 @@ async function initWebglStage() {
 
   if (!ctx.getProgramParameter(prog, ctx.LINK_STATUS)) {
     ctx.deleteProgram(prog)
-    webglReady.value = false
-    emit('quality-change', 'fallback')
-    emit('state-change', 'ready')
+    showGraphicsFallback()
     return
   }
 
@@ -885,7 +926,7 @@ async function initWebglStage() {
   emit('state-change', 'loading-model')
   try {
     const img = await loadStoneImage(props.imageUrl)
-    if (disposed || !gl || !diffuseTex) return
+    if (disposed || generation !== graphicsGeneration || gl !== ctx || ctx.isContextLost() || !diffuseTex) return
     if (img.naturalWidth > 0 && img.naturalHeight > 0) {
       texWidth = img.naturalWidth
       texHeight = img.naturalHeight
@@ -897,7 +938,8 @@ async function initWebglStage() {
     // Keep warm slate placeholder if offline
   }
 
-  if (disposed) return
+  if (disposed || generation !== graphicsGeneration || gl !== ctx || ctx.isContextLost()) return
+  graphicsInterrupted.value = false
   webglReady.value = true
   emit('quality-change', 'high')
   emit('point-cloud-state', 'ready')
@@ -921,19 +963,9 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   disposed = true
-  if (rafId !== 0) {
-    cancelAnimationFrame(rafId)
-    rafId = 0
-  }
-  resizeObserver?.disconnect()
-  resizeObserver = null
-  if (gl) {
-    if (diffuseTex) gl.deleteTexture(diffuseTex)
-    if (quadBuffer) gl.deleteBuffer(quadBuffer)
-    if (program) gl.deleteProgram(program)
-    gl.getExtension('WEBGL_lose_context')?.loseContext()
-    gl = null
-  }
+  const context = gl
+  releaseWebglStage()
+  if (context && !context.isContextLost()) context.getExtension('WEBGL_lose_context')?.loseContext()
 })
 </script>
 
@@ -955,6 +987,8 @@ onBeforeUnmount(() => {
       class="raking-stage__canvas"
       :class="{ 'is-hidden': !webglReady }"
       :aria-label="alt"
+      @webglcontextlost="handleContextLost"
+      @webglcontextrestored="handleContextRestored"
     ></canvas>
 
     <!-- Graceful Non-WebGL CSS Grazing-Light Fallback -->
@@ -963,7 +997,7 @@ onBeforeUnmount(() => {
         <img :src="imageUrl" :alt="alt" decoding="async" />
         <div class="raking-fallback__shade" aria-hidden="true"></div>
       </div>
-      <span class="raking-fallback__badge font-mono">{{ copy.fallbackNote }}</span>
+      <span class="raking-fallback__badge font-mono" role="status">{{ graphicsInterrupted ? copy.interruptedNote : copy.fallbackNote }}</span>
     </div>
 
     <!-- Compact Optical Instrument HUD -->
@@ -1235,6 +1269,23 @@ onBeforeUnmount(() => {
   color: oklch(14% 0.006 238);
 }
 
+@media (max-width: 760px) and (max-height: 700px), (pointer: coarse) and (max-height: 500px) and (max-width: 960px) {
+  .raking-fallback__badge {
+    top: var(--space-2);
+    inline-size: max-content;
+    max-inline-size: calc(100% - 2 * var(--space-3));
+    text-align: center;
+  }
+}
+
+@media (max-width: 760px) and (max-height: 700px) {
+  .raking-fallback__badge {
+    /* The optical HUD occupies the upper region of the narrow stage. */
+    top: auto;
+    bottom: 3rem;
+  }
+}
+
 @media (max-width: 760px) {
   .raking-hud {
     left: var(--space-3);
@@ -1257,6 +1308,36 @@ onBeforeUnmount(() => {
   }
 
   .raking-telemetry__hint {
+    display: none;
+  }
+}
+
+@media (pointer: coarse) and (max-width: 430px) and (max-height: 700px) {
+  .raking-hud {
+    /* Keep the app-level Luosheng seal clear of the loupe. */
+    top: var(--space-2);
+    right: calc(var(--space-3) + 48px + var(--space-2));
+    bottom: auto;
+    gap: var(--space-1);
+  }
+
+  .raking-compass,
+  .raking-loupe-btn {
+    min-inline-size: var(--control-min);
+    min-block-size: var(--control-min);
+  }
+
+  .raking-loupe-btn {
+    padding-inline: var(--space-2);
+  }
+
+  .raking-telemetry__row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .raking-telemetry__row :is(i, em) {
     display: none;
   }
 }

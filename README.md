@@ -280,7 +280,9 @@ docker compose --env-file deploy/.env -f deploy/compose.yaml build frontend back
 docker compose --env-file deploy/.env -f deploy/compose.yaml up -d --no-deps backend frontend
 ```
 
-管理员初始账号由本机 `deploy/.env` 中的 `MUSEUM_BOOTSTRAP_ADMIN_*` 变量决定（`deploy/.env` 已被 Git 忽略，切勿提交）。如需开启洛笙 AI 向导，可在构建/运行环境中设置 `VITE_GUIDE_ENABLED=true` 与 `MUSEUM_GUIDE_ENABLED=true` 并注入模型密钥。
+管理员初始账号由本机 `deploy/.env` 中的 `MUSEUM_BOOTSTRAP_ADMIN_*` 变量决定（`deploy/.env` 已被 Git 忽略，切勿提交）。
+
+本地启用洛笙时，仓库已提供签核馆藏资料。设置 `VITE_GUIDE_ENABLED=true`、`MUSEUM_GUIDE_ENABLED=true`、`MUSEUM_GUIDE_MODEL_ENABLED=false` 并按[本地向导部署说明](deploy/README.md#洛笙-ai-向导)重建即可启用馆藏资料回答，无需接入外部模型。
 
 停止服务：
 

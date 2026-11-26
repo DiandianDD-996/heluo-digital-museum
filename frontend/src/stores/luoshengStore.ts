@@ -11,7 +11,10 @@ import type {
 const STORAGE_KEY = 'heluo.luosheng.v2.session'
 const MAX_STORED_MESSAGES = 40
 
-export const guideEnabled = import.meta.env.VITE_GUIDE_ENABLED === 'true'
+export const guideEnabled =
+  import.meta.env.VITE_GUIDE_ENABLED === 'true'
+  || (typeof document !== 'undefined'
+    && document.querySelector('meta[name="museum-guide-enabled"]')?.getAttribute('content') === 'true')
 
 interface PersistedSession {
   conversationId: string

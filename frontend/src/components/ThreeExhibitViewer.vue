@@ -2,7 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { BufferGeometry, Group, Material, Mesh, PerspectiveCamera, Points, ShaderMaterial, Vector3 } from 'three'
 import type { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { createRetryableAsyncLoader, interpolateExhibitOrbitOffset, selectExhibitCameraDistanceScale, selectExhibitCanvasTouchAction, selectExhibitRenderProfile } from '../lib/exhibitInteraction'
+import { MeshSurfaceSampler } from 'three/examples/jsm/math/MeshSurfaceSampler.js'
+import { interpolateExhibitOrbitOffset, selectExhibitCameraDistanceScale, selectExhibitCanvasTouchAction, selectExhibitRenderProfile } from '../lib/exhibitInteraction'
 import { createWorldSamplingSurfaces } from '../lib/pointCloudGeometry'
 import { createDisposalScope, runInTimeSlices, yieldToMainThread } from '../lib/exhibitLifecycle'
 import { POINT_COUNTS, createPointCloudPerformanceMonitor, selectPointCloudPalette, selectPointCloudPointSize, selectPointCloudQuality, type PointCloudQuality, type PointCloudTheme } from '../lib/pointCloudQuality'
@@ -92,7 +93,6 @@ let changeMode: (mode: DisplayMode) => void = () => undefined
 let quality: PointCloudQuality = 'medium'
 let activeMode: DisplayMode = props.initialMode
 let initializationVersion = 0
-const loadMeshSurfaceSampler = createRetryableAsyncLoader(() => import('three/examples/jsm/math/MeshSurfaceSampler.js'))
 
 const clamp = (value: number) => Math.min(Math.max(value, 0), 1)
 const easeOut = (value: number) => 1 - Math.pow(1 - clamp(value), 3)
@@ -706,7 +706,6 @@ async function initialize() {
     }
 
     const createCloud = async (model: Group, signal: AbortSignal) => {
-      const samplerModule = await loadMeshSurfaceSampler()
       signal.throwIfAborted()
       if (disposed || version !== initializationVersion) return
       const palette = selectPointCloudPalette(quality, sceneTheme)
@@ -747,7 +746,7 @@ async function initialize() {
           await yieldToMainThread(signal)
           // Reuse a real material; Mesh's default constructor allocates a new one.
           const samplingMesh = new THREE.Mesh(surface.geometry, floorMaterial)
-          const sampler = new samplerModule.MeshSurfaceSampler(samplingMesh).build()
+          const sampler = new MeshSurfaceSampler(samplingMesh).build()
           await runInTimeSlices(allocation, () => {
             sampledNormal.set(0, 1, 0)
             sampler.sample(sampled, sampledNormal)
@@ -1413,7 +1412,34 @@ onBeforeUnmount(() => { initializationVersion += 1; cleanup?.() })
   min-width: 8rem;
   width: auto;
   min-height: 44px;
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
+  background: var(--surface-elevated);
+  color: var(--ink-primary);
+}
+
+@media (max-width: 760px) and (max-height: 700px), (pointer: coarse) and (max-height: 500px) and (max-width: 960px) {
+  .three-fallback[role="alert"] {
+    grid-template-rows: minmax(0, min(26dvh, 11rem)) auto auto;
+    gap: var(--space-2);
+    padding: var(--space-3);
+  }
+}
+
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 400px) and (max-width: 960px) {
+  .three-fallback[role="alert"] {
+    grid-template-columns: minmax(0, 8rem) minmax(0, 23rem);
+    grid-template-rows: auto auto;
+    gap: var(--space-2) var(--space-4);
+    justify-items: start;
+  }
+  .three-fallback[role="alert"] > img {
+    grid-row: span 2;
+    height: min(28dvh, 7rem);
+  }
+  .three-fallback[role="alert"] > button {
+    justify-self: start;
+  }
 }
 
 /* ── Spatial Micro-Light Anchors & 245x200mm Scale Overlay ── */

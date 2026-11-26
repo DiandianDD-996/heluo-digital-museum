@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { useLocale } from '../stores/locale'
 
 const props = defineProps<{
@@ -20,6 +20,7 @@ const isEnglish = computed(() => locale.value === 'en-US')
 const stageRef = ref<HTMLElement | null>(null)
 const triggerBtnRef = ref<HTMLButtonElement | null>(null)
 const closeBtnRef = ref<HTMLButtonElement | null>(null)
+const lightboxRef = ref<HTMLDialogElement | null>(null)
 
 const loupeEnabled = ref(true)
 const loupeActive = ref(false)
@@ -83,18 +84,25 @@ const loupeImageStyle = computed(() => {
 })
 
 function openLightbox() {
+  const dialog = lightboxRef.value
+  if (!dialog || dialog.open) return
   loupeActive.value = false
   zoomScale.value = 1.8
   panX.value = 0
   panY.value = 0
   lightboxOpen.value = true
+  dialog.showModal()
+  void nextTick(() => {
+    if (dialog.open) closeBtnRef.value?.focus({ preventScroll: true })
+  })
 }
 
 function closeLightbox() {
+  lightboxRef.value?.close()
   lightboxOpen.value = false
   dragging = false
   void nextTick(() => {
-    triggerBtnRef.value?.focus()
+    triggerBtnRef.value?.focus({ preventScroll: true })
   })
 }
 
@@ -126,29 +134,18 @@ function onLightboxPointerUp() {
   dragging = false
 }
 
-function onGlobalKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape' && lightboxOpen.value) {
+function containTab(event: KeyboardEvent) {
+  if (event.key !== 'Tab') return
+  const buttons = lightboxRef.value?.querySelectorAll<HTMLButtonElement>('.loupe-lightbox__actions button:not(:disabled)')
+  if (!buttons?.length) return
+  const first = buttons[0]
+  const last = buttons[buttons.length - 1]
+  if (document.activeElement === (event.shiftKey ? first : last)) {
     event.preventDefault()
-    closeLightbox()
+    ;(event.shiftKey ? last : first)?.focus()
   }
 }
 
-watch(lightboxOpen, async (open) => {
-  if (typeof window === 'undefined') return
-  if (open) {
-    window.addEventListener('keydown', onGlobalKeydown)
-    await nextTick()
-    closeBtnRef.value?.focus()
-  } else {
-    window.removeEventListener('keydown', onGlobalKeydown)
-  }
-})
-
-onBeforeUnmount(() => {
-  if (typeof window !== 'undefined') {
-    window.removeEventListener('keydown', onGlobalKeydown)
-  }
-})
 </script>
 
 <template>
@@ -209,14 +206,14 @@ onBeforeUnmount(() => {
     </div>
 
     <Teleport to="body">
-      <div
-        v-if="lightboxOpen"
+      <dialog
+        ref="lightboxRef"
         class="loupe-lightbox"
-        role="dialog"
-        aria-modal="true"
         :aria-label="isEnglish ? `${alt} — Darkroom high-resolution view` : `${alt} — 暗房高清缩放检视`"
         data-testid="artifact-loupe-lightbox"
         @click.self="closeLightbox"
+        @cancel.prevent="closeLightbox"
+        @keydown="containTab"
       >
         <header class="loupe-lightbox__bar">
           <div class="loupe-lightbox__title">
@@ -235,6 +232,7 @@ onBeforeUnmount(() => {
               class="loupe-lightbox__close"
               data-testid="artifact-lightbox-close"
               :aria-label="isEnglish ? 'Close fullscreen inspection' : '关闭高清检视'"
+              autofocus
               @click="closeLightbox"
             >
               {{ isEnglish ? 'Close (Esc)' : '关闭 (Esc)' }}
@@ -243,6 +241,7 @@ onBeforeUnmount(() => {
         </header>
 
         <div
+          v-if="lightboxOpen"
           class="loupe-lightbox__viewport"
           :class="{ 'is-draggable': zoomScale > 1 }"
           @pointerdown="onLightboxPointerDown"
@@ -257,7 +256,7 @@ onBeforeUnmount(() => {
             :style="{ transform: `translate3d(${panX}px, ${panY}px, 0) scale(${zoomScale})` }"
           />
         </div>
-      </div>
+      </dialog>
     </Teleport>
   </div>
 </template>
@@ -368,12 +367,26 @@ onBeforeUnmount(() => {
   position: fixed;
   inset: 0;
   z-index: 220;
-  display: grid;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
   grid-template-rows: auto minmax(0, 1fr);
   background: oklch(9% 0.006 238 / 0.96);
   color: var(--ink-on-dark);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+}
+
+.loupe-lightbox[open] {
+  display: grid;
+}
+
+:global(html:has(.loupe-lightbox[open])) {
+  overflow: hidden;
 }
 
 .loupe-lightbox__bar {

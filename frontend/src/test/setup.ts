@@ -1,3 +1,10 @@
+import { afterEach } from 'vitest'
+import { clearPrefetchCache } from '../lib/prefetch'
+
+afterEach(() => {
+  clearPrefetchCache()
+})
+
 class IntersectionObserverMock {
   readonly root = null
   readonly rootMargin = '0px'

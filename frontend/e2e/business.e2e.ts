@@ -89,6 +89,45 @@ test.afterEach(async () => {
   expect(failures, 'Temporary public fixtures must be withdrawn without deleting business records').toEqual([])
 })
 
+test('后台手动开放时段后游客可在公开日历选中', async ({ page, request, browser }) => {
+  const adminToken = await tokenFor(request, qualityEnvironment.admin)
+  const day = new Date(Date.now() + 2 * 86400_000)
+  if (day.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'Asia/Shanghai' }) === 'Mon') day.setTime(day.getTime() + 86400_000)
+  const visitDate = day.toLocaleDateString('en-CA', { timeZone: 'Asia/Shanghai' })
+  const existing: Slot[] = []
+  for (let pageNumber = 1; ; pageNumber++) {
+    const result = await api<PageResult<Slot>>(request, `/admin/appointment-slots?page=${pageNumber}&size=50`, 'GET', undefined, adminToken)
+    existing.push(...result.items.filter(slot => slot.visitDate === visitDate))
+    if (pageNumber >= result.totalPages) break
+  }
+  const minute = Array.from({ length: 59 }, (_, i) => String(i).padStart(2, '0')).find(m => existing.every(slot => !slot.startTime.startsWith(`16:${m}`)))
+  if (!minute) throw new Error('No free test start time')
+  const values = { visitDate, startTime: `16:${minute}`, endTime: '16:59', capacity: 3 }
+  await login(page, qualityEnvironment.admin, '/admin/operations')
+  await page.getByRole('tab', { name: '预约时段' }).click()
+  await page.getByTestId('admin-ops-open-create-drawer').click()
+  await page.getByLabel('参观日期').fill(visitDate)
+  await page.getByLabel('开始时间').fill(values.startTime)
+  await page.getByLabel('结束时间').fill(values.endTime)
+  await page.getByLabel('可预约人数').fill('3')
+  const created = page.waitForResponse(r => r.url().endsWith('/api/v1/admin/appointment-slots') && r.request().method() === 'POST')
+  await page.getByRole('button', { name: '创建时段', exact: true }).click()
+  const response = await created
+  expect(response.ok()).toBeTruthy()
+  const slot = (await response.json()).data as Slot
+  cleanupActions.push(() => api(request, `/admin/appointment-slots/${slot.id}`, 'PATCH', { ...values, status: 'CLOSED' }, adminToken))
+  expect(await api<Slot[]>(request, `/appointment-slots?from=${visitDate}&to=${visitDate}`)).toContainEqual(expect.objectContaining({ id: slot.id, remainingPeople: 3 }))
+  const visitor = await browser.newPage({ baseURL: qualityEnvironment.baseURL, locale: 'zh-CN', viewport: { width: 390, height: 844 } })
+  try {
+    await visitor.goto('/appointment')
+    await visitor.getByTestId('calendar-month-select').selectOption(visitDate.slice(0, 7))
+    await visitor.getByTitle(`选择日期: ${visitDate}`, { exact: true }).click()
+    const choice = visitor.getByRole('button', { name: new RegExp(`^${values.startTime}.*${values.endTime}`) })
+    await choice.click()
+    await expect(choice).toHaveAttribute('aria-pressed', 'true')
+  } finally { await visitor.close() }
+})
+
 test('预约登录续填、管理员确认、个人中心状态一致', async ({ page, request, browser }) => {
   const visitor = await account(request)
   const adminToken = await tokenFor(request, qualityEnvironment.admin)
@@ -124,6 +163,81 @@ test('预约登录续填、管理员确认、个人中心状态一致', async ({
   } finally { await adminContext.close() }
   await page.getByRole('button', { name: '刷新预约记录' }).click()
   await expect(page.locator('.profile-record-card').filter({ hasText: appointment.appointmentNo })).toContainText('已确认')
+})
+
+test('移动预约提交时余量已用尽，保留填写内容并可改约其他时段', async ({ page, request }) => {
+  const visitor = await account(request)
+  const otherVisitor = await account(request)
+  const adminToken = await tokenFor(request, qualityEnvironment.admin)
+  const visitorToken = await tokenFor(request, visitor)
+  const otherToken = await tokenFor(request, otherVisitor)
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Shanghai' })
+  const date = new Date(`${today}T00:00:00Z`)
+  date.setUTCMonth(date.getUTCMonth() + 1, 10)
+  if (date.getUTCDay() === 1) date.setUTCDate(11)
+  const visitDate = date.toISOString().slice(0, 10)
+  async function createSlot(startTime: string, endTime: string) {
+    const values = { visitDate, startTime, endTime, capacity: 2, status: 'OPEN' }
+    const slot = await api<Slot>(request, '/admin/appointment-slots', 'POST', values, adminToken)
+    cleanupActions.push(() => api(request, `/admin/appointment-slots/${slot.id}`, 'PATCH',
+      { ...values, status: 'CLOSED' }, adminToken))
+    return slot
+  }
+  const first = await createSlot('11:47:00', '11:57:00')
+  const alternative = await createSlot('12:07:00', '12:17:00')
+  const available = () => api<Slot[]>(request, `/appointment-slots?from=${visitDate}&to=${visitDate}`)
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await login(page, visitor, '/appointment')
+  await page.getByTestId('calendar-month-select').selectOption(visitDate.slice(0, 7))
+  const day = page.getByTitle(`选择日期: ${visitDate}`, { exact: true })
+  await day.click()
+  const firstTime = page.getByRole('button', { name: /^11:47.*11:57/ })
+  await firstTime.click()
+  const trigger = page.getByRole('button', { name: '填写预约信息', exact: true })
+  await trigger.click()
+  const sheet = page.getByRole('dialog')
+  const confirm = sheet.getByRole('button', { name: '确认预约', exact: true })
+  const partySize = sheet.getByRole('spinbutton', { name: '同行人数', exact: true })
+  await partySize.fill('2')
+  await sheet.getByLabel('联系人手机号', { exact: true }).fill('13800000000')
+
+  const competingBooking = await api<Appointment>(request, '/appointments', 'POST', {
+    slotId: first.id, visitorCount: 2, contactName: otherVisitor.nickname,
+    contactPhone: '13800000001', contactEmail: otherVisitor.email,
+  }, otherToken, { 'Idempotency-Key': randomUUID() })
+  expect(competingBooking.status).toBe('PENDING')
+  expect((await available()).filter(slot => [first.id, alternative.id].includes(slot.id)))
+    .toEqual([expect.objectContaining({ id: alternative.id, remainingPeople: 2 })])
+
+  const submitted = () => page.waitForResponse(response =>
+    new URL(response.url()).pathname === '/api/v1/appointments' && response.request().method() === 'POST')
+  const rejected = submitted()
+  await confirm.click()
+  expect((await rejected).status()).toBe(409)
+  await expect(sheet.locator('[data-submit-error]')).toContainText('名额')
+  await expect(confirm).toBeDisabled()
+  await expect(partySize).toHaveValue('2')
+  await expect(sheet.getByLabel('联系人手机号', { exact: true })).toHaveValue('13800000000')
+  expect((await api<PageResult<Appointment>>(request, '/appointments/me', 'GET', undefined, visitorToken)).total).toBe(0)
+
+  await page.keyboard.press('Escape')
+  await expect(sheet).toHaveCount(0)
+  await day.click()
+  await expect(firstTime).toHaveCount(0)
+  await page.getByRole('button', { name: /^12:07.*12:17/ }).click()
+  await trigger.click()
+  await expect(partySize).toHaveValue('2')
+  await expect(sheet.getByLabel('联系人手机号', { exact: true })).toHaveValue('13800000000')
+  const retried = submitted()
+  await confirm.click()
+  const response = await retried
+  expect(response.ok()).toBe(true)
+  const created = (await response.json()).data as Appointment
+  const records = await api<PageResult<Appointment>>(request, '/appointments/me', 'GET', undefined, visitorToken)
+  expect(records.total).toBe(1)
+  expect(records.items[0]?.id).toBe(created.id)
+  expect((await available()).some(slot => slot.id === alternative.id)).toBe(false)
 })
 
 test('预约落库但响应丢失时锁定原摘要，重试只恢复同一条预约', async ({ page, request }) => {
@@ -221,6 +335,85 @@ test('正常模拟支付后订单可查，重复支付不重复扣库存', async
   await expect(record).toContainText(product.name)
   await page.reload()
   await expect(record).toContainText('已支付')
+})
+
+test.describe('移动购物袋', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+
+  test('访客登录后只续加一次，触屏拖动关闭与重开不丢商品', async ({ page, request }) => {
+    const visitor = await account(request)
+    const adminToken = await tokenFor(request, qualityEnvironment.admin)
+    const product = await productFixture(request, adminToken)
+    const visitorToken = await tokenFor(request, visitor)
+    const cartItems = () => api<{ productId: number; quantity: number }[]>(request, '/cart', 'GET', undefined, visitorToken)
+    const expectedBag = [{ productId: product.id, quantity: 1 }]
+    let additions = 0
+    page.on('request', req => {
+      if (req.method() === 'POST' && new URL(req.url()).pathname === '/api/v1/cart/items') additions++
+    })
+
+    await page.goto('/')
+    await page.locator('.mobile-tab-bar a[href="/shop"]').tap()
+    await page.locator('.product-grid article').filter({ hasText: product.name })
+      .getByRole('button', { name: '加入购物车', exact: true }).tap()
+    await expect(page).toHaveURL(/\/login\?/)
+    const target = new URL(page.url()).searchParams.get('returnTo')
+    expect(target).toBe(`/shop?intent=add-to-cart&productId=${product.id}`)
+    expect(await cartItems()).toEqual([])
+    expect(additions).toBe(0)
+
+    await fillLogin(page, visitor, '/shop')
+    const bagTrigger = page.getByRole('button', { name: /打开购物袋/ })
+    await expect(bagTrigger).toHaveAccessibleName(/1 件/)
+    expect(await cartItems()).toMatchObject(expectedBag)
+    expect(additions).toBe(1)
+
+    const bag = page.getByRole('dialog', { name: /购物袋/ })
+    const quantity = bag.getByRole('group', { name: `${product.name} 数量` }).locator('[aria-live="polite"]')
+    await bagTrigger.tap()
+    await expect(quantity).toHaveText('1')
+    await expect(bag.locator('.bottom-sheet')).toHaveAttribute('data-snap-point', 'medium')
+
+    const session = await page.context().newCDPSession(page)
+    async function swipeHandle(name: string, distance: number) {
+      const handle = bag.getByRole('button', { name, exact: true })
+      await handle.tap({ trial: true })
+      const box = (await handle.boundingBox())!
+      const x = Math.round(box.x + box.width / 2)
+      const y = Math.round(box.y + box.height / 2)
+      expect(y + distance).toBeGreaterThan(0)
+      expect(y + distance).toBeLessThan(page.viewportSize()!.height)
+      await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] })
+      try {
+        for (let step = 1; step <= 10; step++) {
+          const nextY = Math.round(y + distance * step / 10)
+          await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: nextY }] })
+          await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())))
+        }
+      } finally {
+        await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+      }
+    }
+    try {
+      await swipeHandle('展开面板', -125)
+      await expect(bag.locator('.bottom-sheet')).toHaveAttribute('data-snap-point', 'full')
+      await expect(quantity).toHaveText('1')
+      await swipeHandle('收起面板', 180)
+      await expect(bag).toHaveCount(0)
+    } finally {
+      await session.detach()
+    }
+
+    await bagTrigger.tap()
+    await expect(quantity).toHaveText('1')
+    await bag.getByRole('button', { name: '关闭面板', exact: true }).tap()
+    await expect(bag).toHaveCount(0)
+    await page.reload()
+    await expect(page).toHaveURL(/\/shop$/)
+    await expect(bagTrigger).toHaveAccessibleName(/1 件/)
+    expect(await cartItems()).toMatchObject(expectedBag)
+    expect(additions).toBe(1)
+  })
 })
 
 test('购物车改量锁定结算，丢失支付响应后恢复唯一已支付订单', async ({ page, request }) => {

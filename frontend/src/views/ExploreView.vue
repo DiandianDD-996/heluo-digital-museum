@@ -5,7 +5,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { gsap } from 'gsap'
 import { apiGet, type ContentPage } from '../lib/api'
 import { artifactPlateTransitionStyle, markActiveArtifactPlate } from '../lib/inkTransitions'
-import { schedulePrefetch } from '../lib/prefetch'
+import { readPrefetchCache, schedulePrefetch, writePrefetchCache } from '../lib/prefetch'
 import { mediaSrcset, mediaSizes } from '../lib/responsiveMedia'
 import { localizedContent, localizeCategoryName } from '../lib/contentLocale'
 import type { ArticleCard, ArtifactCard, Category, SearchResult } from '../lib/content'
@@ -231,17 +231,23 @@ function applyEntrance(selectors: string[], stagger = 0.055) {
 
 onMounted(() => applyEntrance(['[data-motion="explore-intro"] > *', '[data-motion="explore-toolbar"]', '[data-motion="explore-theme"]', '[data-motion="explore-story"]']))
 
+let skipNextGridReveal = false
+
 watch([displayArtifacts, articles, searchResults], async () => {
+  if (skipNextGridReveal) {
+    skipNextGridReveal = false
+    return
+  }
   if (!shouldRunGsapReveal()) return
   await nextTick()
   const targets = root.value?.querySelectorAll<HTMLElement>('[data-motion="explore-object"], [data-motion="explore-result"]')
   if (!targets?.length) return
-  const { offset, duration } = revealFigures()
-  gsap.fromTo(targets, { autoAlpha: 0, y: offset }, {
+  const { offset } = revealFigures()
+  gsap.fromTo(targets, { autoAlpha: 0.01, y: Math.min(offset, 10) }, {
     autoAlpha: 1,
     y: 0,
-    duration,
-    stagger: 0.045,
+    duration: 0.2,
+    stagger: 0.02,
     ease: 'power3.out',
     overwrite: 'auto',
     clearProps: 'opacity,visibility,transform',
@@ -250,32 +256,63 @@ watch([displayArtifacts, articles, searchResults], async () => {
 
 const collectionTotalPages = computed(() => Math.max(artifactTotalPages.value, articleTotalPages.value))
 
+function applyContentPayload(
+  categoryData: Category[],
+  artifactData: ContentPage<ArtifactCard>,
+  articleData: ContentPage<ArticleCard>,
+) {
+  categories.value = categoryData
+  artifacts.value = artifactData.items
+  articles.value = articleData.items
+  artifactTotalPages.value = Math.max(1, artifactData.totalPages)
+  articleTotalPages.value = Math.max(1, articleData.totalPages)
+  artifactTotal.value = artifactData.total
+  articleTotal.value = articleData.total
+  if (collectionPage.value > collectionTotalPages.value) {
+    void router.replace({ query: { ...route.query, page: String(collectionTotalPages.value) } })
+  }
+}
+
 async function loadContent(page = collectionPage.value) {
   const requestId = ++contentRequestId
   collectionPage.value = Math.max(1, page)
-  loading.value = true
   contentError.value = ''
+
+  const categoryQuery = selectedCategory.value ? `&categoryCode=${encodeURIComponent(selectedCategory.value)}` : ''
+  const categoriesKey = '/categories'
+  const artifactsKey = `/artifacts?page=${collectionPage.value}&size=12${categoryQuery}`
+  const articlesKey = `/articles?page=${collectionPage.value}&size=12${categoryQuery}`
+
+  const cachedCategories = readPrefetchCache<Category[]>(categoriesKey)
+  const cachedArtifacts = readPrefetchCache<ContentPage<ArtifactCard>>(artifactsKey)
+  const cachedArticles = readPrefetchCache<ContentPage<ArticleCard>>(articlesKey)
+  const hasCache = Boolean(cachedCategories && cachedArtifacts && cachedArticles)
+
+  if (hasCache) {
+    skipNextGridReveal = true
+    applyContentPayload(cachedCategories!, cachedArtifacts!, cachedArticles!)
+    loading.value = false
+  } else {
+    loading.value = true
+  }
+
   try {
-    const categoryQuery = selectedCategory.value ? `&categoryCode=${encodeURIComponent(selectedCategory.value)}` : ''
     const [categoryData, artifactData, articleData] = await Promise.all([
-      apiGet<Category[]>('/categories'),
-      apiGet<ContentPage<ArtifactCard>>(`/artifacts?page=${collectionPage.value}&size=12${categoryQuery}`),
-      apiGet<ContentPage<ArticleCard>>(`/articles?page=${collectionPage.value}&size=12${categoryQuery}`),
+      apiGet<Category[]>(categoriesKey),
+      apiGet<ContentPage<ArtifactCard>>(artifactsKey),
+      apiGet<ContentPage<ArticleCard>>(articlesKey),
     ])
+    writePrefetchCache(categoriesKey, categoryData)
+    writePrefetchCache(artifactsKey, artifactData)
+    writePrefetchCache(articlesKey, articleData)
     if (requestId === contentRequestId) {
-      categories.value = categoryData
-      artifacts.value = artifactData.items
-      articles.value = articleData.items
-      artifactTotalPages.value = Math.max(1, artifactData.totalPages)
-      articleTotalPages.value = Math.max(1, articleData.totalPages)
-      artifactTotal.value = artifactData.total
-      articleTotal.value = articleData.total
-      if (collectionPage.value > collectionTotalPages.value) {
-        void router.replace({ query: { ...route.query, page: String(collectionTotalPages.value) } })
-      }
+      if (hasCache) skipNextGridReveal = true
+      applyContentPayload(categoryData, artifactData, articleData)
     }
   } catch (reason) {
-    if (requestId === contentRequestId) contentError.value = reason instanceof Error ? reason.message : copy.value.loadError
+    if (!hasCache && requestId === contentRequestId) {
+      contentError.value = reason instanceof Error ? reason.message : copy.value.loadError
+    }
   } finally {
     if (requestId === contentRequestId) loading.value = false
   }
@@ -757,6 +794,13 @@ onBeforeUnmount(() => {
   border-color: var(--accent-bronze);
   background: var(--accent-bronze-soft);
   color: var(--ink-primary);
+}
+
+@media (pointer: coarse) {
+  .gallery-hot-terms button {
+    min-block-size: var(--control-min);
+    min-inline-size: var(--control-min);
+  }
 }
 
 /* ── Underline Category Tabs ── */

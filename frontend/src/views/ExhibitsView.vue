@@ -3,6 +3,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { gsap } from 'gsap'
 import { apiGet } from '../lib/api'
+import { readPrefetchCache, writePrefetchCache } from '../lib/prefetch'
+import { mediaSizes, mediaSrcset } from '../lib/responsiveMedia'
 import { createGsapContext, isConstrainedGsapReveal, shouldRunGsapReveal } from '../lib/gsap'
 import { audioSystem } from '../lib/audioSystem'
 import InlineStatus from '../components/InlineStatus.vue'
@@ -119,8 +121,8 @@ const coverFor = (item: ExhibitCard) => {
 
 const isFeatureShowcase = computed(() => items.value.length > 0 && items.value.length <= 2)
 
-function revealExhibits() {
-  if (!shouldRunGsapReveal() || !root.value || items.value.length === 0) return
+function revealExhibits(instant = false) {
+  if (instant || !shouldRunGsapReveal() || !root.value || items.value.length === 0) return
   gsapContext?.revert()
   gsapContext = createGsapContext(root.value, () => {
     if (!discoveryCued) {
@@ -132,22 +134,33 @@ function revealExhibits() {
     const constrained = isConstrainedGsapReveal()
     const timeline = gsap.timeline({ defaults: { ease: 'power3.out' } })
     timeline
-      .from('[data-motion="archive-copy"] > *', { autoAlpha: 0, y: constrained ? 5 : 12, duration: constrained ? 0.18 : 0.34, stagger: 0.05, clearProps: 'transform' }, 0)
-      .from(cards, { autoAlpha: 0, y: constrained ? 6 : 16, duration: constrained ? 0.18 : 0.36, stagger: 0.08, clearProps: 'transform' }, 0.12)
+      .from('[data-motion="archive-copy"] > *', { autoAlpha: 0, y: constrained ? 4 : 8, duration: constrained ? 0.14 : 0.2, stagger: 0.03, clearProps: 'transform' }, 0)
+      .from(cards, { autoAlpha: 0, y: constrained ? 5 : 10, duration: constrained ? 0.14 : 0.22, stagger: 0.04, clearProps: 'transform' }, 0.04)
   })
 }
 
 async function loadExhibits() {
-  loading.value = true
+  const cached = readPrefetchCache<ExhibitCard[]>('/exhibits')
   error.value = ''
+  if (cached) {
+    items.value = cached
+    loading.value = false
+  } else {
+    loading.value = true
+  }
+
   try {
-    items.value = await apiGet<ExhibitCard[]>('/exhibits')
+    const fresh = await apiGet<ExhibitCard[]>('/exhibits')
+    writePrefetchCache('/exhibits', fresh)
+    items.value = fresh
   } catch (reason) {
-    error.value = reason instanceof Error ? reason.message : (locale.value === 'en-US' ? 'Digital exhibits could not be loaded.' : '数字展项加载失败。')
+    if (!cached) {
+      error.value = reason instanceof Error ? reason.message : (locale.value === 'en-US' ? 'Digital exhibits could not be loaded.' : '数字展项加载失败。')
+    }
   } finally {
     loading.value = false
     await nextTick()
-    revealExhibits()
+    revealExhibits(Boolean(cached))
   }
 }
 
@@ -212,7 +225,14 @@ onBeforeUnmount(() => {
           :class="{ 'exhibit-showcase__media--panoramic': item.slug === 'river-map-stone-raking' }"
           data-motion="card-media"
         >
-          <img :src="coverFor(item)" :alt="displayItem(item).title" loading="eager" decoding="async" />
+          <img
+            :src="coverFor(item)"
+            :srcset="mediaSrcset(coverFor(item))"
+            :sizes="mediaSizes"
+            :alt="displayItem(item).title"
+            loading="eager"
+            decoding="async"
+          />
           <span class="exhibit-showcase__badge font-mono" data-motion="card-index">
             EXHIBIT {{ String(index + 1).padStart(2, '0') }}
           </span>

@@ -137,6 +137,13 @@ describe('MuseumPass, CuratorialBookmarks, and ProductProvenanceDrawer', () => {
       return Promise.reject(new Error(`Unexpected path: ${path}`))
     })
 
+    // JSDOM does not implement the top layer. The mobile E2E verifies actual focus and modality.
+    const prototype = window.HTMLDialogElement.prototype
+    const descriptors = Object.getOwnPropertyDescriptors(prototype)
+    Object.defineProperties(prototype, {
+      showModal: { configurable: true, value(this: HTMLDialogElement) { this.setAttribute('open', '') } },
+      close: { configurable: true, value(this: HTMLDialogElement) { this.removeAttribute('open') } },
+    })
     const wrapper = mount(ProductProvenanceDrawer, {
       attachTo: document.body,
       props: {
@@ -156,22 +163,30 @@ describe('MuseumPass, CuratorialBookmarks, and ProductProvenanceDrawer', () => {
         stubs: { RouterLink: { template: '<a><slot /></a>' } },
       },
     })
-    await flushPromises()
+    try {
+      await flushPromises()
+      const dialog = document.body.querySelector<HTMLDialogElement>('[data-testid="product-provenance-drawer"]')
+      expect(dialog?.open).toBe(true)
+      expect(dialog?.textContent).toContain('河洛图纹石板（概念展品）')
+      expect(dialog?.textContent).toContain('设计灵感源自馆内概念展品《河洛图纹石板》。')
 
-    expect(document.body.textContent).toContain('河洛图纹石板（概念展品）')
-    expect(document.body.textContent).toContain('设计灵感源自馆内概念展品《河洛图纹石板》。')
+      const bookmarkBtn = dialog!.querySelector<HTMLButtonElement>('[data-testid="provenance-bookmark-btn"]')
+      expect(bookmarkBtn).not.toBeNull()
+      bookmarkBtn!.click()
+      await flushPromises()
+      expect(useCuratorialBookmarks().count.value).toBe(1)
+      expect(useCuratorialBookmarks().isBookmarked('product', 'river-map-notebook')).toBe(true)
 
-    const bookmarkBtn = document.body.querySelector<HTMLButtonElement>('[data-testid="provenance-bookmark-btn"]')
-    expect(bookmarkBtn).not.toBeNull()
-    bookmarkBtn!.click()
-    await flushPromises()
-    expect(useCuratorialBookmarks().count.value).toBe(1)
-    expect(useCuratorialBookmarks().isBookmarked('product', 'river-map-notebook')).toBe(true)
-
-    bookmarkBtn!.click()
-    await flushPromises()
-    expect(useCuratorialBookmarks().count.value).toBe(0)
-
-    wrapper.unmount()
+      bookmarkBtn!.click()
+      await flushPromises()
+      expect(useCuratorialBookmarks().count.value).toBe(0)
+    } finally {
+      wrapper.unmount()
+      for (const method of ['showModal', 'close']) {
+        const original = descriptors[method]
+        if (original) Object.defineProperty(prototype, method, original)
+        else Reflect.deleteProperty(prototype, method)
+      }
+    }
   })
 })

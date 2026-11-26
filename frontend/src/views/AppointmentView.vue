@@ -3,6 +3,7 @@ import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, r
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, ArrowRight, Calendar, Check, CircleCheck, Clock, InfoFilled, Location, Minus, Plus, Refresh, Tickets, Timer, User } from '@element-plus/icons-vue'
 import { ApiRequestError, apiGet, apiRequest } from '../lib/api'
+import { readPrefetchCache, writePrefetchCache } from '../lib/prefetch'
 import { gsap } from 'gsap'
 import { createGsapContext, revealBatch, revealFigures, revealSequence, shouldRunGsapReveal } from '../lib/gsap'
 import { useAuthStore } from '../stores/auth'
@@ -47,12 +48,12 @@ const venueMedia = computed(() => (
   isDark.value
     ? {
       src: '/media/editorial/login-pavilion-dark-v3.webp',
-      srcset: '/media/responsive/login-pavilion-dark-v3-640w.webp 640w, /media/responsive/login-pavilion-dark-v3-960w.webp 960w, /media/editorial/login-pavilion-dark-v3.webp 896w',
+      srcset: '/media/responsive/login-pavilion-dark-v3-640w.webp 640w, /media/editorial/login-pavilion-dark-v3.webp 896w, /media/responsive/login-pavilion-dark-v3-960w.webp 960w',
       plateLabel: 'NOCTURNE PAVILION · 河洛夜景',
     }
     : {
       src: '/media/editorial/login-pavilion-light-v3.webp',
-      srcset: '/media/responsive/login-pavilion-light-v3-640w.webp 640w, /media/responsive/login-pavilion-light-v3-960w.webp 960w, /media/editorial/login-pavilion-light-v3.webp 896w',
+      srcset: '/media/responsive/login-pavilion-light-v3-640w.webp 640w, /media/editorial/login-pavilion-light-v3.webp 896w, /media/responsive/login-pavilion-light-v3-960w.webp 960w',
       plateLabel: 'DAYLIGHT PAVILION · 河洛实景',
     }
 ))
@@ -67,6 +68,10 @@ const message = ref('')
 const bookingNo = ref('')
 const bookingVerifyCode = ref('')
 const passModalOpen = ref(false)
+const passDialog = ref<HTMLDialogElement | null>(null)
+const passCloseButton = ref<HTMLButtonElement | null>(null)
+const passReopenButton = ref<HTMLButtonElement | null>(null)
+let passReturnFocus: HTMLElement | null = null
 const stampingSeal = ref(false)
 const submitting = ref(false)
 let stampRevealTimer: ReturnType<typeof setTimeout> | undefined
@@ -107,7 +112,10 @@ const workbenchCopy = computed(() => locale.value === 'zh-CN' ? {
   eyebrow: 'MUSEUM PASS · 入馆预约',
   myBookings: '我的预约',
   dateTitle: '选择参观日期',
-  window: '未来一年（365 天）',
+  window: '可查询未来 365 天',
+  emptyWindow: '目前没有可预约的时段，请稍后再查。',
+  emptyMonth: '本月没有可预约的时段。',
+  nearestDate: '查看最近可约日期',
   closed: '未开放',
   mondayClosed: '周一闭馆',
   pastDay: '已过',
@@ -138,7 +146,10 @@ const workbenchCopy = computed(() => locale.value === 'zh-CN' ? {
   eyebrow: 'MUSEUM PASS · VISIT BOOKING',
   myBookings: 'My bookings',
   dateTitle: 'Choose your visit date',
-  window: 'Next 365 days',
+  window: 'Check the next 365 days',
+  emptyWindow: 'No visit times are available right now. Check again later.',
+  emptyMonth: 'No visit times are available this month.',
+  nearestDate: 'Go to the next available date',
   closed: 'Closed',
   mondayClosed: 'Closed Mon',
   pastDay: 'Past',
@@ -335,6 +346,17 @@ const dateDays = computed<CalendarDay[]>(() => {
 })
 
 const activeMonthOpenCount = computed(() => dateDays.value.filter((day) => day.available).length)
+const nearestAvailableDate = computed(() => slots.value.reduce((nearest, slot) =>
+  slot.remainingPeople > 0 && isPublicSlotDate(slot.visitDate) && (!nearest || slot.visitDate < nearest)
+    ? slot.visitDate : nearest, ''))
+
+async function showNearestDate() {
+  const date = nearestAvailableDate.value
+  if (!date) return
+  activeMonth.value = date.slice(0, 7)
+  await nextTick()
+  root.value?.querySelector<HTMLElement>(`[data-visit-date="${date}"]`)?.focus()
+}
 
 function calendarDayStatus(day: CalendarDay) {
   if (day.isPast) return workbenchCopy.value.pastDay
@@ -412,34 +434,47 @@ function bookingError(reason: unknown, type: 'load' | 'submit') {
   return type === 'load' ? t.value.booking.loadError : t.value.booking.submitError
 }
 
+function applyLoadedSlots(result: Slot[]) {
+  slots.value = result
+  const selected = slots.value.find((slot) => slot.id === form.slotId)
+  if (selected && (creationKey.value || selected.remainingPeople >= form.visitorCount)) selectedDate.value = selected.visitDate
+  else if (creationKey.value) selectedDate.value = ''
+  else {
+    if (form.slotId) fieldErrors.slotId = locale.value === 'en-US' ? 'This time is no longer available. Choose another time.' : '原时段已不可用或名额不足，请重新选择。'
+    selectedDate.value = selected?.visitDate ?? ''
+    form.slotId = 0
+  }
+  const requestedDate = typeof route.query.date === 'string' ? route.query.date : ''
+  if (!formLocked.value && !form.slotId && isPublicSlotDate(requestedDate)) {
+    selectedDate.value = requestedDate
+  }
+  const requestedPeople = typeof route.query.people === 'string' ? Number(route.query.people) : NaN
+  if (!formLocked.value && Number.isInteger(requestedPeople) && requestedPeople >= 1 && requestedPeople <= 30) {
+    form.visitorCount = requestedPeople
+  }
+}
+
 async function load() {
   loadController?.abort()
   const controller = new AbortController()
   loadController = controller
-  loading.value = true
+  const prefetched = slots.value.length === 0 ? readPrefetchCache<Slot[]>('/appointment-slots') : undefined
+  const cached = prefetched?.length ? prefetched : undefined
   loadError.value = ''
+  if (cached) {
+    applyLoadedSlots(cached)
+    loading.value = false
+  } else {
+    loading.value = true
+  }
+
   try {
     const result = await apiGet<Slot[]>('/appointment-slots', undefined, { signal: controller.signal })
+    writePrefetchCache('/appointment-slots', result)
     if (controller.signal.aborted) return
-    slots.value = result
-    const selected = slots.value.find((slot) => slot.id === form.slotId)
-    if (selected && (creationKey.value || selected.remainingPeople >= form.visitorCount)) selectedDate.value = selected.visitDate
-    else if (creationKey.value) selectedDate.value = ''
-    else {
-      if (form.slotId) fieldErrors.slotId = locale.value === 'en-US' ? 'This time is no longer available. Choose another time.' : '原时段已不可用或名额不足，请重新选择。'
-      selectedDate.value = selected?.visitDate ?? ''
-      form.slotId = 0
-    }
-    const requestedDate = typeof route.query.date === 'string' ? route.query.date : ''
-    if (!formLocked.value && !form.slotId && isPublicSlotDate(requestedDate)) {
-      selectedDate.value = requestedDate
-    }
-    const requestedPeople = typeof route.query.people === 'string' ? Number(route.query.people) : NaN
-    if (!formLocked.value && Number.isInteger(requestedPeople) && requestedPeople >= 1 && requestedPeople <= 30) {
-      form.visitorCount = requestedPeople
-    }
+    applyLoadedSlots(result)
   } catch (reason) {
-    if (!controller.signal.aborted) loadError.value = bookingError(reason, 'load')
+    if (!cached && !controller.signal.aborted) loadError.value = bookingError(reason, 'load')
   } finally {
     if (loadController === controller) loading.value = false
   }
@@ -624,17 +659,41 @@ const passModalCopy = computed(() => locale.value === 'en-US' ? {
   closeAria: '关闭电子票根弹窗',
 })
 
-function onPassModalKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape' && passModalOpen.value) {
-    passModalOpen.value = false
-  }
+function reopenPass(event: MouseEvent) {
+  passReturnFocus = event.currentTarget as HTMLElement
+  passModalOpen.value = true
 }
 
-watch(passModalOpen, (isOpen) => {
-  if (typeof window === 'undefined') return
-  if (isOpen) window.addEventListener('keydown', onPassModalKeydown)
-  else window.removeEventListener('keydown', onPassModalKeydown)
-})
+watch(passDialog, (dialog) => {
+  if (!dialog || !passModalOpen.value || dialog.open) return
+  dialog.showModal?.()
+  passCloseButton.value?.focus({ preventScroll: true })
+}, { flush: 'post' })
+
+function finishPassClose(element: Element) {
+  const dialog = element as HTMLDialogElement
+  if (dialog.open) dialog.close()
+  if (passModalOpen.value) return
+  // The confirmation button no longer exists after a successful mobile booking.
+  const opener = passReturnFocus
+  passReturnFocus = null
+  const target = opener?.getClientRects().length ? opener : passReopenButton.value
+  target?.focus()
+}
+
+function containPassTab(event: KeyboardEvent) {
+  const dialog = event.currentTarget as HTMLDialogElement
+  if (event.key !== 'Tab' || event.isComposing || event.altKey || event.ctrlKey || event.metaKey) return
+  const stops = [...dialog.querySelectorAll<HTMLElement>('a[href], button, input, textarea, select, [tabindex]')]
+    .filter(element => element.tabIndex >= 0 && !element.matches(':disabled') && !element.closest('[inert]')
+      && element.getClientRects().length > 0 && getComputedStyle(element).visibility === 'visible')
+  event.preventDefault()
+  if (!stops.length) return
+  const current = stops.findIndex(element => element === document.activeElement)
+  const step = event.shiftKey ? -1 : 1
+  const next = current < 0 ? (event.shiftKey ? stops.length - 1 : 0) : (current + step + stops.length) % stops.length
+  stops[next]?.focus()
+}
 
 watch(selectedDate, () => { void revealTimes() })
 watch(() => route.query.date, () => {
@@ -647,7 +706,7 @@ watch([() => form.slotId, () => form.visitorCount], () => { void pulseSelection(
 
 onBeforeUnmount(() => {
   if (stampRevealTimer) clearTimeout(stampRevealTimer)
-  if (typeof window !== 'undefined') window.removeEventListener('keydown', onPassModalKeydown)
+  if (passDialog.value?.open) passDialog.value.close()
   mobileDateQuery?.removeEventListener('change', syncMobileDatePicker)
   loadController?.abort()
   gsapContext?.revert()
@@ -699,10 +758,11 @@ onBeforeUnmount(() => {
             <div class="appointment-result__actions">
               <button
                 v-if="issuedPass"
+                ref="passReopenButton"
                 type="button"
                 class="appointment-result__pass-btn"
                 data-testid="reopen-museum-pass"
-                @click="passModalOpen = true"
+                @click="reopenPass"
               >
                 <Tickets aria-hidden="true" />{{ passModalCopy.reopen }}
               </button>
@@ -788,6 +848,16 @@ onBeforeUnmount(() => {
             <FluidButton variant="secondary" @click="load"><Refresh aria-hidden="true" />{{ pageCopy.retry }}</FluidButton>
           </div>
           <template v-else>
+            <div v-if="!activeMonthOpenCount" class="appointment-empty">
+              <InfoFilled aria-hidden="true" />
+              <p role="status">{{ nearestAvailableDate ? workbenchCopy.emptyMonth : workbenchCopy.emptyWindow }}</p>
+              <FluidButton v-if="nearestAvailableDate" type="button" variant="secondary" @click="showNearestDate">
+                {{ workbenchCopy.nearestDate }}：{{ nearestAvailableDate }}
+              </FluidButton>
+              <FluidButton v-else type="button" variant="secondary" @click="load">
+                <Refresh aria-hidden="true" />{{ pageCopy.retry }}
+              </FluidButton>
+            </div>
             <div class="appointment-weekdays" aria-hidden="true">
               <span v-for="head in weekdayHeaders" :key="head">{{ head }}</span>
             </div>
@@ -802,6 +872,7 @@ onBeforeUnmount(() => {
                 v-for="day in dateDays"
                 :key="day.iso"
                 class="appointment-day"
+                :data-visit-date="day.iso"
                 data-motion="appointment-day"
                 :class="{
                   active: selectedDate === day.iso,
@@ -827,7 +898,6 @@ onBeforeUnmount(() => {
                 <Check v-if="selectedDate === day.iso" class="appointment-day__check" aria-hidden="true" />
               </button>
             </div>
-            <p v-if="!slots.length" class="appointment-inline-note">{{ t.booking.empty }}</p>
           </template>
         </section>
 
@@ -990,7 +1060,7 @@ onBeforeUnmount(() => {
                 v-if="issuedPass"
                 type="button"
                 class="pass-stub__open-btn"
-                @click="passModalOpen = true"
+                  @click="reopenPass"
               >
                 <Tickets aria-hidden="true" />{{ passModalCopy.reopen }}
               </button>
@@ -1037,15 +1107,16 @@ onBeforeUnmount(() => {
 
     <!-- Ceremonial Keepsake Pass Modal: immediately presented on booking success -->
     <Teleport to="body">
-      <Transition name="pass-modal-fade">
-        <div
+      <Transition name="pass-modal-fade" @after-leave="finishPassClose">
+        <dialog
           v-if="passModalOpen && issuedPass"
+          ref="passDialog"
           class="pass-modal-backdrop"
           data-testid="museum-pass-modal"
-          role="dialog"
-          aria-modal="true"
           aria-labelledby="pass-modal-title"
+          @cancel.prevent="passModalOpen = false"
           @click.self="passModalOpen = false"
+          @keydown="containPassTab"
         >
           <div class="pass-modal-stage">
             <header class="pass-modal-head">
@@ -1055,6 +1126,7 @@ onBeforeUnmount(() => {
                 <p class="pass-modal-head__msg">{{ message }}</p>
               </div>
               <button
+                ref="passCloseButton"
                 type="button"
                 class="pass-modal-close"
                 :aria-label="passModalCopy.closeAria"
@@ -1088,7 +1160,7 @@ onBeforeUnmount(() => {
               </div>
             </footer>
           </div>
-        </div>
+        </dialog>
       </Transition>
     </Teleport>
   </section>
@@ -2114,7 +2186,12 @@ onBeforeUnmount(() => {
 .pass-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 108;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
   display: grid;
   place-items: center;
   padding: clamp(1rem, 3.5vw, 2.5rem);
@@ -2123,7 +2200,12 @@ onBeforeUnmount(() => {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
+
+.pass-modal-backdrop:not([open]) { display: none; }
+.pass-modal-backdrop::backdrop { background: transparent; }
+:global(html:has(.pass-modal-backdrop[open])) { overflow: hidden; }
 
 .pass-modal-stage {
   width: min(100%, 940px);
@@ -2306,6 +2388,21 @@ onBeforeUnmount(() => {
   }
 }
 
+@media (pointer: coarse) {
+  .appointment-guide-actions .fluid-button {
+    min-block-size: var(--control-min);
+    min-inline-size: var(--control-min);
+  }
+
+  .appointment-workbench :is(.appointment-month-btn, .appointment-month-today) {
+    min-inline-size: var(--control-min);
+  }
+
+  .appointment-workbench :is(input, textarea, .appointment-month-select) {
+    font-size: max(16px, 1rem);
+  }
+}
+
 @media (max-width: 760px) {
   .appointment-workbench {
     width: calc(100% - 2rem);
@@ -2375,6 +2472,22 @@ onBeforeUnmount(() => {
   .pass-modal-stay,
   .pass-modal-profile {
     flex: 1 1 auto;
+  }
+}
+
+@media (max-width: 430px) {
+  .appointment-weekdays,
+  .appointment-day-pad {
+    display: none;
+  }
+
+  .appointment-dates,
+  .appointment-calendar-loading {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .appointment-day__weekday {
+    display: inline;
   }
 }
 </style>
