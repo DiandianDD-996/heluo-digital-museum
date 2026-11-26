@@ -33,7 +33,7 @@
 **河洛数字博物馆**是一座面向当代文化探索者的双语（`zh-CN` / `en-US`）数字博物馆系统。它从「浏览器物」出发，把馆藏检索、策展式长文阅读、可交互 3D 青铜展厅、R4 展馆声景、AI 策展向导「洛笙」，以及线下预约、文创商城（模拟支付）与后台运营工作台串联成一条完整体验路径。
 
 > [!NOTE]
-> 截图来自本地展厅，不是[线上演示站](https://heluo.pocketbay.app/)截图。要复现 **Heluo Editorial 3.0**，请在包含本版变更的分支按[本地启动](#本地启动)说明运行。常规页面使用默认 Docker 部署；洛笙图来自单独开启向导的本地实例。
+> 首屏、双主题首页、数字展厅及移动端实机截图均实拍自线上部署站（[heluo.pocketbay.app](https://heluo.pocketbay.app/)），3D 点云微导览、洛笙向导与部分后台长页来自本地 Docker / 隔离预览实例。要完整本地运行，请参见下方[本地启动](#本地启动)。
 
 <div align="center">
   <a href="docs/showcase/home-light-en.png">
@@ -121,8 +121,27 @@
     <td width="50%" align="center"><strong>首页 · 中文深色</strong></td>
   </tr>
   <tr>
-    <td width="50%"><a href="docs/showcase/home-light-zh.png"><img src="docs/showcase/home-light-zh.png" alt="中文浅色首页完整页面：明亮展馆、器物介绍与主题入口" /></a></td>
-    <td width="50%"><a href="docs/showcase/home-dark-zh.png"><img src="docs/showcase/home-dark-zh.png" alt="中文深色首页完整页面：深色展馆、器物介绍与主题入口" /></a></td>
+    <td width="50%"><a href="docs/showcase/home-light-zh.png"><img src="docs/showcase/home-light-zh.png" alt="中文浅色首页：宣白展墙、青铜鼎与主题入口" /></a></td>
+    <td width="50%"><a href="docs/showcase/home-dark-zh.png"><img src="docs/showcase/home-dark-zh.png" alt="中文深色首页：冷夜玄青展厅、青铜鼎与主题入口" /></a></td>
+  </tr>
+</table>
+
+### 移动端实机体验（390 × 844 · 2x Retina）
+
+针对小屏重构无边框全出血构图与双主题 `v5` 竖屏青铜鼎（深/浅切换 `0px` 亚像素对齐），精简文字密度并优化触控热区与展厅徽标避让。
+
+<table>
+  <tr>
+    <td width="25%" align="center"><strong>首页 · 浅色</strong></td>
+    <td width="25%" align="center"><strong>首页 · 深色</strong></td>
+    <td width="25%" align="center"><strong>数字展厅 · 暗房</strong></td>
+    <td width="25%" align="center"><strong>探索馆藏 · 图录</strong></td>
+  </tr>
+  <tr>
+    <td width="25%" align="center"><a href="docs/showcase/mobile-home-light-zh.png"><img src="docs/showcase/mobile-home-light-zh.png" alt="移动端浅色首页：无边框全出血青铜鼎与居中标题" /></a></td>
+    <td width="25%" align="center"><a href="docs/showcase/mobile-home-dark-zh.png"><img src="docs/showcase/mobile-home-dark-zh.png" alt="移动端深色首页：与浅色版像素级对齐的青铜鼎" /></a></td>
+    <td width="25%" align="center"><a href="docs/showcase/mobile-exhibits-dark-zh.png"><img src="docs/showcase/mobile-exhibits-dark-zh.png" alt="移动端数字展厅：EXHIBIT 01 徽标与展品零遮挡" /></a></td>
+    <td width="25%" align="center"><a href="docs/showcase/mobile-explore-light-zh.png"><img src="docs/showcase/mobile-explore-light-zh.png" alt="移动端探索馆藏：搜索与分类筛选" /></a></td>
   </tr>
 </table>
 

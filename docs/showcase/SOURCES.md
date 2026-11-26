@@ -33,14 +33,18 @@
 | [explore-dark-en.png](explore-dark-en.png) | `/explore` | 深 / en-US | 1440 × 3541 | `eff7088719df88e76d727e658bc64eecac4da939d368d80a18942f1fd2854c9d` |
 | [explore-light-en.png](explore-light-en.png) | `/explore` | 浅 / en-US | 1440 × 3541 | `176f3830ebc5a0e66f70bda3ef27db07ca1e77838bbbac94b6c95c00f2f0d331` |
 | [explore-light-preview.png](explore-light-preview.png) | `/explore` | 浅 / en-US | 1440 × 900 | `2073a89d2cc6c8c0c8b3f21b121e04cfd0d7bd292846dce15dd57a629823bbf9` |
-| [gallery-dark-en.png](gallery-dark-en.png) | `/exhibits` | 深 / en-US | 1440 × 2079 | `f74e5a9f6804fda6c14f606a4e76122161cc8088fca2844d76e45f43c9dfd87c` |
-| [gallery-light-en.png](gallery-light-en.png) | `/exhibits` | 浅 / en-US | 1440 × 2079 | `753fb85c310ea310d3b85ca6656a28c3ceb663d2c8e65bdd209de72ac14542bf` |
-| [gallery-light-preview.png](gallery-light-preview.png) | `/exhibits` | 浅 / en-US | 1440 × 900 | `23a8d006eaf69f8c6347c4eac78e80edf7cafe2d3d808a97ab07085c2c5eaf97` |
-| [hero-light-preview.png](hero-light-preview.png) | `/` | 浅 / en-US | 1440 × 900 | `39996bacd2b149cca7b778797971729e145b9ee0b66f562407104b994dff8b8c` |
-| [home-dark-en.png](home-dark-en.png) | `/` | 深 / en-US | 1440 × 3352 | `1ddc8d6b278331f4073c326e1272d321c920a58cc5f0cfd85780222e49e6edbd` |
-| [home-dark-zh.png](home-dark-zh.png) | `/` | 深 / zh-CN | 1440 × 3302 | `f8bbe7ef1d43b1c5fb4af3e30f0c13ecc476ff58c0340071d4fd062d7d84d849` |
-| [home-light-en.png](home-light-en.png) | `/` | 浅 / en-US | 1440 × 3352 | `0fbadff02736de91110f97e5459d1925700256c6c5be07d03d9de7d05fc676b5` |
-| [home-light-zh.png](home-light-zh.png) | `/` | 浅 / zh-CN | 1440 × 3302 | `86e72d43409a7ef2c68667ab1afbf6f270271ac17cf1a2239b2c835d0c6f95f1` |
+| [gallery-dark-en.png](gallery-dark-en.png) | `/exhibits` | 深 / en-US | 1440 × 900 | `34096ad19c0d12b240c1ece518dbf11ebaf360bf3a05c78af993aee2d0dfc1ab` |
+| [gallery-light-en.png](gallery-light-en.png) | `/exhibits` | 浅 / en-US | 1440 × 900 | `51f679f3cc4ace09a0de05dff04804fec612ba492801756c76b42f9038d5e193` |
+| [gallery-light-preview.png](gallery-light-preview.png) | `/exhibits` | 浅 / en-US | 1440 × 900 | `56e425bc1f1ffdf94a1830582ee9102e945baf09c5f44046f2d7c3b46189c5be` |
+| [hero-light-preview.png](hero-light-preview.png) | `/` | 浅 / en-US | 1440 × 900 | `d2cc4b525db9e24a0dd88ef32c09c267e4dc8c30ccf83a1d507556f42cac5a66` |
+| [home-dark-en.png](home-dark-en.png) | `/` | 深 / en-US | 1440 × 900 | `7611b8f8fa37e50c75da8d72e9c4bd3300b5a120fbc56478fc84f315a97b94e5` |
+| [home-dark-zh.png](home-dark-zh.png) | `/` | 深 / zh-CN | 1440 × 900 | `8e531bc70c8c1706be235c244d63cc5a2dfbfa98c11c246498702235663f0fa8` |
+| [home-light-en.png](home-light-en.png) | `/` | 浅 / en-US | 1440 × 900 | `d2cc4b525db9e24a0dd88ef32c09c267e4dc8c30ccf83a1d507556f42cac5a66` |
+| [home-light-zh.png](home-light-zh.png) | `/` | 浅 / zh-CN | 1440 × 900 | `21ee144d618ce52d7e4373fd61e644f5ffb4c487c982c3eccffb9e8525e34936` |
+| [mobile-exhibits-dark-zh.png](mobile-exhibits-dark-zh.png) | `/exhibits` | 深 / zh-CN (2x 装裱) | 536 × 1071 | `e51cda79f8ebefeabc23e372cb75d00968ee3b1613e70127d69d24f402a10e7b` |
+| [mobile-explore-light-zh.png](mobile-explore-light-zh.png) | `/explore` | 浅 / zh-CN (2x 装裱) | 536 × 1071 | `d78905fd0be0e6a283ab70dc85a124c6c13fdaead992338f7a68198403afb5c3` |
+| [mobile-home-dark-zh.png](mobile-home-dark-zh.png) | `/` | 深 / zh-CN (2x 装裱) | 536 × 1071 | `51fd38697632ceef7c05feeed06cd15f7dd01f73a3a9387e9352c61c313f402c` |
+| [mobile-home-light-zh.png](mobile-home-light-zh.png) | `/` | 浅 / zh-CN (2x 装裱) | 536 × 1071 | `a6f649c62a1f273798a2a638dec7b8b3fe1e73d49d204251393530b0f8872df2` |
 | [shop-dark-en.png](shop-dark-en.png) | `/shop` | 深 / en-US | 1440 × 1530 | `07949b452021931dea9e46de04c50af15b187ff126817e24bc05d84ae8593447` |
 | [shop-light-en.png](shop-light-en.png) | `/shop` | 浅 / en-US | 1440 × 1530 | `fc36061dfb461122a47af85ae1c165616943c650b5ba40e75fa7c294a8366a37` |
 | [shop-light-preview.png](shop-light-preview.png) | `/shop` | 浅 / en-US | 1440 × 900 | `00dd55c4a1fb66a000b4a90ad9f30312dc7a90ddab9610b1e31a03486fd5797e` |
