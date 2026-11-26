@@ -162,7 +162,7 @@ function warmOppositeThemeHero() {
   const target = isDark.value ? 'light' : 'dark'
   const mobile = window.innerWidth <= 760
   const url = mobile
-    ? `/media/editorial/home-hero-${target}-v4-portrait.webp`
+    ? `/media/editorial/home-hero-${target}-v5-portrait.webp`
     : `/media/editorial/home-hero-${target}-v3-1280w.webp`
   warmImageUrl(url)
 }

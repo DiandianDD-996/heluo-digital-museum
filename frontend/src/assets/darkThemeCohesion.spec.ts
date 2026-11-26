@@ -19,7 +19,7 @@ describe('dark theme cohesion contract (Heluo Editorial 2.0 Nocturne Gallery)', 
     expect(existsSync(resolve(process.cwd(), 'public/media/editorial/home-hero-dark-v3.webp'))).toBe(true)
     expect(existsSync(resolve(process.cwd(), 'public/media/editorial/home-hero-dark-v3-1280w.webp'))).toBe(true)
     expect(homeView).toContain("src: '/media/editorial/home-hero-dark-v3.webp'")
-    expect(homeView).toContain('home-hero-dark-v4-portrait.webp 483w')
+    expect(homeView).toContain('home-hero-dark-v5-portrait.webp 483w')
   })
 
   it('defines Cold Obsidian Gallery OKLCH dark surface hierarchy and champagne-gold/patina actions without muddy brown', () => {

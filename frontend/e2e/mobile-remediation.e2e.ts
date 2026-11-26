@@ -31,7 +31,7 @@ test('首页路由代码延迟时，提前请求主视觉且页脚不会先出�
   let intercepted = false
   let requestedHero = false
   page.on('request', request => {
-    if (request.url().endsWith('/home-hero-light-v4-portrait.webp')) requestedHero = true
+    if (request.url().endsWith('/home-hero-light-v5-portrait.webp')) requestedHero = true
   })
   await page.route(/\/HomeView(?:-[^/]+)?\.(?:js|vue)(?:\?.*)?$/, async route => {
     intercepted = true
@@ -208,7 +208,7 @@ test('移动首页并行预载关键代码和样式，不重复下载或影响�
   const homeScript = /\/HomeView-[^/]+\.js$/
   const homeStyle = /\/HomeView-[^/]+\.css$/
   const touchUnused = /\/(?:PointerCursor|PointerDotField|HeluoPattern)-[^/]+\.(?:js|css)$/
-  const hero = /\/home-hero-(?:light|dark)-v4-portrait\.webp$/
+  const hero = /\/home-hero-(?:light|dark)-v5-portrait\.webp$/
   await page.goto('/login')
   await expect(page.locator('.auth-mode-tabs')).toBeVisible()
   expect(paths.filter(path => homeScript.test(path) || homeStyle.test(path) || hero.test(path))).toEqual([])

@@ -442,6 +442,7 @@ onBeforeUnmount(() => {
   position: absolute;
   top: var(--space-5);
   left: var(--space-5);
+  z-index: 2;
   padding: 0.32rem 0.75rem;
   border: 1px solid var(--glass-dark-border);
   border-radius: var(--radius-xs);
@@ -537,7 +538,8 @@ onBeforeUnmount(() => {
     width: 100%;
     min-width: 0;
     min-height: 0;
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 4 / 3.4;
+    padding: 3.75rem var(--space-5) var(--space-5);
   }
 
   .exhibit-stats {

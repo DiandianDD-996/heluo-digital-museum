@@ -131,13 +131,28 @@ const heroMedia = computed(() => isDark.value
   ? {
       src: '/media/editorial/home-hero-dark-v3.webp',
       srcset: '/media/editorial/home-hero-dark-v3-640w.webp 640w, /media/editorial/home-hero-dark-v3-1280w.webp 1280w, /media/editorial/home-hero-dark-v3.webp 1672w',
-      mobileSrcset: '/media/editorial/home-hero-dark-v4-portrait.webp 483w',
+      mobileSrcset: '/media/editorial/home-hero-dark-v5-portrait.webp 483w',
     }
   : {
       src: '/media/editorial/home-hero-light-v3.webp',
       srcset: '/media/editorial/home-hero-light-v3-640w.webp 640w, /media/editorial/home-hero-light-v3-1280w.webp 1280w, /media/editorial/home-hero-light-v3.webp 1672w',
-      mobileSrcset: '/media/editorial/home-hero-light-v4-portrait.webp 483w',
+      mobileSrcset: '/media/editorial/home-hero-light-v5-portrait.webp 483w',
     })
+
+const mobilePortraitFallback = ref<Record<'light' | 'dark', boolean>>({
+  light: false,
+  dark: false,
+})
+
+function handleHeroImageError() {
+  const activeTheme = isDark.value ? 'dark' : 'light'
+  if (!mobilePortraitFallback.value[activeTheme]) {
+    mobilePortraitFallback.value = {
+      ...mobilePortraitFallback.value,
+      [activeTheme]: true,
+    }
+  }
+}
 
 const featureCards = computed(() => locale.value === 'zh-CN'
   ? [
@@ -302,7 +317,7 @@ onBeforeUnmount(() => {
     <!-- Section 1: Full-Bleed Curatorial Cover -->
     <section class="home-cover">
       <picture class="home-cover__picture">
-        <source media="(max-width: 760px)" :srcset="heroMedia.mobileSrcset" sizes="100vw" />
+        <source media="(max-width: 760px)" :srcset="mobilePortraitFallback[isDark ? 'dark' : 'light'] ? heroMedia.srcset : heroMedia.mobileSrcset" sizes="100vw" />
         <img
           class="corridor-home__hero-media"
           :src="heroMedia.src"
@@ -313,6 +328,7 @@ onBeforeUnmount(() => {
           alt=""
           fetchpriority="high"
           decoding="async"
+          @error="handleHeroImageError"
         />
       </picture>
       <div class="home-cover__veil" data-motion="hero-veil" aria-hidden="true"></div>

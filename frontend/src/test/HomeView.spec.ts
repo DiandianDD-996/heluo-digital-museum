@@ -46,7 +46,7 @@ describe('HomeView', () => {
     const heroSource = heroPicture.get('source')
     const heroImage = heroPicture.get('.corridor-home__hero-media')
     expect(heroSource.attributes('media')).toBe('(max-width: 760px)')
-    expect(heroSource.attributes('srcset')).toContain('home-hero-light-v4-portrait.webp 483w')
+    expect(heroSource.attributes('srcset')).toContain('home-hero-light-v5-portrait.webp 483w')
     expect(heroImage.attributes('fetchpriority')).toBe('high')
     expect(wrapper.find('.home-cover__armillary').exists()).toBe(true)
     const closeup3d = wrapper.get('.home-inline-link')
