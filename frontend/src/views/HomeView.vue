@@ -995,7 +995,7 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
   aspect-ratio: 5 / 5;
-  padding: clamp(1.75rem, 3.2vw, 2.75rem);
+  padding: 0;
   background-color: var(--surface-vitrine);
   background-image: var(--surface-vitrine-spotlight);
   background-repeat: no-repeat;
@@ -1020,11 +1020,10 @@ onBeforeUnmount(() => {
   min-width: 0;
   min-height: 0;
   max-width: 100%;
-  max-height: 420px;
-  object-fit: contain;
+  max-height: none;
+  object-fit: cover;
   transform-origin: var(--closeup-origin, 50% 50%);
   transform: scale(var(--closeup-scale, 1));
-  filter: drop-shadow(0 24px 32px var(--plinth-contact-shadow));
   transition: transform 620ms var(--ease-curatorial), transform-origin 620ms var(--ease-curatorial);
 }
 
@@ -1661,7 +1660,7 @@ onBeforeUnmount(() => {
   .home-closeup__stage {
     aspect-ratio: 5 / 4;
     max-height: 280px;
-    padding: var(--space-5);
+    padding: 0;
   }
 
   .home-closeup__plaque {
