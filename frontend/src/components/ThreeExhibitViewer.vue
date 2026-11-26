@@ -1023,9 +1023,14 @@ async function initialize() {
             const occluded = facing < -0.14
             const alignRight = sx >= cw * 0.5
             const dir = alignRight ? 1 : -1
-            const elbowX = Math.max(24, Math.min(cw - 24, sx + dir * (cw < 640 ? 18 : 30)))
-            const elbowY = Math.max(68, Math.min(ch - 210, sy - 16))
-            const endX = Math.max(16, Math.min(cw - 16, elbowX + dir * (cw < 640 ? 58 : 88)))
+            const isNarrow = cw < 640
+            const padX = isNarrow ? 18 : 24
+            const elbowX = Math.max(padX, Math.min(cw - padX, sx + dir * (isNarrow ? 14 : 30)))
+            const elbowY = Math.max(68, Math.min(ch - 110, sy - 16))
+            const maxCalloutW = isNarrow ? 116 : 168
+            const endX = alignRight
+              ? Math.min(cw - maxCalloutW - 10, elbowX + (isNarrow ? 34 : 88))
+              : Math.max(maxCalloutW + 10, elbowX - (isNarrow ? 34 : 88))
             pins.push({
               id: def.id,
               x: sx,
@@ -1051,7 +1056,7 @@ async function initialize() {
           const wy = Math.max(88, Math.min(ch - 196, (-projTmp.y * 0.5 + 0.5) * ch))
           projectedDims.value = { hx, hy, wx, wy, visible: true }
         }
-        const compositionLift = window.innerWidth <= 760 ? .1 : .22
+        const compositionLift = window.innerWidth <= 760 ? .04 : .22
         target.set(0, .51 + size.y * scale * .5 - compositionLift, 0)
         setView('front', { animated: false })
         // Never expose a partially transparent PBR material as a loading effect.
@@ -1567,6 +1572,18 @@ onBeforeUnmount(() => { initializationVersion += 1; cleanup?.() })
 .three-spatial-callout small {
   font-size: var(--text-xs);
   color: oklch(78% 0.01 78);
+}
+
+@media (max-width: 760px) {
+  .three-spatial-callout {
+    max-width: 112px;
+    white-space: normal;
+    padding: 0.16rem 0.38rem;
+  }
+
+  .three-spatial-callout small {
+    display: none;
+  }
 }
 
 @keyframes spatial-pin-breathe {

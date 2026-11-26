@@ -2180,7 +2180,7 @@ onBeforeUnmount(() => {
   }
 }
 
-@media (max-width: 760px) and (max-height: 700px) {
+@media (max-width: 760px) {
   .darkroom-topbar {
     padding: var(--space-2) var(--space-3);
   }
@@ -2209,7 +2209,7 @@ onBeforeUnmount(() => {
   }
 }
 
-@media (max-width: 760px) and (max-height: 700px), (pointer: coarse) and (max-height: 500px) and (max-width: 960px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) and (max-width: 960px) {
   .exhibit-scene {
     height: calc(100dvh - 64px - 68px - env(safe-area-inset-bottom, 0px));
     min-height: 200px;
@@ -2331,7 +2331,7 @@ onBeforeUnmount(() => {
   }
 }
 
-@media (max-width: 430px) and (max-height: 700px) {
+@media (max-width: 430px) {
   .exhibit-scene:not(.is-tools-open) .dock-mode-switch button span {
     display: none;
   }

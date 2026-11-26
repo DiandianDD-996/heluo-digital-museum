@@ -29,7 +29,7 @@ const root = ref<HTMLElement | null>(null)
 const heluoPattern = ref<InstanceType<HeluoPatternComponent> | null>(null)
 const patternComponent = shallowRef<HeluoPatternComponent | null>(null)
 const activeObservation = ref(0)
-const closeupZoomed = ref(true)
+const closeupZoomed = ref(false)
 const observationParts = ['ear', 'motif', 'feet'] as const
 type ObservationPart = (typeof observationParts)[number]
 const activeObservationPart = computed<ObservationPart>(() => observationParts[activeObservation.value] ?? 'motif')
