@@ -225,13 +225,59 @@ test('移动首页并行预载关键代码和样式，不重复下载或影响�
 
 test('浏览器从粗指针切换到精细指针时，不刷新也能加载桌面光标', async ({ browser, baseURL }) => {
   const context = await browser.newContext({
-    baseURL, viewport: { width: 1280, height: 800 }, hasTouch: true, reducedMotion: 'no-preference',
+    baseURL, viewport: { width: 1280, height: 800 }, isMobile: false, hasTouch: false, reducedMotion: 'no-preference',
   })
   try {
     await context.addInitScript(() => {
       Object.defineProperty(navigator, 'hardwareConcurrency', { value: 12 })
       Object.defineProperty(navigator, 'deviceMemory', { value: 8 })
       Object.defineProperty(navigator, 'connection', { value: { effectiveType: '4g', saveData: false } })
+      const nativeMatchMedia = window.matchMedia.bind(window)
+      let fine = false
+      const tracked: Array<{
+        query: string
+        target: EventTarget
+        mql: MediaQueryList
+        legacy: Set<(ev: MediaQueryListEvent) => void>
+      }> = []
+      const evalPointer = (q: string) => {
+        if (q.includes('(pointer: coarse)')) return !fine
+        if (q.includes('(pointer: fine)') || q.includes('(hover: hover)')) return fine
+        return null
+      }
+      window.matchMedia = (query: string) => {
+        if (evalPointer(query) === null) return nativeMatchMedia(query)
+        const target = new EventTarget()
+        const legacy = new Set<(ev: MediaQueryListEvent) => void>()
+        let onchangeHandler: ((this: MediaQueryList, ev: MediaQueryListEvent) => void) | null = null
+        const mql = {
+          get matches() { return Boolean(evalPointer(query)) },
+          media: query,
+          get onchange() { return onchangeHandler },
+          set onchange(fn) { onchangeHandler = fn },
+          addEventListener(type: string, cb: EventListenerOrEventListenerObject | null, opts?: boolean | AddEventListenerOptions) {
+            target.addEventListener(type, cb, opts)
+          },
+          removeEventListener(type: string, cb: EventListenerOrEventListenerObject | null, opts?: boolean | EventListenerOptions) {
+            target.removeEventListener(type, cb, opts)
+          },
+          addListener(cb: ((ev: MediaQueryListEvent) => void) | null) { if (cb) legacy.add(cb) },
+          removeListener(cb: ((ev: MediaQueryListEvent) => void) | null) { if (cb) legacy.delete(cb) },
+          dispatchEvent(ev: Event) { return target.dispatchEvent(ev) },
+        } as unknown as MediaQueryList
+        tracked.push({ query, target, mql, legacy })
+        return mql
+      }
+      ;(window as Window & { __setPointerFine?: (value: boolean) => void }).__setPointerFine = (next: boolean) => {
+        if (fine === next) return
+        fine = next
+        for (const item of tracked) {
+          const ev = new MediaQueryListEvent('change', { media: item.query, matches: Boolean(evalPointer(item.query)) })
+          item.target.dispatchEvent(ev)
+          item.mql.onchange?.call(item.mql, ev)
+          for (const fn of item.legacy) fn(ev)
+        }
+      }
     })
     const page = await context.newPage()
     const root = page.locator('html')
@@ -239,16 +285,13 @@ test('浏览器从粗指针切换到精细指针时，不刷新也能加载桌�
     await expect(root).toHaveAttribute('data-motion-tier', 'static')
     await expect(page.locator('.pointer-cursor')).toHaveCount(0)
     const loaded = page.waitForResponse(/\/PointerCursor-[^/]+\.js$/)
-    const session = await context.newCDPSession(page)
-    await session.send('Emulation.setTouchEmulationEnabled', { enabled: false })
-    await page.mouse.move(160, 100)
+    await page.evaluate(() => (window as Window & { __setPointerFine?: (v: boolean) => void }).__setPointerFine?.(true))
     expect((await loaded).ok()).toBe(true)
     await expect(root).toHaveAttribute('data-motion-tier', 'full')
     await expect(root).toHaveClass(/\bpointer-motion-enabled\b/)
     await page.mouse.move(200, 120)
     await expect(page.locator('.pointer-cursor')).toHaveClass(/\bis-visible\b/)
-    await session.send('Emulation.setTouchEmulationEnabled', { enabled: true })
-    await page.touchscreen.tap(10, 10)
+    await page.evaluate(() => (window as Window & { __setPointerFine?: (v: boolean) => void }).__setPointerFine?.(false))
     await expect(root).toHaveAttribute('data-motion-tier', 'static')
     await expect(root).not.toHaveClass(/\bpointer-motion-enabled\b/)
   } finally {

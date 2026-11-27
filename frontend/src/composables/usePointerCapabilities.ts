@@ -42,8 +42,6 @@ export function usePointerCapabilities() {
       queries.push(media)
     })
     document.addEventListener('visibilitychange', refresh)
-    window.addEventListener('pointermove', refresh, { passive: true })
-    window.addEventListener('touchstart', refresh, { passive: true })
     window.addEventListener('resize', refresh)
     window.visualViewport?.addEventListener('resize', refresh)
     refresh()
@@ -52,8 +50,6 @@ export function usePointerCapabilities() {
   onBeforeUnmount(() => {
     queries.forEach((media) => media.removeEventListener('change', refresh))
     document.removeEventListener('visibilitychange', refresh)
-    window.removeEventListener('pointermove', refresh)
-    window.removeEventListener('touchstart', refresh)
     window.removeEventListener('resize', refresh)
     window.visualViewport?.removeEventListener('resize', refresh)
   })

@@ -106,19 +106,10 @@ const PointerCursor = defineAsyncComponent(() => import('./components/PointerCur
 const desktopPointer = window.matchMedia?.('(pointer: fine) and (hover: hover)')
 const loadPointerCursor = ref(desktopPointer?.matches ?? true)
 if (!loadPointerCursor.value) document.documentElement.dataset.motionTier = 'static'
-function startPointerCursor(force = false) {
-  if (!force && !desktopPointer?.matches) return
+function startPointerCursor() {
+  if (!desktopPointer?.matches) return
   loadPointerCursor.value = true
-  desktopPointer?.removeEventListener?.('change', onDesktopPointerChange)
-  window.removeEventListener('pointermove', onMousePointerDetect)
-}
-function onDesktopPointerChange() {
-  startPointerCursor(false)
-}
-function onMousePointerDetect(event: PointerEvent) {
-  if (event.pointerType === 'mouse' && desktopPointer?.matches) {
-    startPointerCursor(true)
-  }
+  desktopPointer.removeEventListener?.('change', startPointerCursor)
 }
 const LightPresetSwitcher = defineAsyncComponent(() => import('./components/LightPresetSwitcher.vue'))
 const constrained = document.documentElement.dataset.performanceTier === 'constrained'
@@ -184,9 +175,8 @@ function handleNavIntent(event: Event) {
 
 onMounted(() => {
   if (!loadPointerCursor.value) {
-    desktopPointer?.addEventListener?.('change', onDesktopPointerChange)
-    window.addEventListener('pointermove', onMousePointerDetect, { passive: true })
-    startPointerCursor(false)
+    desktopPointer?.addEventListener?.('change', startPointerCursor)
+    startPointerCursor()
   }
   void auth.initialize()
   installInteractionSounds()
@@ -204,8 +194,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  desktopPointer?.removeEventListener?.('change', onDesktopPointerChange)
-  window.removeEventListener('pointermove', onMousePointerDetect)
+  desktopPointer?.removeEventListener?.('change', startPointerCursor)
   shellUnmounted = true
   if (guideFrame) cancelAnimationFrame(guideFrame)
   removeInteractionSounds()
