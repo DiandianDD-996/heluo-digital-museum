@@ -115,6 +115,16 @@
 
 ### 同一座展馆，两种光线
 
+<div align="center">
+  <a href="docs/showcase/gif-01-theme-switch-dotfield.gif">
+    <img src="docs/showcase/gif-01-theme-switch-dotfield.gif" alt="浅色宣白与深色冷夜玄青切换，以及首屏浑仪磁阵光标联动演示" width="100%" />
+  </a>
+  <br />
+  <sub>宣白展墙 ↔ 冷夜玄青一键切换，同步触发首屏「浑仪磁阵」光点响应。</sub>
+</div>
+
+<br />
+
 <table>
   <tr>
     <td width="50%" align="center"><strong>首页 · 中文浅色</strong></td>
@@ -170,23 +180,31 @@
 
 ### 跟着点云看一件鼎：三步微导览 × 洛笙
 
-鼎口两侧的立耳是什么样的？下图把两种观察方式放在了同一个展柜里：左侧微导览停在第一步，从上方看双耳与口沿；右侧洛笙回答关于立耳的问题，并给出「在 3D 展柜俯视双耳」按钮。是否切换视角，由观众决定。
+鼎口两侧的立耳是什么样的？下面动图完整演示了两种观察方式在同一个展柜里的联动：先沿「01 立耳 → 02 兽面纹带 → 03 三足」三步点云微导览漫游，再唤起右侧「洛笙」提问鼎耳并展开 `LS-DING-EARS · v3` 证据卡，点击「在 3D 展柜俯视双耳」即可由观众决定切回俯视。
 
-[![点云微导览与洛笙同屏：左侧俯看双耳，右侧显示关于立耳的问答](docs/showcase/ding-tour-with-luosheng.png)](docs/showcase/ding-tour-with-luosheng.png)
+<div align="center">
+  <a href="docs/showcase/gif-03-pointcloud-tour-luosheng.gif">
+    <img src="docs/showcase/gif-03-pointcloud-tour-luosheng.gif" alt="点云三步微导览与洛笙同屏联动演示：依次漫游双耳、兽面纹带与三足，唤起洛笙展开证据卡并点击按钮俯视双耳" width="100%" />
+  </a>
+  <br />
+  <sub>点云三步微导览 × 洛笙同屏联动：读完「馆藏资料直出」与证据卡后，点击「在 3D 展柜俯视双耳」平滑切镜。</sub>
+</div>
 
-| 01 · 俯看双耳与口沿 | 02 · 正看器腹兽面纹带 | 03 · 从背面比较三足 |
-| :---: | :---: | :---: |
-| [![第一步：俯视点云中的双立耳](docs/showcase/pointcloud-tour-ear.png)](docs/showcase/pointcloud-tour-ear.png) | [![第二步：正面近观器腹纹带与扉棱](docs/showcase/pointcloud-tour-motif.png)](docs/showcase/pointcloud-tour-motif.png) | [![第三步：比较三根柱足及器底分范线](docs/showcase/pointcloud-tour-feet.png)](docs/showcase/pointcloud-tour-feet.png) |
-
-| 问洛笙：立耳能用来提举吗？ | 展开「依据与边界」：这段解释来自哪张卡？ |
-| :---: | :---: |
-| [![洛笙的馆藏回答与可点击的 3D 观察动作](docs/showcase/luosheng-ding-answer.png)](docs/showcase/luosheng-ding-answer.png) | [![展开后的 LS-DING-EARS v3 证据卡与解读边界](docs/showcase/luosheng-ding-sources.png)](docs/showcase/luosheng-ding-sources.png) |
-
-三步导览取自默认 Docker 展厅；带洛笙的三张图取自启用向导的本地隔离实例。截图里的「馆藏资料直出」是读取已签核资料后的真实回答，**不是外部模型生成**。
+> 上述演示基于本地预览实例开启向导开关录制；画面里的「馆藏资料直出」读取自项目签核档案 `LS-DING-EARS · v3`，**不是外部模型生成**。原全尺寸静态对比截图仍保留于 [docs/showcase/](docs/showcase/SOURCES.md#点云与洛笙亮点)。
 
 ### 亮点特写 · 3D 展厅多模态观察与器物档案
 
 支持 **实体 PBR 渲染** 与 **鎏金粒子点云重构** 一键切换（同步触发暗房低频声景滤波与底部「十二律吕」游标刻度），并与器物档案详情页无缝联动。
+
+<div align="center">
+  <a href="docs/showcase/gif-02-3d-solid-to-pointcloud.gif">
+    <img src="docs/showcase/gif-02-3d-solid-to-pointcloud.gif" alt="EXHIBIT 01 河洛青铜鼎从 3D 实体 PBR 渲染一键重构为青铜粉绿锈与错金点云" width="100%" />
+  </a>
+  <br />
+  <sub>EXHIBIT 01 河洛青铜鼎：3D 实体渲染一键汇聚为青铜粉绿锈 × 22K 错金点云。</sub>
+</div>
+
+<br />
 
 <table>
   <tr>

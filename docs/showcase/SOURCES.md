@@ -62,6 +62,16 @@
 | [pointcloud-tour-feet.png](pointcloud-tour-feet.png) | 三足承重柱体 | `b5cba129fb4caa3cceab912807c7cabc1f3bc7fd55e313df4aa2d3c56d679fb9` |
 | [pointcloud-tour-motif.png](pointcloud-tour-motif.png) | 器腹兽面纹带 | `02f0900844a86d313253eb42ef94a7e91872a2ecd2b952b91c0186c6d8277484` |
 
+## 动态交互演示（GIF）
+
+2026-11-27，基于本地 `frontend/dist` 在 `vite preview`（`127.0.0.1:4179` / `127.0.0.1:4180`，仅路由拦截模拟公开展项及签核 JSON，非公网线上环境）下使用 Microsoft Edge（`1280 × 720`、`zh-CN`、`reducedMotion: no-preference`）通过 Chromium CDP `Page.startScreencast` 捕获并以 10 fps 等距重采样 + `ffmpeg` 2-pass 调色板转码生成以下 3 段交互 GIF：
+
+| 文件 | 路由与演示内容 | 尺寸与体积 | SHA-256 |
+| --- | --- | --- | --- |
+| [gif-01-theme-switch-dotfield.gif](gif-01-theme-switch-dotfield.gif) | `/` · 浅色宣白 ↔ 深色冷夜玄青切换与首屏浑仪磁阵光标联动（52 帧 / 5.14 s） | `900 × 506` · `2,228,476 B` | `b8ca796ec5e683326ff56d97779aab2ac9f6fe67c0ecea3264be48bc21fc51cf` |
+| [gif-02-3d-solid-to-pointcloud.gif](gif-02-3d-solid-to-pointcloud.gif) | `/exhibits/heluo-bronze-ding-3d` · 河洛青铜鼎 3D 实体 PBR 与鎏金粉绿锈点云切换（81 帧 / 8.05 s） | `800 × 450` · `3,239,929 B` | `871f71fca21c340217ad57b62e0b707d9ecc8fed8d30e666457ab9e70602d8fc` |
+| [gif-03-pointcloud-tour-luosheng.gif](gif-03-pointcloud-tour-luosheng.gif) | `/exhibits/heluo-bronze-ding-3d` · 点云三步微导览（01→02→03）与洛笙同屏提问、展开 `LS-DING-EARS · v3` 证据卡并点击「俯视双耳」联动切镜（注入 `museum-guide-enabled` 元标签与签核档案响应，88 帧 / 8.78 s） | `680 × 383` · `4,009,006 B` | `bda5cdc797ff05404a644facba581676c67d52dbc110637a847bf4f05b342450` |
+
 亮点采集脚本：`node frontend/scripts/capture-readme-highlights.mjs tour` 只依赖 8088；参数 `guide` 使用上述隔离实例。后者需以 `VITE_GUIDE_ENABLED=true` 构建前端，后端启用演示数据和向导、设置签核卡路径并令 `MUSEUM_GUIDE_MODEL_ENABLED=false`。图片及原始记录先生成在被忽略的 `artifacts/readme-highlights/`。
 
 ## 再次采集
