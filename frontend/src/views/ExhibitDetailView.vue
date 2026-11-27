@@ -846,7 +846,10 @@ onBeforeUnmount(() => {
       <!-- Module 1: Frameless Top Floating Bar -->
       <header class="darkroom-topbar" data-motion="scene-label">
         <div class="darkroom-topbar__left">
-          <RouterLink class="darkroom-back" :to="backDestination">← {{ backLabel }}</RouterLink>
+          <RouterLink class="darkroom-back" :to="backDestination" :aria-label="backLabel">
+            <span class="darkroom-back__full">← {{ backLabel }}</span>
+            <span v-if="locale === 'en-US'" class="darkroom-back__compact" aria-hidden="true">← Gallery</span>
+          </RouterLink>
           <RouterLink
             v-if="siblingExhibit"
             class="darkroom-exhibit-switch"
@@ -899,12 +902,14 @@ onBeforeUnmount(() => {
             v-if="viewerInteractive || (viewerRuntimeRequested && viewerRuntimeState === 'error' && !viewerRuntimeError)"
             class="mobile-exhibit-info-trigger"
             type="button"
+            :aria-label="copy.info"
             aria-haspopup="dialog"
             :aria-expanded="mobileInfoOpen"
             @click="mobileInfoOpen = true"
           >
             <InfoFilled aria-hidden="true" />
-            <span>{{ copy.info }}</span>
+            <span class="mobile-exhibit-info-trigger__full">{{ copy.info }}</span>
+            <span v-if="locale === 'en-US'" class="mobile-exhibit-info-trigger__compact" aria-hidden="true">Details</span>
           </button>
         </div>
       </header>
@@ -1490,6 +1495,11 @@ onBeforeUnmount(() => {
 }
 
 .mobile-exhibit-info-trigger {
+  display: none;
+}
+
+.darkroom-back__compact,
+.mobile-exhibit-info-trigger__compact {
   display: none;
 }
 
@@ -2342,6 +2352,23 @@ onBeforeUnmount(() => {
 
   .exhibit-scene.is-tools-open .darkroom-topbar__actions {
     grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 480px) {
+  .darkroom-back,
+  .mobile-exhibit-info-trigger {
+    padding: 0 0.55rem;
+  }
+
+  .darkroom-back:has(.darkroom-back__compact) .darkroom-back__full,
+  .mobile-exhibit-info-trigger:has(.mobile-exhibit-info-trigger__compact) .mobile-exhibit-info-trigger__full {
+    display: none;
+  }
+
+  .darkroom-back__compact,
+  .mobile-exhibit-info-trigger__compact {
+    display: inline;
   }
 }
 

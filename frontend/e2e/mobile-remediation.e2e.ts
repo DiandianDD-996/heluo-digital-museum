@@ -225,7 +225,7 @@ test('移动首页并行预载关键代码和样式，不重复下载或影响�
 
 test('浏览器从粗指针切换到精细指针时，不刷新也能加载桌面光标', async ({ browser, baseURL }) => {
   const context = await browser.newContext({
-    baseURL, viewport: { width: 1280, height: 800 }, hasTouch: true, reducedMotion: 'no-preference',
+    baseURL, viewport: { width: 1280, height: 800 }, isMobile: false, hasTouch: false, reducedMotion: 'no-preference',
   })
   try {
     await context.addInitScript(() => {
@@ -234,12 +234,13 @@ test('浏览器从粗指针切换到精细指针时，不刷新也能加载桌�
       Object.defineProperty(navigator, 'connection', { value: { effectiveType: '4g', saveData: false } })
     })
     const page = await context.newPage()
+    const session = await context.newCDPSession(page)
+    await session.send('Emulation.setTouchEmulationEnabled', { enabled: true })
     const root = page.locator('html')
     await page.goto('/explore')
     await expect(root).toHaveAttribute('data-motion-tier', 'static')
     await expect(page.locator('.pointer-cursor')).toHaveCount(0)
     const loaded = page.waitForResponse(/\/PointerCursor-[^/]+\.js$/)
-    const session = await context.newCDPSession(page)
     await session.send('Emulation.setTouchEmulationEnabled', { enabled: false })
     expect((await loaded).ok()).toBe(true)
     await expect(root).toHaveAttribute('data-motion-tier', 'full')

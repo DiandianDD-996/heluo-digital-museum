@@ -24,6 +24,8 @@ import java.util.concurrent.TimeUnit;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = "spring.profiles.active=test")
 class MuseumApplicationTests {
+    private static final java.time.ZoneId MUSEUM_ZONE = java.time.ZoneId.of("Asia/Shanghai");
+
     @LocalServerPort
     private int port;
 
@@ -186,7 +188,7 @@ class MuseumApplicationTests {
                 new HttpEntity<>("{\"username\":\"" + username + "\",\"password\":\"SafePassword123\"}", json), String.class);
         String token = login.getBody().replaceAll(".*\\\"accessToken\\\":\\\"([^\\\"]+)\\\".*", "$1");
         long userId = jdbc.queryForObject("select id from users where username=?", Long.class, username);
-        java.time.LocalDate date = java.time.LocalDate.now().plusDays(2);
+        java.time.LocalDate date = java.time.LocalDate.now(MUSEUM_ZONE).plusDays(2);
         jdbc.update("insert into appointment_slots(visit_date,start_time,end_time,capacity,status,created_by,updated_by) values(?,?,?,?, 'OPEN',?,?)",
                 date, java.sql.Time.valueOf("10:00:00"), java.sql.Time.valueOf("12:00:00"), 5, userId, userId);
         long slotId = jdbc.queryForObject("select id from appointment_slots where visit_date=? and start_time=?", Long.class, date, java.sql.Time.valueOf("10:00:00"));
@@ -212,7 +214,7 @@ class MuseumApplicationTests {
                 new HttpEntity<>("{\"username\":\"" + username + "\",\"password\":\"SafePassword123\"}", json), String.class);
         String token = login.getBody().replaceAll(".*\\\"accessToken\\\":\\\"([^\\\"]+)\\\".*", "$1");
         long userId = jdbc.queryForObject("select id from users where username=?", Long.class, username);
-        java.time.LocalDate date = java.time.LocalDate.now().minusDays(1);
+        java.time.LocalDate date = java.time.LocalDate.now(MUSEUM_ZONE).minusDays(1);
         jdbc.update("insert into appointment_slots(visit_date,start_time,end_time,capacity,status,created_by,updated_by) values(?,?,?,?, 'OPEN',?,?)",
                 date, java.sql.Time.valueOf("10:00:00"), java.sql.Time.valueOf("12:00:00"), 5, userId, userId);
         long slotId = jdbc.queryForObject("select id from appointment_slots where visit_date=? and start_time=?", Long.class, date, java.sql.Time.valueOf("10:00:00"));
@@ -235,7 +237,7 @@ class MuseumApplicationTests {
                 new HttpEntity<>("{\"username\":\"" + username + "\",\"password\":\"SafePassword123\"}", json), String.class);
         String token = login.getBody().replaceAll(".*\\\"accessToken\\\":\\\"([^\\\"]+)\\\".*", "$1");
         long userId = jdbc.queryForObject("select id from users where username=?", Long.class, username);
-        java.time.LocalDate date = java.time.LocalDate.now().plusDays(4);
+        java.time.LocalDate date = java.time.LocalDate.now(MUSEUM_ZONE).plusDays(4);
         jdbc.update("insert into appointment_slots(visit_date,start_time,end_time,capacity,status,created_by,updated_by) values(?,?,?,?, 'OPEN',?,?)",
                 date, java.sql.Time.valueOf("08:00:00"), java.sql.Time.valueOf("09:30:00"), 5, userId, userId);
         long slotId = jdbc.queryForObject("select id from appointment_slots where visit_date=? and start_time=?", Long.class,
@@ -276,7 +278,7 @@ class MuseumApplicationTests {
         String suffix = String.valueOf(System.nanoTime());
         String token = registerAndLogin("parallel_" + suffix);
         long userId = jdbc.queryForObject("select id from users where username=?", Long.class, "parallel_" + suffix);
-        java.time.LocalDate date = java.time.LocalDate.now().plusDays(6);
+        java.time.LocalDate date = java.time.LocalDate.now(MUSEUM_ZONE).plusDays(6);
         jdbc.update("insert into appointment_slots(visit_date,start_time,end_time,capacity,status,created_by,updated_by) values(?,?,?,?, 'OPEN',?,?)",
                 date, java.sql.Time.valueOf("16:00:00"), java.sql.Time.valueOf("17:30:00"), 1, userId, userId);
         long slotId = jdbc.queryForObject("select id from appointment_slots where visit_date=? and start_time=?", Long.class,
@@ -322,7 +324,7 @@ class MuseumApplicationTests {
         String suffix = String.valueOf(System.nanoTime());
         String token = registerAndLogin("window_" + suffix);
         long userId = jdbc.queryForObject("select id from users where username=?", Long.class, "window_" + suffix);
-        java.time.LocalDate farDate = java.time.LocalDate.now().plusDays(365);
+        java.time.LocalDate farDate = java.time.LocalDate.now(MUSEUM_ZONE).plusDays(365);
         jdbc.update("insert into appointment_slots(visit_date,start_time,end_time,capacity,status,created_by,updated_by) values(?,?,?,?, 'OPEN',?,?)",
                 farDate, java.sql.Time.valueOf("13:00:00"), java.sql.Time.valueOf("14:30:00"), 5, userId, userId);
         long slotId = jdbc.queryForObject("select id from appointment_slots where visit_date=? and start_time=?", Long.class,
@@ -347,7 +349,7 @@ class MuseumApplicationTests {
         String suffix = String.valueOf(System.nanoTime());
         String userToken = registerAndLogin("ac_owner_" + suffix);
         long userId = jdbc.queryForObject("select id from users where username=?", Long.class, "ac_owner_" + suffix);
-        java.time.LocalDate date = java.time.LocalDate.now().plusDays(5);
+        java.time.LocalDate date = java.time.LocalDate.now(MUSEUM_ZONE).plusDays(5);
         jdbc.update("insert into appointment_slots(visit_date,start_time,end_time,capacity,status,created_by,updated_by) values(?,?,?,?, 'OPEN',?,?)",
                 date, java.sql.Time.valueOf("15:00:00"), java.sql.Time.valueOf("16:30:00"), 2, userId, userId);
         long slotId = jdbc.queryForObject("select id from appointment_slots where visit_date=? and start_time=?", Long.class,
@@ -392,7 +394,7 @@ class MuseumApplicationTests {
         String suffix = String.valueOf(System.nanoTime());
         String userToken = registerAndLogin("cc_owner_" + suffix);
         long userId = jdbc.queryForObject("select id from users where username=?", Long.class, "cc_owner_" + suffix);
-        java.time.LocalDate date = java.time.LocalDate.now().plusDays(6);
+        java.time.LocalDate date = java.time.LocalDate.now(MUSEUM_ZONE).plusDays(6);
         jdbc.update("insert into appointment_slots(visit_date,start_time,end_time,capacity,status,created_by,updated_by) values(?,?,?,?, 'OPEN',?,?)",
                 date, java.sql.Time.valueOf("11:00:00"), java.sql.Time.valueOf("12:30:00"), 1, userId, userId);
         long slotId = jdbc.queryForObject("select id from appointment_slots where visit_date=? and start_time=?", Long.class,
