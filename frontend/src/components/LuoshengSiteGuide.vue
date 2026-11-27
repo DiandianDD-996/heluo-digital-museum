@@ -587,6 +587,7 @@ onBeforeUnmount(() => {
     :class="{
       'is-exhibit-stage': route.name === 'exhibit-detail',
       'is-raking-stage': route.name === 'exhibit-detail' && route.params.slug === 'river-map-stone-raking',
+      'is-appointment-stage': route.name === 'appointment',
     }"
   >
     <!-- Subtle mobile/3D action toast -->
@@ -1820,6 +1821,10 @@ onBeforeUnmount(() => {
 
   .luosheng-root.is-raking-stage {
     bottom: calc(66px + env(safe-area-inset-bottom, 0px) + 276px);
+  }
+
+  .luosheng-root.is-appointment-stage {
+    bottom: calc(66px + env(safe-area-inset-bottom, 0px) + 78px);
   }
 
   .luosheng-fab {

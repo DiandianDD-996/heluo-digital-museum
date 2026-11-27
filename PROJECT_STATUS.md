@@ -12,8 +12,9 @@
 | 前端审美跃迁与多模态策展体验 3.0（Heluo Editorial 3.0） | **已完成全量门禁与本地提交** | 基线已封存至 `codex/backup-2026-11-24-baseline`，当前工作分支 `codex/feat-curatorial-masterpiece-v3`；计划见 [2026-11-25-curatorial-masterpiece-v3-upgrade.md](docs/plans/2026-11-25-curatorial-masterpiece-v3-upgrade.md)，规范见 [design.md](design.md) |
 | 洛笙 AI 向导 v2（可选扩展） | **v2.3 聊天抽屉便捷度与 365 天工具窗口已升级** | 支持 `Alt+L` / `Ctrl+/`、`420px ↔ 560px` 宽屏切换、上下文条与随时灵感提问、快捷意图芯片坞、复制/重生成/错误重试；[洛笙说明](docs/luosheng/README.md)、[ADR-010](docs/decisions/ADR-010-luosheng-v2-museum-agent.md) |
 
-## 最近完成（2026-11-25）
+## 最近完成（2026-11-27）
 
+- **移动端预约页美学重构与全站局部收口（2026-11-27）**：重构 [AppointmentView.vue](frontend/src/views/AppointmentView.vue) `<= 760px` 移动端（单行页头、隐去冗余进度条与长日期串、无边框月历导航、真 7 列极简日历、2×2 展签时段格、吸底实时票根栏、紧凑场馆卡片，收紧超窄回退至 `<= 359px` 并修复 Teleport `BottomSheet` 图标至 `16px`），[LuoshengSiteGuide.vue](frontend/src/components/LuoshengSiteGuide.vue) `/appointment` 抬高底距避让吸底栏，并同步保留 [04-components.css](frontend/src/styles/04-components.css) 声景胶囊 `50px` 高度修正；验证 `vue-tsc -b`、`vitest run` **81/81（449/449）**、`test:e2e:types`、`vite build` + 双预算（首屏 JS `76,232 / 81,638 B`）、`impeccable detect` `[]`、`390×844` / `320×900` / `1440×900` 全部 `overflow: false, small: [], clipped: []`。见[预约重构计划](docs/plans/2026-11-27-mobile-appointment-redesign.md)。
 - **移动端首页双主题青铜鼎 `v4` 像素级对齐与 PocketBay `#329` 上线（2026-11-26）**：对深/浅色竖屏青铜鼎执行亚像素对齐并导出 [light-v4](frontend/public/media/editorial/home-hero-light-v4-portrait.webp) / [dark-v4](frontend/public/media/editorial/home-hero-dark-v4-portrait.webp) 破除不可变静态缓存，[theme.ts](frontend/src/stores/theme.ts) `startViewTransition` 接入首屏图解码等待、`App.vue` 主题按钮按压预热；`vue-tsc -b`、`vitest run` **81/81（449/449）**、`test:e2e:types`、`vite build` + 双预算、`impeccable detect` `[]`、`mobile-remediation.e2e.ts` 首页/壳层 **9/9** 通过。已部署至 PocketBay `#329`（`heluo`，deployment `17680`，`https://heluo.pocketbay.app` 容器与 HTTP 就绪通过）。
 
 - **移动端首页无边框全出血构图与降噪精修（N-03 / N-06，2026-11-26）**：从桌面高清原图无痕重制 `483×941` 竖屏主视觉（[light](frontend/public/media/editorial/home-hero-light-v3-portrait.webp) / [dark](frontend/public/media/editorial/home-hero-dark-v3-portrait.webp)）缩小青铜鼎占比并延展顶光与地面，重构 [HomeView.vue](frontend/src/views/HomeView.vue) `<= 760px` 无边框全出血排布（含 `<= 620px` 单行按钮矮屏约束与英文排版，隐去冗余眉栏/导语/脚链与下屏副文，桌面 `> 760px` 零改动），补齐 [HomeView.spec.ts](frontend/src/test/HomeView.spec.ts) 契约。验证：`vue-tsc -b`、`vitest run` **81/81（449/449）**、`test:e2e:types`、`vite build` + 双预算（首屏 JS `76,060 / 81,638 B`、`woff2=0`）、`impeccable detect` `[]`、本地 `vite preview` 下 `mobile-remediation.e2e.ts` 首页/壳层 **9/9** 及 `320/375/390/1440` 与内置浏览器 `390×844` 实机演示通过。见[精修计划](docs/plans/2026-11-26-mobile-home-curatorial-refinement.md)。
@@ -114,5 +115,5 @@
 
 0. 完成 PocketBay 只读诊断，明确 P0 恢复措施及授权范围。候选发布后从正式入口复验性能与宿主导航，并补真机与读屏测试。
 
-1. 已将 `codex/feat-curatorial-masterpiece-v3` 合并至 `main` 并推送 GitHub 远端；后续可按需补充公网真机与读屏复验，并确认宿主机旧容器 `deploy-mailpit-1` 的运维关停窗口。
+1. 已完成本地移动端预约页重构与声景按钮高度修复的全量前端门禁与实机视觉验收；待用户确认后提交推送 GitHub `main` 并覆盖部署到 PocketBay `#329`。后续按需确认宿主机旧容器 `deploy-mailpit-1` 的运维关停窗口。
 2. 正式公网发布前，在目标部署环境完成外层 HTTPS/反向代理下的真实 SMTP、SSE 首包流式表现与文件热暂停最终核验。
