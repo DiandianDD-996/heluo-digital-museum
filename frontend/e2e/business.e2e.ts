@@ -480,7 +480,8 @@ test('后台草稿保存、发布、公开检索及撤回形成闭环', async ({
   const slug = `qa-article-${id}`
   const adminToken = await tokenFor(request, qualityEnvironment.admin)
   await login(page, qualityEnvironment.admin, '/admin')
-  await page.getByRole('tab', { name: '文章', exact: true }).click()
+  await page.getByTestId('admin-nav-articles').click()
+  await expect(page).toHaveURL(/\/admin\/articles$/)
   await page.getByTestId('admin-open-create-drawer').click()
   const form = page.locator('.admin-create form')
   await form.getByLabel('标题', { exact: true }).fill(title)

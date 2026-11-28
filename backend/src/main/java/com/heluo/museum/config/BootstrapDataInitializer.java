@@ -1,5 +1,6 @@
 package com.heluo.museum.config;
 
+import com.heluo.museum.analytics.SiteAnalyticsService;
 import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -8,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -29,17 +31,23 @@ public class BootstrapDataInitializer implements CommandLineRunner {
     private final String password;
     private final String email;
     private final Clock clock;
+    private final SiteAnalyticsService analyticsService;
+    private final boolean analyticsDemoSeedEnabled;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     BootstrapDataInitializer(JdbcTemplate jdbc, Clock clock,
+                             ObjectProvider<SiteAnalyticsService> analyticsServiceProvider,
                              @Value("${museum.bootstrap.admin-username:}") String username,
                              @Value("${museum.bootstrap.admin-password:}") String password,
-                             @Value("${museum.bootstrap.admin-email:}") String email) {
+                             @Value("${museum.bootstrap.admin-email:}") String email,
+                             @Value("${museum.analytics.demo-seed-enabled:false}") boolean analyticsDemoSeedEnabled) {
         this.jdbc = jdbc;
         this.clock = clock;
+        this.analyticsService = analyticsServiceProvider.getIfAvailable();
         this.username = username;
         this.password = password;
         this.email = email;
+        this.analyticsDemoSeedEnabled = analyticsDemoSeedEnabled;
     }
 
     @Override
@@ -55,6 +63,9 @@ public class BootstrapDataInitializer implements CommandLineRunner {
         createArticles(adminId);
         createAppointmentSlots(adminId);
         createProducts(adminId);
+        if (analyticsDemoSeedEnabled && analyticsService != null && !analyticsService.hasDemoTraffic()) {
+            analyticsService.seedDemoTraffic(adminId);
+        }
     }
 
     private long createOrLocateAdmin() {

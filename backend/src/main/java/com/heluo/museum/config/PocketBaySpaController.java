@@ -57,7 +57,11 @@ public class PocketBaySpaController {
 
     @GetMapping({
             "/", "/explore", "/exhibits", "/appointment", "/shop",
-            "/login", "/reset-password", "/profile", "/admin", "/admin/operations"
+            "/login", "/reset-password", "/profile",
+            "/admin", "/admin/operations", "/admin/content",
+            "/admin/artifacts", "/admin/articles", "/admin/exhibits", "/admin/categories",
+            "/admin/appointments", "/admin/slots", "/admin/products", "/admin/orders",
+            "/admin/users", "/admin/guide", "/admin/logs"
     })
     public Object index(HttpServletResponse response) {
         if (guideEnabled && guideIndexHtml != null) {

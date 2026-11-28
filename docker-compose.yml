@@ -16,6 +16,7 @@ services:
       - "${MUSEUM_LOCAL_PORT:-8088}:8080"
     environment:
       MUSEUM_PUBLIC_BASE_URL: http://localhost:${MUSEUM_LOCAL_PORT:-8088}
+      MUSEUM_ANALYTICS_DEMO_SEED_ENABLED: "true"
     volumes:
       # Persists the H2 database file across restarts/rebuilds.
       - museum-local-data:/data

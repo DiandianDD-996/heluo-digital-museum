@@ -36,17 +36,18 @@ public class SecurityConfiguration {
                                 "/api/v1/auth/register", "/api/v1/auth/login",
                                 "/api/v1/auth/password-reset/request",
                                 "/api/v1/auth/password-reset/confirm",
+                                "/api/v1/analytics/page-view",
                                 "/api/v1/guide/chat", "/api/v1/guide/chat/stream").permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/", "/index.html", "/favicon.ico", "/favicon.svg", "/assets/**", "/media/**",
                                 "/explore", "/artifacts/*", "/articles/*", "/exhibits", "/exhibits/*",
                                 "/appointment", "/shop", "/login", "/reset-password", "/profile",
-                                "/admin", "/admin/operations").permitAll()
+                                "/admin", "/admin/**").permitAll()
                         .requestMatchers(HttpMethod.HEAD,
                                 "/", "/index.html", "/favicon.ico", "/favicon.svg", "/assets/**", "/media/**",
                                 "/explore", "/artifacts/*", "/articles/*", "/exhibits", "/exhibits/*",
                                 "/appointment", "/shop", "/login", "/reset-password", "/profile",
-                                "/admin", "/admin/operations").permitAll()
+                                "/admin", "/admin/**").permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/categories/**", "/api/v1/artifacts/**", "/api/v1/articles/**",
                                 "/api/v1/exhibits/**", "/api/v1/guide/exhibits/*", "/api/v1/products/**", "/api/v1/search",

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import '../styles/07-admin.css'
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { ElOption, ElSelect } from 'element-plus'
 import 'element-plus/es/components/select/style/css'
 import 'element-plus/es/components/option/style/css'
@@ -18,6 +18,8 @@ import { useUnsavedChanges } from '../composables/useUnsavedChanges'
 
 type Tab = 'users' | 'slots' | 'appointments' | 'products' | 'orders' | 'exhibits' | 'logs'
 type GuideRuntimeMode = 'NORMAL' | 'DETERMINISTIC' | 'PAUSED'
+
+const props = defineProps<{ lockedTab?: Tab }>()
 interface User { id: number; username: string; nickname: string; email: string; status: string; roles: string[] }
 interface Appointment { id: number; appointmentNo?: string; verificationCode?: string; status: string; contactName: string; contactPhone: string; visitDate: string; startTime: string; endTime: string; visitorCount: number }
 interface Product { id: number; name: string; sku: string; slug: string; summary: string; description: string; price: string; stockQuantity: number; lockedStock: number; coverImageUrl: string; status: string; deleted: boolean }
@@ -51,8 +53,21 @@ interface GuideOverview {
 }
 
 const auth = useAuthStore()
+const route = useRoute()
 const router = useRouter()
-const tab = ref<Tab>('users')
+const tab = ref<Tab>(props.lockedTab ?? 'users')
+const isStandalone = computed(() => Boolean(props.lockedTab))
+const standaloneMeta: Record<Tab, { title: string; description: string }> = {
+  users: { title: '观众账号', description: '查询观众注册账号、调整状态或发送密码重置邮件。' },
+  slots: { title: '排班与时段', description: '管理未来开放日期、入馆时段场次与承载容量。' },
+  appointments: { title: '预约与核销', description: '审核观众预约、处理取消，并在现场凭 10 位核验码完成入馆核销。' },
+  products: { title: '文创商品', description: '维护文创库存、定价、上下架状态与商品档案。' },
+  orders: { title: '商城订单', description: '核对商城交易状态、通知邮箱，并完成已支付订单履约。' },
+  exhibits: { title: '3D 数字展项', description: '管理 3D 模型与 WebGL 光学展项的关联文物、溯源及公开状态。' },
+  logs: { title: '审计日志', description: '追溯管理员在内容、预约、商城与 AI 治理模块的关键操作轨迹。' },
+}
+const shellTitle = computed(() => isStandalone.value ? standaloneMeta[tab.value].title : '运营管理')
+const shellDescription = computed(() => isStandalone.value ? standaloneMeta[tab.value].description : '管理用户、预约、商品、订单、数字展项与操作记录。')
 const operationTabs = [
   { value: 'users', label: '用户' },
   { value: 'slots', label: '预约时段' },
@@ -431,6 +446,22 @@ function onKeydown(event: KeyboardEvent) {
     closeDrawer()
   }
 }
+watch(() => props.lockedTab, (next) => {
+  if (!next || next === tab.value) return
+  resetActiveDraft()
+  tab.value = next
+  error.value = ''
+  message.value = ''
+  unsaved.markClean()
+  void load()
+})
+
+watch(() => route.query.date, (dateParam) => {
+  if (tab.value === 'slots' && typeof dateParam === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+    keyword.value = dateParam
+  }
+}, { immediate: true })
+
 onMounted(() => {
   void load()
   window.addEventListener('keydown', onKeydown)
@@ -443,7 +474,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <AdminShell v-if="auth.isAdmin" title="运营管理" description="管理用户、预约、商品、订单、数字展项与操作记录。" section="operations">
+  <AdminShell v-if="auth.isAdmin" :title="shellTitle" :description="shellDescription" :section="isStandalone ? tab : 'operations'">
     <template #header-actions>
       <button
         v-if="canCreateOnTab"
@@ -454,10 +485,12 @@ onBeforeUnmount(() => {
       >
         {{ createCtaLabel }}
       </button>
-      <RouterLink class="admin-header-link" to="/admin">查看内容概览 →</RouterLink>
+      <RouterLink class="admin-header-link" :to="isStandalone ? '/admin' : '/admin/artifacts'">
+        {{ isStandalone ? '返回运营看板 →' : '查看馆藏文物 →' }}
+      </RouterLink>
     </template>
     <InlineStatus :message="message" kind="success" /><InlineStatus :message="error || listState[tab].error" kind="error" />
-    <section v-if="summary" class="dashboard-summary dashboard-summary--operations" data-glass="light" aria-label="运营概览">
+    <section v-if="summary && !isStandalone" class="dashboard-summary dashboard-summary--operations" data-glass="light" aria-label="运营概览">
       <article><span>用户总数</span><strong>{{ summary.userCount }}</strong><small>人</small></article>
       <article>
         <span>预约与今日核销</span>
@@ -471,10 +504,10 @@ onBeforeUnmount(() => {
       </article>
       <article><span>累计销售额</span><strong>¥ {{ summary.salesAmount }}</strong><small>模拟支付</small></article>
     </section>
-    <div class="admin-operations-grid">
+    <div class="admin-operations-grid" :class="{ 'admin-operations-grid--standalone': isStandalone }">
       <section class="admin-operations-main">
         <div class="admin-toolbar admin-toolbar--operations">
-          <AdminTabs :model-value="tab" :tabs="operationTabs" label="运营模块" panel-id="admin-operations-panel" @update:model-value="switchTab($event as Tab)" />
+          <AdminTabs v-if="!isStandalone" :model-value="tab" :tabs="operationTabs" label="运营模块" panel-id="admin-operations-panel" @update:model-value="switchTab($event as Tab)" />
           <div class="admin-list-filters">
             <label class="admin-filter-field admin-filter-field--search">
               <span class="admin-filter-field__label">{{ tab === 'users' ? '查找用户' : '筛选当前列表' }}</span>
@@ -515,7 +548,7 @@ onBeforeUnmount(() => {
           </div>
         </section>
       </section>
-      <aside class="admin-insights" data-glass="light" aria-label="运营趋势">
+      <aside v-if="!isStandalone" class="admin-insights" data-glass="light" aria-label="运营趋势">
         <div class="admin-insights__header"><strong>03</strong><span>运营态势与 AI 治理</span></div>
 
         <section v-if="guideOverview" class="admin-observability-card" data-testid="admin-guide-governance" aria-label="洛笙 AI 运行治理">

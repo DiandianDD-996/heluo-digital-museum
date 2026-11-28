@@ -118,6 +118,7 @@ const initialMobileHome = constrained && location.pathname === '/'
 const homePainted = ref(!initialMobileHome)
 let guideFrame = 0
 let shellUnmounted = false
+let visitTrackTimer: ReturnType<typeof setTimeout> | undefined
 const siteGuideRoutes = ['home', 'explore', 'artifact-detail', 'article-detail', 'exhibits', 'exhibit-detail', 'appointment', 'shop']
 const lightSwitcherRoutes = ['explore', 'exhibits', 'appointment', 'shop']
 const showLightDebugDock = computed(() => (
@@ -127,7 +128,25 @@ const showLightDebugDock = computed(() => (
 ))
 const guideStore = guideEnabled ? useLuoshengStore() : null
 
-watch(() => route.fullPath, () => {
+watch([() => route.fullPath, () => route.name], () => {
+  if (visitTrackTimer) {
+    clearTimeout(visitTrackTimer)
+    visitTrackTimer = undefined
+  }
+  const activeName = String(route.name ?? '')
+  if (siteGuideRoutes.includes(activeName)) {
+    const snapshot = {
+      name: route.name,
+      path: route.path,
+      params: { ...route.params },
+    }
+    visitTrackTimer = setTimeout(() => {
+      void import('./lib/visitTracker')
+        .then(m => m.trackPageView(snapshot))
+        .catch(() => {})
+    }, 250)
+  }
+
   if (!guideStore) return
   const routeName = String(route.name ?? 'home')
   if (!siteGuideRoutes.includes(routeName)) {
@@ -197,6 +216,7 @@ onBeforeUnmount(() => {
   desktopPointer?.removeEventListener?.('change', startPointerCursor)
   shellUnmounted = true
   if (guideFrame) cancelAnimationFrame(guideFrame)
+  if (visitTrackTimer) clearTimeout(visitTrackTimer)
   removeInteractionSounds()
   window.removeEventListener('scroll', updateHeaderScroll)
   musicDirector.reset()

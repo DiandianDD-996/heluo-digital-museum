@@ -1,12 +1,11 @@
 package com.heluo.museum.content;
 
-import com.heluo.museum.guide.GuideKnowledgeService;
-
 import com.heluo.museum.common.api.ApiResponse;
 import com.heluo.museum.common.audit.OperationLogService;
 import com.heluo.museum.common.error.ConflictException;
 import com.heluo.museum.common.error.ContentPage;
 import com.heluo.museum.common.error.ResourceNotFoundException;
+import com.heluo.museum.guide.GuideKnowledgeService;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -14,7 +13,10 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -31,9 +33,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/admin/exhibits")
 public class AdminExhibitController {
+    private static final Set<String> VALID_STATUSES = Set.of("DRAFT", "PUBLISHED", "WITHDRAWN");
+
     private final JdbcTemplate jdbc;
     private final OperationLogService audit;
-
     private final GuideKnowledgeService guideKnowledge;
 
     AdminExhibitController(JdbcTemplate jdbc, OperationLogService audit, GuideKnowledgeService guideKnowledge) {
@@ -46,13 +49,44 @@ public class AdminExhibitController {
     public ApiResponse<ContentPage<AdminExhibitView>> list(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(defaultValue = "false") boolean deleted) {
+            @RequestParam(defaultValue = "false") boolean deleted,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String keyword) {
         ArtifactController.PageRequest normalized = ArtifactController.PageRequest.of(page, size);
-        String where = deleted ? " where e.deleted_at is not null" : " where e.deleted_at is null";
-        long total = jdbc.queryForObject("select count(*) from exhibits_3d e" + where, Long.class);
+        StringBuilder where = new StringBuilder(deleted ? " where e.deleted_at is not null" : " where e.deleted_at is null");
+        List<Object> params = new ArrayList<>();
+
+        if (status != null && !status.isBlank()) {
+            String normalizedStatus = status.trim().toUpperCase(Locale.ROOT);
+            if (!VALID_STATUSES.contains(normalizedStatus)) {
+                throw new IllegalArgumentException("展项状态不合法");
+            }
+            where.append(" and e.status=?");
+            params.add(normalizedStatus);
+        }
+
+        if (keyword != null && !keyword.isBlank()) {
+            String escaped = escapeLike(keyword.trim().toLowerCase(Locale.ROOT));
+            String pattern = "%" + escaped + "%";
+            where.append(" and (lower(e.title) like ? escape '\\'"
+                    + " or lower(e.slug) like ? escape '\\'"
+                    + " or lower(coalesce(e.display_no,'')) like ? escape '\\'"
+                    + " or lower(e.model_source_ref) like ? escape '\\'"
+                    + " or lower(a.title) like ? escape '\\')");
+            for (int i = 0; i < 5; i++) {
+                params.add(pattern);
+            }
+        }
+
+        long total = jdbc.queryForObject(
+                "select count(*) from exhibits_3d e join artifacts a on a.id=e.artifact_id" + where,
+                Long.class, params.toArray());
+        List<Object> queryArgs = new ArrayList<>(params);
+        queryArgs.add(normalized.size());
+        queryArgs.add(normalized.offset());
         List<AdminExhibitView> items = jdbc.query(
                 select() + where + " order by e.updated_at desc,e.id desc limit ? offset ?",
-                (rs, rowNum) -> view(rs), normalized.size(), normalized.offset());
+                (rs, rowNum) -> view(rs), queryArgs.toArray());
         return ApiResponse.ok(ContentPage.of(items, normalized.page(), normalized.size(), total), "admin-exhibits");
     }
 
@@ -197,6 +231,10 @@ public class AdminExhibitController {
         if (count("select count(*) from artifacts where id=? and deleted_at is null", artifactId) != 1) {
             throw new ResourceNotFoundException("关联文物不存在或已删除");
         }
+    }
+
+    private static String escapeLike(String raw) {
+        return raw.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     private long count(String sql, Object... values) { return jdbc.queryForObject(sql, Long.class, values); }

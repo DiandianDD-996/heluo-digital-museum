@@ -39,6 +39,12 @@ class PocketBayGuideMetaInjectionTests {
                 .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(content().string(containsString("<meta name=\"museum-guide-enabled\" content=\"true\">")));
 
+        for (String adminSpaRoute : new String[] { "/admin", "/admin/artifacts", "/admin/categories", "/admin/slots", "/admin/guide" }) {
+            mvc.perform(get(adminSpaRoute))
+                    .andExpect(status().isOk())
+                    .andExpect(header().string("Cache-Control", "no-store"));
+        }
+
         mvc.perform(get("/unknown/page"))
                 .andExpect(status().isNotFound())
                 .andExpect(header().string("Cache-Control", "no-store"))

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import '../styles/07-admin.css'
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { ElOption, ElSelect } from 'element-plus'
 import 'element-plus/es/components/select/style/css'
@@ -18,12 +18,21 @@ import AdminConfirmDialog from '../components/AdminConfirmDialog.vue'
 import { useAdminMutation } from '../composables/useAdminMutation'
 import { useUnsavedChanges } from '../composables/useUnsavedChanges'
 
+const props = defineProps<{ lockedTab?: 'artifacts' | 'articles' }>()
+
 interface Category { id: number; code: string; name: string }
 interface ManagedItem { titleEn?: string | null; summaryEn?: string | null; id: number; title: string; slug: string; summary: string; content: string; categoryId: number; categoryName: string; status: string; deleted: boolean; coverImageUrl: string; updatedAt: string; authorDisplay?: string; period?: string; material?: string; dimensions?: string; collectionLocation?: string; accessionNo?: string; coverAssetRef?: string }
 
 const auth = useAuthStore()
 const router = useRouter()
-const tab = ref<'artifacts' | 'articles'>('artifacts')
+const tab = ref<'artifacts' | 'articles'>(props.lockedTab ?? 'artifacts')
+const isStandalone = computed(() => Boolean(props.lockedTab))
+const shellTitle = computed(() => !isStandalone.value ? '内容管理' : (tab.value === 'artifacts' ? '馆藏文物' : '文化专题'))
+const shellDescription = computed(() => !isStandalone.value
+  ? '创建、发布与维护面向公众的馆藏内容。'
+  : (tab.value === 'artifacts'
+    ? '维护馆藏文物档案、器物规格、中英双语译文与发布状态。'
+    : '撰写、实时预览 68ch 图录排印并发布河洛文化专题文章。'))
 const contentTabs = [
   { value: 'artifacts', label: '文物' },
   { value: 'articles', label: '文章' },
@@ -264,6 +273,18 @@ function onKeydown(event: KeyboardEvent) {
     closeDrawer()
   }
 }
+watch(() => props.lockedTab, (next) => {
+  if (!next || next === tab.value) return
+  resetForm()
+  drawerOpen.value = false
+  drawerView.value = 'form'
+  tab.value = next
+  error.value = ''
+  message.value = ''
+  unsaved.markClean()
+  void load(1)
+})
+
 onMounted(() => {
   void load()
   window.addEventListener('keydown', onKeydown)
@@ -276,7 +297,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <AdminShell v-if="auth.isAdmin" title="内容管理" description="创建、发布与维护面向公众的馆藏内容。" section="content">
+  <AdminShell v-if="auth.isAdmin" :title="shellTitle" :description="shellDescription" :section="isStandalone ? tab : 'content'">
     <template #header-actions>
       <button
         type="button"
@@ -286,10 +307,12 @@ onBeforeUnmount(() => {
       >
         {{ createButtonLabel }}
       </button>
-      <RouterLink class="admin-header-link" to="/admin/operations">进入运营管理 →</RouterLink>
+      <RouterLink class="admin-header-link" :to="isStandalone ? '/admin' : '/admin/operations'">
+        {{ isStandalone ? '返回运营看板 →' : '进入运营管理 →' }}
+      </RouterLink>
     </template>
 
-    <section v-if="summary" class="dashboard-summary" data-glass="light" aria-label="运营概览">
+    <section v-if="summary && !isStandalone" class="dashboard-summary" data-glass="light" aria-label="运营概览">
       <article><span>用户</span><strong>{{ summary.userCount }}</strong><small>注册账号</small></article>
       <article><span>预约</span><strong>{{ summary.appointmentCount }}</strong><small>累计记录</small></article>
       <article><span>订单</span><strong>{{ summary.orderCount }}</strong><small>商城订单</small></article>
@@ -299,7 +322,7 @@ onBeforeUnmount(() => {
     <InlineStatus :message="error || listState[tab].error" kind="error" />
 
     <div class="admin-toolbar">
-      <AdminTabs :model-value="tab" :tabs="contentTabs" label="内容类型" panel-id="admin-content-panel" @update:model-value="selectContentTab" />
+      <AdminTabs v-if="!isStandalone" :model-value="tab" :tabs="contentTabs" label="内容类型" panel-id="admin-content-panel" @update:model-value="selectContentTab" />
       <div class="admin-list-filters">
         <label class="admin-filter-field admin-filter-field--search">
           <span class="admin-filter-field__label">查找内容</span>

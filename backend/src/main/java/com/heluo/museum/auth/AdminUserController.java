@@ -18,8 +18,11 @@ import java.security.SecureRandom;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
@@ -37,6 +40,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/admin/users")
 public class AdminUserController {
+    private static final Set<String> VALID_STATUSES = Set.of("ACTIVE", "DISABLED");
+
     private final JdbcTemplate jdbc;
     private final OperationLogService operationLogService;
     private final NotificationService notificationService;
@@ -51,22 +56,37 @@ public class AdminUserController {
 
     @GetMapping
     public ApiResponse<ContentPage<UserAdminView>> list(@RequestParam(defaultValue = "1") int page,
-                                                         @RequestParam(defaultValue = "20") int size,
-                                                         @RequestParam(required = false) String keyword) {
+                                                        @RequestParam(defaultValue = "20") int size,
+                                                        @RequestParam(required = false) String keyword,
+                                                        @RequestParam(required = false) String status) {
         if (page < 1 || size < 1 || size > 100) {
             throw new IllegalArgumentException("page 必须大于 0，size 必须在 1 到 100 之间");
         }
-        String where = " where u.deleted_at is null";
-        Object[] queryArguments = new Object[0];
-        if (keyword != null && !keyword.isBlank()) {
-            where += " and (u.username like ? or u.nickname like ?)";
-            String query = "%" + keyword.trim() + "%";
-            queryArguments = new Object[] {query, query};
+        StringBuilder where = new StringBuilder(" where u.deleted_at is null");
+        List<Object> params = new ArrayList<>();
+        if (status != null && !status.isBlank()) {
+            String normalizedStatus = status.trim().toUpperCase(Locale.ROOT);
+            if (!VALID_STATUSES.contains(normalizedStatus)) {
+                throw new IllegalArgumentException("用户状态不合法");
+            }
+            where.append(" and u.status=?");
+            params.add(normalizedStatus);
         }
-        long total = jdbc.queryForObject("select count(*) from users u" + where, Long.class, queryArguments);
-        Object[] dataArguments = java.util.Arrays.copyOf(queryArguments, queryArguments.length + 2);
-        dataArguments[dataArguments.length - 2] = size;
-        dataArguments[dataArguments.length - 1] = (page - 1) * size;
+        if (keyword != null && !keyword.isBlank()) {
+            String escaped = escapeLike(keyword.trim().toLowerCase(Locale.ROOT));
+            String pattern = "%" + escaped + "%";
+            where.append(" and (lower(u.username) like ? escape '\\'"
+                    + " or lower(u.nickname) like ? escape '\\'"
+                    + " or lower(coalesce(u.email,'')) like ? escape '\\'"
+                    + " or lower(coalesce(u.phone,'')) like ? escape '\\')");
+            for (int i = 0; i < 4; i++) {
+                params.add(pattern);
+            }
+        }
+        long total = jdbc.queryForObject("select count(*) from users u" + where, Long.class, params.toArray());
+        List<Object> dataArguments = new ArrayList<>(params);
+        dataArguments.add(size);
+        dataArguments.add((page - 1) * size);
         List<UserAdminView> items = jdbc.query(
                 "select u.id,u.username,u.nickname,u.email,u.phone,u.status,u.created_at,"
                         + "group_concat(r.code order by r.code separator ',') role_codes from users u "
@@ -76,7 +96,7 @@ public class AdminUserController {
                 (rs, rowNum) -> new UserAdminView(rs.getLong("id"), rs.getString("username"), rs.getString("nickname"),
                         empty(rs.getString("email")), empty(rs.getString("phone")), rs.getString("status"),
                         List.of(empty(rs.getString("role_codes")).split(",")), rs.getTimestamp("created_at").toInstant().toString()),
-                dataArguments);
+                dataArguments.toArray());
         return ApiResponse.ok(ContentPage.of(items, page, size, total), "admin-users");
     }
 
@@ -142,6 +162,10 @@ public class AdminUserController {
             throw new ResourceNotFoundException("用户不存在");
         }
         return users.get(0);
+    }
+
+    private static String escapeLike(String raw) {
+        return raw.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     private long count(String sql, Object... values) {

@@ -72,3 +72,7 @@ museum:
   orders:
     expiry-initial-delay-ms: ${MUSEUM_ORDER_EXPIRY_INITIAL_DELAY_MS:60000}
     expiry-scan-ms: ${MUSEUM_ORDER_EXPIRY_SCAN_MS:60000}
+  analytics:
+    enabled: ${MUSEUM_ANALYTICS_ENABLED:true}
+    demo-seed-enabled: ${MUSEUM_ANALYTICS_DEMO_SEED_ENABLED:false}
+    visitor-salt: ${MUSEUM_ANALYTICS_VISITOR_SALT:heluo-museum-analytics-v1}
